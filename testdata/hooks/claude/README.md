@@ -11,3 +11,9 @@ versão do Claude Code: `testdata/hooks/claude/<versão>/<evento>-<ferramenta>-<
   (`content`, `old_string`, `new_string`, `new_source`, `tool_response`,
   `prompt`, `message`) como `<removido>`.
 - Nunca editar à mão para "consertar" uma fixture reprovada: recapture.
+
+## Versões capturadas
+
+| Versão | Cenários | Observações |
+|---|---|---|
+| 2.1.309 | `Edit`, `Write`, `NotebookEdit` pela sessão principal; `Write` por subagente editor e não editor (Pre e Post de cada) | `agent_type` só dentro de subagente; `NotebookEdit` usa `notebook_path`; `MultiEdit` não oferecido; campo `scratchpad_dir` presente |

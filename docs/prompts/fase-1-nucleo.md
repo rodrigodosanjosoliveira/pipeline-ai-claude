@@ -1,8 +1,8 @@
 # Prompt — Fase 1: núcleo de governança
 
 > Para colar no Claude Code com o repositório `pipeline-ai-claude` aberto no WSL.
-> Pré-requisitos: PR da Fase 0 mesclada; fixtures em `testdata/hooks/claude/<versão>/`
-> (sem elas, o pacote `hook` não começa); clone de leitura do pipeline-ai em
+> Pré-requisitos: PRs da Fase 0 mescladas (TASK-002 fixtures 2.1.309, TASK-003
+> `scratchpad_dir`); clone de leitura do pipeline-ai em
 > `~/workspace/pipeline-ai` no commit `0eac73a`.
 
 ---
@@ -151,8 +151,18 @@ CRLF. Fuzz: `FuzzParse` não entra em pânico e é determinístico.
 protocolo do **Claude Code**, saída por código (0 libera, 2 bloqueia) e mensagem em
 stderr.
 
+Formato confirmado nas fixtures do Claude Code 2.1.309 (`testdata/hooks/claude/2.1.309/`):
+- dentro de subagente, `agent_type` traz o nome do subagente (`dev-implementation`,
+  `pm-triage`); na sessão principal o campo **não existe**;
+- `NotebookEdit` envia o caminho em `tool_input.notebook_path`, não em `file_path`;
+- `MultiEdit` não foi oferecido pelo runtime nesta versão (sem captura);
+- há campos extras (`scratchpad_dir`, `permission_mode` etc.): o hook ignora campos
+  desconhecidos (não use `DisallowUnknownFields` no payload).
+
 Ordem de decisão (TD-08, TD-09, TD-10):
 1. Leitura do stdin falha, JSON inválido ou não objeto → **2**.
+1a. `hook_event_name` presente e diferente de `PreToolUse` → **2** (hook registrado
+    no evento errado; o `doctor` aponta a correção).
 2. `tool_name ∉ {Edit, Write, MultiEdit, NotebookEdit}` → 0.
 3. Caminho: `tool_input.file_path`, ou `tool_input.notebook_path` no
    `NotebookEdit`. Ausente ou vazio → **2**.
@@ -170,14 +180,37 @@ Mensagem de bloqueio: arquivo relativo à raiz, origem (`sessão principal` ou
 lista de editores e próximo passo. Nunca imprimir conteúdo do payload além do
 caminho e do agente.
 
-Testes: **todas** as fixtures de `testdata/hooks/claude/**` passam pelo `Run` com a
-decisão esperada declarada numa tabela (fixture → código), usando uma config de
-teste em diretório temporário cuja raiz substitui `/workspace/exemplo` (reescreva o
-payload no teste). Mais: JSON inválido, stdin com erro, ferramenta de leitura,
-caminho ausente, `NotebookEdit` com `notebook_path`, relativo, symlink de fora para
-dentro de caminho protegido, caixa diferente, `..` escapando da raiz, config
-ausente, config inválida. Fuzz: `FuzzRun` nunca devolve 0 para payload que não seja
-JSON objeto válido com ferramenta de edição e caminho resolvível.
+Testes com as fixtures reais. Config de teste num diretório temporário, cuja raiz
+substitui `/workspace/exemplo` em todos os caminhos do payload (reescreva no teste):
+
+```json
+{"version": 1, "project_type": "api", "database": "postgres", "git_provider": "github",
+ "protected_paths": ["internal/", "docs-ai/"],
+ "no_agent_paths": ["docs-ai/restrito/"],
+ "editor_agents": ["dev-implementation"]}
+```
+
+| Fixture (`testdata/hooks/claude/2.1.309/`) | Origem | Esperado | Prova |
+|---|---|---|---|
+| `pretooluse-edit-main.json` | real | **2** | sessão principal bloqueada em `internal/` |
+| `pretooluse-write-main.json` | real | **2** | idem em `docs-ai/` |
+| `pretooluse-notebookedit-main.json` | real | **2** | `notebook_path` é lido (no pipeline-ai esse caso passa sem checagem) |
+| `pretooluse-write-dev-implementation.json` | real | **0** | editor liberado por `agent_type` |
+| `pretooluse-write-pm-triage.json` | real | **2** | agente não editor bloqueado |
+| `posttooluse-*.json` (5 arquivos) | real | **2** | evento errado (regra 1a) |
+| Edit por `dev-implementation` | derivado de `pretooluse-edit-main` + `agent_type` de `pretooluse-write-dev-implementation` | **0** | |
+| `dev-implementation` em `docs-ai/restrito/x.md` | derivado | **2** | `no_agent_paths` vale para editor |
+| `MultiEdit` pela sessão principal em `internal/` | **sintético** (marcar no nome do caso) | **2** | ferramenta ainda coberta |
+
+Casos derivados e sintéticos são montados no próprio teste a partir das fixtures
+reais (nunca arquivos novos em `testdata/`). Um teste falha se surgir em
+`testdata/hooks/claude/**` uma fixture `pretooluse-*` sem linha na tabela.
+
+Mais: JSON inválido, stdin com erro, ferramenta de leitura, caminho ausente,
+relativo, symlink de fora para dentro de caminho protegido, caixa diferente, `..`
+escapando da raiz, config ausente, config inválida. Fuzz: `FuzzRun` nunca devolve 0
+para payload que não seja JSON objeto válido com ferramenta de edição e caminho
+resolvível.
 
 ## 5. `internal/validate`
 
