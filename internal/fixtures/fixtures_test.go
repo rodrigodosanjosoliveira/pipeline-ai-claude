@@ -11,6 +11,7 @@ const rawPreToolUse = `{
   "session_id": "8f1c2d3e-aaaa-bbbb-cccc-123456789abc",
   "transcript_path": "/home/fulano/.claude/projects/x/abc.jsonl",
   "cwd": "/home/fulano/workspace/produto",
+  "scratchpad_dir": "/tmp/claude-1000/-home-fulano-workspace-produto/8f1c2d3e/scratchpad",
   "hook_event_name": "PreToolUse",
   "tool_name": "MultiEdit",
   "agent_type": "dev-implementation",
@@ -31,7 +32,7 @@ func TestSanitize(t *testing.T) {
 		t.Fatalf("Sanitize: %v", err)
 	}
 	s := string(out)
-	for _, proibido := range []string{"fulano", "produto\"", "segredo", "8f1c2d3e", "a1b2c3", "toolu_ABCDEF"} {
+	for _, proibido := range []string{"fulano", "/tmp/", "produto\"", "segredo", "8f1c2d3e", "a1b2c3", "toolu_ABCDEF"} {
 		if strings.Contains(s, proibido) {
 			t.Errorf("saída ainda contém %q:\n%s", proibido, s)
 		}
@@ -40,6 +41,7 @@ func TestSanitize(t *testing.T) {
 		`"file_path": "/workspace/exemplo/internal/exemplo/alvo.go"`,
 		`"cwd": "/workspace/exemplo"`,
 		`"session_id": "` + PlaceholderSessionID + `"`,
+		`"scratchpad_dir": "` + PlaceholderScratchpad + `"`,
 		`"old_string": "` + PlaceholderContent + `"`,
 		`"agent_type": "dev-implementation"`,
 	} {
@@ -92,6 +94,7 @@ func TestCheck(t *testing.T) {
 	}{
 		{"caminho real", `{"cwd": "/home/fulano/x"}`, nil, 1},
 		{"session real", `{"session_id": "abc"}`, nil, 1},
+		{"scratchpad real", `{"scratchpad_dir": "/tmp/claude-1000/x"}`, nil, 1},
 		{"conteúdo presente", `{"tool_input": {"content": "package main"}}`, nil, 1},
 		{"termo bloqueado", `{"cwd": "/workspace/exemplo/NomeInterno"}`, []string{"# comentário", "nomeinterno"}, 1},
 		{"válido", `{"cwd": "/workspace/exemplo", "tool_input": {"file_path": "/workspace/exemplo/a.go", "content": "<removido>"}}`, nil, 0},
