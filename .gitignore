@@ -1,0 +1,7 @@
+/bin/
+/dist/
+*.test
+*.out
+coverage.*
+# capturas brutas de hook nunca entram no repositório (ver docs/fase-0-captura-fixtures.md)
+/captures/

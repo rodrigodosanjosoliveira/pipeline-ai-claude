@@ -1,0 +1,13 @@
+pipeline-ai-claude
+Copyright (c) 2026 Rodrigo Oliveira
+Licenciado sob a MIT License (ver LICENSE).
+
+Este projeto porta código do pipeline-ai
+(https://github.com/rodrigodosanjosoliveira/pipeline-ai), também sob a MIT License,
+Copyright (c) 2026 Rodrigo Oliveira.
+
+Arquivos portados (origem no commit 0eac73a, salvo indicação):
+
+| Arquivo neste repositório | Origem no pipeline-ai | Alterações |
+|---|---|---|
+| (nenhum ainda) | | |
