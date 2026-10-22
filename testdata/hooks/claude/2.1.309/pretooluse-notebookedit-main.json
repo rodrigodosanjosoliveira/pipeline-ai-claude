@@ -1,0 +1,20 @@
+{
+  "cwd": "/workspace/exemplo",
+  "effort": {
+    "level": "medium"
+  },
+  "hook_event_name": "PreToolUse",
+  "permission_mode": "auto",
+  "prompt_id": "88a128c2-8386-4e97-9d21-0c807dd1d29d",
+  "scratchpad_dir": "/home/exemplo/.claude/scratchpad/exemplo",
+  "session_id": "00000000-0000-0000-0000-000000000000",
+  "tool_input": {
+    "cell_type": "code",
+    "edit_mode": "insert",
+    "new_source": "<removido>",
+    "notebook_path": "/workspace/exemplo/docs-ai/exemplo.ipynb"
+  },
+  "tool_name": "NotebookEdit",
+  "tool_use_id": "toolu_0001",
+  "transcript_path": "/home/exemplo/.claude/projects/exemplo/sessao.jsonl"
+}

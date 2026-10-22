@@ -1,0 +1,20 @@
+{
+  "agent_id": "agent-0001",
+  "agent_type": "dev-implementation",
+  "cwd": "/workspace/exemplo",
+  "effort": {
+    "level": "medium"
+  },
+  "hook_event_name": "PreToolUse",
+  "permission_mode": "auto",
+  "prompt_id": "2aa17dba-7ebb-43a3-a4dc-e73f43c51efa",
+  "scratchpad_dir": "/home/exemplo/.claude/scratchpad/exemplo",
+  "session_id": "00000000-0000-0000-0000-000000000000",
+  "tool_input": {
+    "content": "<removido>",
+    "file_path": "/workspace/exemplo/internal/exemplo/novo.go"
+  },
+  "tool_name": "Write",
+  "tool_use_id": "toolu_0001",
+  "transcript_path": "/home/exemplo/.claude/projects/exemplo/sessao.jsonl"
+}

@@ -1,0 +1,22 @@
+{
+  "agent_id": "agent-0001",
+  "agent_type": "pm-triage",
+  "cwd": "/workspace/exemplo",
+  "duration_ms": 10,
+  "effort": {
+    "level": "medium"
+  },
+  "hook_event_name": "PostToolUse",
+  "permission_mode": "auto",
+  "prompt_id": "6ae5b565-a0f6-4a90-9ac9-bf29e9dd15a7",
+  "scratchpad_dir": "/home/exemplo/.claude/scratchpad/exemplo",
+  "session_id": "00000000-0000-0000-0000-000000000000",
+  "tool_input": {
+    "content": "<removido>",
+    "file_path": "/workspace/exemplo/docs-ai/exemplo-triage.md"
+  },
+  "tool_name": "Write",
+  "tool_response": "<removido>",
+  "tool_use_id": "toolu_0001",
+  "transcript_path": "/home/exemplo/.claude/projects/exemplo/sessao.jsonl"
+}

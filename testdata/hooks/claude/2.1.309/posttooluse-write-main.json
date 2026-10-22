@@ -1,0 +1,20 @@
+{
+  "cwd": "/workspace/exemplo",
+  "duration_ms": 24,
+  "effort": {
+    "level": "medium"
+  },
+  "hook_event_name": "PostToolUse",
+  "permission_mode": "auto",
+  "prompt_id": "ce713b90-3db5-4050-9f62-0d92bd873499",
+  "scratchpad_dir": "/home/exemplo/.claude/scratchpad/exemplo",
+  "session_id": "00000000-0000-0000-0000-000000000000",
+  "tool_input": {
+    "content": "<removido>",
+    "file_path": "/workspace/exemplo/docs-ai/exemplo.md"
+  },
+  "tool_name": "Write",
+  "tool_response": "<removido>",
+  "tool_use_id": "toolu_0001",
+  "transcript_path": "/home/exemplo/.claude/projects/exemplo/sessao.jsonl"
+}
