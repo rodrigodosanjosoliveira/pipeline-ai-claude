@@ -1,0 +1,20 @@
+{
+  "cwd": "/workspace/exemplo",
+  "effort": {
+    "level": "medium"
+  },
+  "hook_event_name": "PreToolUse",
+  "permission_mode": "auto",
+  "prompt_id": "e91e12fc-78ef-4f50-82fa-f5285c5049ad",
+  "scratchpad_dir": "/home/exemplo/.claude/scratchpad/exemplo",
+  "session_id": "00000000-0000-0000-0000-000000000000",
+  "tool_input": {
+    "file_path": "/workspace/exemplo/internal/exemplo/alvo.go",
+    "new_string": "<removido>",
+    "old_string": "<removido>",
+    "replace_all": false
+  },
+  "tool_name": "Edit",
+  "tool_use_id": "toolu_0001",
+  "transcript_path": "/home/exemplo/.claude/projects/exemplo/sessao.jsonl"
+}
