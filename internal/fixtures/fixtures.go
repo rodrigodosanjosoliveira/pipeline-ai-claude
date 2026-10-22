@@ -24,6 +24,7 @@ const (
 	PlaceholderHome       = "/home/exemplo"
 	PlaceholderSessionID  = "00000000-0000-0000-0000-000000000000"
 	PlaceholderTranscript = PlaceholderHome + "/.claude/projects/exemplo/sessao.jsonl"
+	PlaceholderScratchpad = PlaceholderHome + "/.claude/scratchpad/exemplo"
 	PlaceholderAgentID    = "agent-0001"
 	PlaceholderToolUseID  = "toolu_0001"
 	PlaceholderContent    = "<removido>"
@@ -45,8 +46,11 @@ var contentKeys = map[string]bool{
 var fixedKeys = map[string]string{
 	"session_id":      PlaceholderSessionID,
 	"transcript_path": PlaceholderTranscript,
-	"agent_id":        PlaceholderAgentID,
-	"tool_use_id":     PlaceholderToolUseID,
+	// scratchpad_dir aponta para um diretório temporário fora do projeto e do
+	// home (ex.: /tmp/claude-<uid>/...), que não é coberto pela troca de prefixo.
+	"scratchpad_dir": PlaceholderScratchpad,
+	"agent_id":       PlaceholderAgentID,
+	"tool_use_id":    PlaceholderToolUseID,
 }
 
 // Options configura a sanitização.
