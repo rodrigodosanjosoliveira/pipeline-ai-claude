@@ -124,8 +124,8 @@ type Config struct {
 	// DefaultReportSchema; presente, substitui o padrão por inteiro.
 	ReportSchema *ReportSchema `json:"report_schema"`
 
-	// Sensors são verificações executadas sobre a delivery. Nesta fase, só
-	// lidas e validadas.
+	// Sensors são as verificações do projeto, executadas por
+	// `pipeline-claude sensors` e pela ferramenta MCP pipeline_sensors (TD-19).
 	Sensors []Sensor `json:"sensors"`
 
 	// root é a raiz do projeto, preenchida no carregamento.

@@ -55,9 +55,14 @@ internal/buildinfo      versão do binário
 internal/config         carrega e valida .pipeline-claude.json
 internal/gitdiff        arquivos alterados (diff completo, TD-11)
 internal/report         parser e checagem do report de delivery
+internal/hookio         leitura do payload de hook e resolução de caminho na raiz
 internal/hook           hook PreToolUse (bloqueio de caminho protegido)
+internal/fmthook        hook PostToolUse (formata .go com go/format)
 internal/validate       validação de delivery (report, índice, diff)
+internal/sensors        execução dos sensores do projeto (argv, sem shell)
+internal/delivery       criação de delivery com ID sequencial e registro no índice
 internal/doctor         diagnóstico do ambiente e do projeto
+internal/mcp            servidor MCP por stdio (ferramentas e recursos)
 internal/fixtures       sanitização e checagem de payloads de hook
 tools/fixture-sanitize  converte capturas brutas em fixtures publicáveis
 scripts/capture-hook.sh grava payload bruto de hook (Fase 0, nunca bloqueia)
@@ -65,9 +70,7 @@ testdata/hooks/claude   fixtures sanitizadas por versão do Claude Code
 docs/                   decisões, guias e prompts de execução por fatia
 ```
 
-Pacotes previstos: Fase 2 `hookio`, `fmthook`, `sensors`, `delivery`, `mcp`
-(prompt em `docs/prompts/fase-2-automacao.md`); depois `manifest`, `scaffold`,
-`sync`, `adopt`.
+Pacotes previstos: `manifest`, `scaffold`, `sync`, `adopt` (Fases 3 e 4).
 
 ## Convenções
 
