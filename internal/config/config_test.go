@@ -563,6 +563,69 @@ func TestLoadValidacao(t *testing.T) {
 			}}),
 			wantErr: "report_schema",
 		},
+
+		// Mesmas regras que report.Check aplica ao esquema: uma config que o
+		// Load aceita não pode falhar no Check. Nome "vazio" é o que fica vazio
+		// depois de tirar espaços, ":" e "." (normalização de título do report).
+		{
+			name:    "report_schema com front_required em branco",
+			body:    bodyWith(t, map[string]any{"report_schema": map[string]any{"section_level": 2, "front_required": []any{"delivery_id", "  "}}}),
+			wantErr: "front_required[1]",
+		},
+		{
+			name:    "report_schema com sections_required só pontuação",
+			body:    bodyWith(t, map[string]any{"report_schema": map[string]any{"section_level": 2, "sections_required": []any{"Dev", " : "}}}),
+			wantErr: "sections_required[1]",
+		},
+		{
+			name: "report_schema com fields_required de seção vazia",
+			body: bodyWith(t, map[string]any{"report_schema": map[string]any{"section_level": 2,
+				"fields_required": map[string]any{".": []any{"Resultado"}}}}),
+			wantErr: "fields_required",
+		},
+		{
+			name: "report_schema com campo vazio em fields_required",
+			body: bodyWith(t, map[string]any{"report_schema": map[string]any{"section_level": 2,
+				"fields_required": map[string]any{"QA": []any{"Resultado", ""}}}}),
+			wantErr: "fields_required",
+		},
+		{
+			name: "report_schema com flag de seção só pontuação",
+			body: bodyWith(t, map[string]any{"report_schema": map[string]any{"section_level": 2,
+				"flag_sections": map[string]any{"require_security": map[string]any{"section": ":"}}}}),
+			wantErr: "flag_sections",
+		},
+		{
+			name: "report_schema com campo vazio em flag_sections",
+			body: bodyWith(t, map[string]any{"report_schema": map[string]any{"section_level": 2,
+				"flag_sections": map[string]any{"require_security": map[string]any{"section": "Security", "fields": []any{" "}}}}}),
+			wantErr: "flag_sections",
+		},
+		{
+			name:    "report_schema com checklist_section só pontuação",
+			body:    bodyWith(t, map[string]any{"report_schema": map[string]any{"section_level": 2, "checklist_section": " .: "}}),
+			wantErr: "checklist_section",
+		},
+		{
+			name: "report_schema sem checklist_section desliga a checagem",
+			body: bodyWith(t, map[string]any{"report_schema": map[string]any{"section_level": 2, "checklist_section": ""}}),
+		},
+		{
+			name:    "report_schema com forbid_markers vazio",
+			body:    bodyWith(t, map[string]any{"report_schema": map[string]any{"section_level": 2, "forbid_markers": []any{"TODO", ""}}}),
+			wantErr: "forbid_markers[1]",
+		},
+		{
+			name:    "report_schema com forbid_markers com espaço nas pontas",
+			body:    bodyWith(t, map[string]any{"report_schema": map[string]any{"section_level": 2, "forbid_markers": []any{" TODO"}}}),
+			wantErr: "forbid_markers[0]",
+		},
+		{
+			name: "report_schema com nomes acentuados e pontuação interna",
+			body: bodyWith(t, map[string]any{"report_schema": map[string]any{"section_level": 2,
+				"sections_required": []any{"Revisão: Segurança."},
+				"fields_required":   map[string]any{"Revisão: Segurança.": []any{"Evidências (código/teste)"}}}}),
+		},
 	}
 
 	for _, tt := range tests {
