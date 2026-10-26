@@ -132,12 +132,122 @@ quando `deliveries_dir` ou `index_file` está em `protected_paths` (TD-16).
 Configuração ausente ou inválida → toda ferramenta responde `isError`. `sync`
 não é exposto (TD-16).
 
+## Fase 3
+
+### TD-22 — Templates embutidos com catálogo explícito
+`internal/templates` embute (`embed.FS`) os arquivos gerados e declara cada um
+num catálogo: caminho de destino, classe (**gerenciado** ou **do projeto**,
+TD-15) e condição (sempre, ou módulo de `enabled_modules`). Renderização com
+`text/template`, delimitadores `[[`/`]]` (Markdown e JSON usam `{{` à vontade) e
+`missingkey=error`. Arquivo gerenciado depende só da versão do toolkit e de
+`enabled_modules`, nunca de nome, módulo Go ou resumo do projeto: o `sync`
+consegue re-renderizá-lo só com a config.
+Templates portados do pipeline-ai registram a origem no `NOTICE` (uma linha por
+grupo de arquivos), **não** em cabeçalho no arquivo, que iria parar no projeto
+gerado. O arquivo Go do catálogo leva o cabeçalho normal.
+**Motivo:** o catálogo é a fonte única do que é gerenciado; sem ele, `sync` e
+`init` divergem sobre o que o toolkit é dono.
+
+### TD-23 — `.pipeline-claude.lock`
+JSON com `version: 1`, `toolkit_version`, `files` (caminho → sha256 em hex) e
+`released` (caminhos que o projeto assumiu), chaves ordenadas, LF e quebra de
+linha final: escrever duas vezes o mesmo lock dá os mesmos bytes. O sha256 é do
+conteúdo com CRLF normalizado para LF (checkout com `autocrlf` no Windows não
+pode virar "editado"). Leitura estrita (`DisallowUnknownFields`, versão
+obrigatória); caminho relativo com `/`, limpo, sem `..`, e dentro da área
+gerenciada (`.claude/agents/`, `.claude/skills/`, `.githooks/`). Lock ilegível
+ou com caminho fora da área: `sync` e `doctor` falham fechado (TD-08).
+**Motivo:** um lock adulterado não pode fazer o `sync` gravar ou apagar fora do
+que o toolkit gera.
+
+### TD-24 — `init` gera em diretório novo, por staging
+`pipeline-claude init <nome>`: nome `^[a-z][a-z0-9-]*$` (TD-17), só `api` +
+PostgreSQL (TD-07), provedor `github|gitlab`. O destino não pode existir, ou tem
+de ser um diretório vazio. Tudo é gerado num diretório temporário irmão do
+destino e movido no fim (rename do staging, ou de cada entrada para dentro do
+destino vazio); qualquer falha remove o staging e deixa o destino como estava.
+Nada é sobrescrito. A versão fixada no `Makefile` gerado (TD-06) é a do binário
+se for versão de módulo (`vX.Y.Z`, pré-lançamento ou pseudo-versão); build
+`dev`/`dirty` exige `--toolkit-version` explícito. `--git` roda `git init -b
+main` e `git config core.hooksPath .githooks`; não faz commit.
+**Motivo:** `init` pela metade deixa um projeto que parece válido e não é.
+
+### TD-25 — `sync` só toca o que gerou e o projeto não editou
+Plano por arquivo gerenciado esperado (catálogo + `enabled_modules`) e por
+entrada do lock:
+
+| Situação | Ação |
+|---|---|
+| no lock, disco = lock, template igual | nada |
+| no lock, disco = lock, template mudou | atualiza |
+| no lock, disco ≠ lock | **editado**: não toca |
+| no lock, ausente no disco | recria (é o jeito de restaurar um editado) |
+| fora do lock, ausente no disco | cria |
+| fora do lock, existe no disco | **não gerenciado**: não toca |
+| em `released` | nada, nunca |
+| no lock, fora do esperado (template removido ou módulo desligado), disco = lock | apaga |
+| idem, disco ≠ lock | **editado**: não toca, sai do lock só com `--release` |
+
+Grava por temporário + rename, recusa symlink em qualquer componente do caminho
+e confere o destino dentro da raiz (TD-17). O lock é reescrito no fim com o que
+foi aplicado. `--dry-run` mostra o plano sem gravar; `--release <caminho>` move a
+entrada para `released`. Exit 0 sem conflito, 1 com editado ou não gerenciado, 2
+com config ou lock ausente/inválido, ou versão do binário ≠ versão do `Makefile`
+(templates de outra versão desfariam o pin, TD-06). Não exposto via MCP (TD-16).
+**Motivo:** atualizar templates sem atropelar o que o projeto ajustou (C17).
+
+### TD-26 — Camada Claude Code gerada
+- **Subagentes** em `.claude/agents/<nome>.md` (gerenciados), `name` igual ao
+  nome do arquivo (o hook compara `agent_type` com `editor_agents`, TD-10),
+  `tools` explícito em todos. Núcleo: `pm-triage`, `architecture-guardrails`,
+  `test-writer`, `dev-implementation`, `code-reviewer`, `security-review`,
+  `supply-chain-review`, `qa-validation`, `docs-update`, `git-delivery`.
+  Módulos: um por entrada de `config.Modules`.
+- **Revisores sem escrita** (resolve o ponto em aberto 2): `code-reviewer`,
+  `security-review`, `supply-chain-review`, `architecture-guardrails`,
+  `migration-reviewer`, `agent-auditor` e `tenant-isolation` não recebem `Edit`,
+  `Write`, `MultiEdit` nem `NotebookEdit`. Ajuste pós-review volta ao
+  `dev-implementation`.
+- **Fluxo** (resolve o ponto 3): `security-review` uma vez, depois do
+  `code-reviewer`, obrigatório quando o diff toca `security_surface_paths` (a
+  flag `require_security` já é forçada pelo validador, TD-13).
+- **Esquema de report** (resolve o ponto 4): o `config.DefaultReportSchema`; o
+  `.pipeline-claude.json` gerado não declara `report_schema`, e o
+  `report_template` gerado bate com ele.
+- **`tenant-isolation`** (resolve o ponto 5): entra como subagente genérico,
+  porque a config já aceita o módulo; desligado por padrão.
+- **Pre-push** (resolve o ponto 6): `.githooks/pre-push` gerenciado, bloqueando
+  push direto na `main`; ativo com `init --git` ou `git config core.hooksPath
+  .githooks`.
+- **Skills** de fluxo em `.claude/skills/<nome>/SKILL.md` (gerenciadas; o Claude
+  Code unificou commands e skills e recomenda skills): `nova-delivery`,
+  `fluxo`, `validar`.
+- **Do projeto** (gerados uma vez, nunca tocados pelo `sync`): `CLAUDE.md`,
+  `.claude/settings.json`, `.mcp.json`, `.pipeline-claude.json`, `Makefile`,
+  `.gitignore`, `go.mod`, código inicial, `docs-ai/`.
+- `.claude/settings.json` registra `hook` (PreToolUse,
+  `Edit|Write|MultiEdit|NotebookEdit`) e `fmt-hook` (PostToolUse,
+  `Edit|Write|MultiEdit`) com `"${CLAUDE_PROJECT_DIR}"/bin/pipeline-claude`, e
+  `permissions.deny` de `Edit` em `/.claude/**`, `/.mcp.json`,
+  `/.pipeline-claude.json` e `/.pipeline-claude.lock` (âncora `/` = raiz; vale
+  também para subagentes). Os mesmos caminhos vão em `no_agent_paths` (TD-10, e portanto também em
+  `protected_paths`):
+  duas camadas, uma do runtime e uma do hook.
+- `.mcp.json` registra `pipeline-claude mcp` com
+  `"${CLAUDE_PROJECT_DIR:-.}/bin/pipeline-claude"` (a variável só existe no
+  processo do servidor; o padrão `.` cobre o resto).
+**Motivo:** a identidade e as ferramentas do agente são aplicadas pelo runtime
+(TD-02); o que a sessão principal não pode editar fica negado em duas camadas.
+
+### TD-27 — `doctor` confere os arquivos gerenciados
+Checagem `sync`: lock ausente → aviso (projeto anterior ao `init` ou ainda sem
+`adopt`); lock inválido → erro; plano do `sync` com editado ou não gerenciado →
+aviso listando os caminhos; atualização pendente → aviso com `pipeline-claude
+sync`. Nunca grava.
+
 ## Pontos em aberto
 
 1. Distribuição da camada Claude também como plugin do Claude Code.
-2. Padrão de revisor: sem escrita (pipeline-ai) ou `code-reviewer` dono do ajuste
-   pós-dev restrito ao diff (C6); possivelmente configurável.
-3. Ordem padrão do fluxo: security em dois momentos ou só após review (C8).
-4. Esquema padrão de report.
-5. `tenant-isolation` como módulo genérico na v1.
-6. Pre-push local no `init`.
+
+Os pontos 2 a 6 (revisor, ordem do fluxo, esquema de report padrão,
+`tenant-isolation` e pre-push) foram resolvidos no TD-26.
