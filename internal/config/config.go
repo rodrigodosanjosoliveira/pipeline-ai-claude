@@ -28,6 +28,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"unicode"
 )
 
 // FileName é o nome do arquivo de configuração, procurado na raiz do projeto.
@@ -405,19 +406,67 @@ func (c *Config) normalize() error {
 	return nil
 }
 
+// validate aplica as mesmas regras que report.Check aplica ao esquema
+// (report.validateSchema), para que uma config aceita aqui nunca falhe lá.
+// Mudou uma, mude a outra.
 func (s *ReportSchema) validate() error {
 	if s.SectionLevel < 1 || s.SectionLevel > 6 {
 		return fmt.Errorf("section_level %d fora do intervalo 1 a 6", s.SectionLevel)
+	}
+	for i, k := range s.FrontRequired {
+		if strings.TrimSpace(k) == "" {
+			return fmt.Errorf("front_required[%d] vazio", i)
+		}
+	}
+	for i, t := range s.SectionsRequired {
+		if blankTitle(t) {
+			return fmt.Errorf("sections_required[%d] %q vazio", i, t)
+		}
+	}
+	for sec, fields := range s.FieldsRequired {
+		if blankTitle(sec) {
+			return fmt.Errorf("fields_required: seção %q vazia", sec)
+		}
+		for i, f := range fields {
+			if blankTitle(f) {
+				return fmt.Errorf("fields_required[%q][%d] %q vazio", sec, i, f)
+			}
+		}
 	}
 	for flag, fs := range s.FlagSections {
 		if !flagRe.MatchString(flag) {
 			return fmt.Errorf("flag_sections: chave %q inválida (formato ^require_[a-z_]+$)", flag)
 		}
-		if strings.TrimSpace(fs.Section) == "" {
-			return fmt.Errorf("flag_sections[%q]: section vazia", flag)
+		if blankTitle(fs.Section) {
+			return fmt.Errorf("flag_sections[%q]: section %q vazia", flag, fs.Section)
+		}
+		for i, f := range fs.Fields {
+			if blankTitle(f) {
+				return fmt.Errorf("flag_sections[%q].fields[%d] %q vazio", flag, i, f)
+			}
+		}
+	}
+	if strings.TrimSpace(s.ChecklistSection) != "" && blankTitle(s.ChecklistSection) {
+		return fmt.Errorf("checklist_section %q inválida", s.ChecklistSection)
+	}
+	for i, m := range s.ForbidMarkers {
+		if m == "" || strings.TrimSpace(m) != m {
+			return fmt.Errorf("forbid_markers[%d] %q vazio ou com espaço nas pontas", i, m)
 		}
 	}
 	return nil
+}
+
+// blankTitle diz se um título ou nome de campo fica vazio na normalização do
+// report (report.NormalizeTitle), que descarta espaços, ":", "." e marcas de
+// acento combinantes. Acentos pré-compostos viram letra e nunca somem.
+func blankTitle(s string) bool {
+	for _, r := range s {
+		if r != ':' && r != '.' && !unicode.IsSpace(r) && !unicode.Is(unicode.Mn, r) {
+			return false
+		}
+	}
+	return true
 }
 
 func oneOf(field, value string, allowed ...string) error {
