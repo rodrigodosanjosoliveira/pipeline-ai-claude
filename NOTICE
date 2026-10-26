@@ -10,4 +10,7 @@ Arquivos portados (origem no commit 0eac73a, salvo indicação):
 
 | Arquivo neste repositório | Origem no pipeline-ai | Alterações |
 |---|---|---|
-| (nenhum ainda) | | |
+| `internal/config/config.go` | `internal/config/config.go` | `.pipeline-claude.json` com `DisallowUnknownFields` e `version` obrigatória (TD-14); v1 só `api` + `postgres`, `git_provider` github/gitlab (TD-07); casamento sobre caminho relativo sem diferenciar caixa e `IsNoAgent` (TD-09, TD-10); `auto_flags`/`FlagsTriggeredBy` (TD-13); `report_schema` (TD-12); `sensors`; validação de caminhos e nomes; `Find` falha em erro de acesso (TD-08) |
+| `internal/config/config_test.go` | `internal/config/config_test.go` | Casos originais mantidos e adaptados (TD-07, TD-09, TD-14, comentados); casos novos para os campos e validações; `FuzzDecode` |
+| `internal/doctor/doctor.go` | `internal/doctor/doctor.go` | Checagens do Claude Code (hook no `.claude/settings.json`, TD-02) no lugar de `.agents` e pre-push; Go mínimo do `go.mod` do projeto com `GOTOOLCHAIN=local`; `gh`/`glab` por `git_provider` (TD-07); binário com a versão do `Makefile` (TD-06); aviso de filesystem case-insensitive (TD-09); status ok/aviso/erro com ação; comandos injetáveis |
+| `internal/doctor/doctor_test.go` | `internal/doctor/doctor_test.go` | Casos de versão do Go e de configuração mantidos e adaptados (TD-07); pre-push e `.agents` removidos com as checagens (TD-02); ambiente falso em vez da máquina; casos novos por checagem |
