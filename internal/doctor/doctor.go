@@ -3,10 +3,12 @@
 // lugar de .agents e pre-push; versão mínima do Go lida do go.mod do projeto, com
 // GOTOOLCHAIN=local; gh ou glab conforme git_provider (TD-07); binário com a
 // versão fixada no Makefile (TD-06); aviso de filesystem case-insensitive (TD-09);
-// status ok/aviso/erro com ação corretiva; comandos externos injetáveis.
+// status ok/aviso/erro com ação corretiva; comandos externos injetáveis; checagem
+// do fmt-hook no PostToolUse, com o settings.json lido uma vez só (TD-18).
 
 // Package doctor diagnostica se o ambiente e o projeto estão prontos para o
-// toolkit: ferramentas no PATH, configuração, registro do hook e binário.
+// toolkit: ferramentas no PATH, configuração, registro do hook e do fmt-hook
+// e binário.
 package doctor
 
 import (
@@ -54,12 +56,17 @@ const (
 	checkProvider = "provedor git"
 	checkConfig   = "configuração"
 	checkHook     = "hook"
+	checkFmtHook  = "fmt-hook"
 	checkBinary   = "binário"
 	checkCaseFS   = "filesystem"
 )
 
 // editTools são as ferramentas que o matcher do hook precisa cobrir.
 var editTools = []string{"Edit", "Write", "MultiEdit", "NotebookEdit"}
+
+// fmtTools são as ferramentas que o matcher do fmt-hook precisa cobrir
+// (NotebookEdit não edita Go, TD-18).
+var fmtTools = []string{"Edit", "Write", "MultiEdit"}
 
 // cmdTimeout limita cada comando externo.
 const cmdTimeout = 10 * time.Second
@@ -149,12 +156,14 @@ func collect(start string, e env) []Check {
 		root = abs
 	}
 
+	st := readSettings(root)
 	return []Check{
 		goCheck(root, e),
 		toolCheck(checkGit, "git", StatusError, "instale o git e deixe-o no PATH", e),
 		providerCheck(cfg, cfgErr, e),
 		configCheck(cfgErr),
-		hookCheck(root),
+		hookCheck(st),
+		fmtHookCheck(st),
 		binaryCheck(root, e),
 		caseFSCheck(root),
 	}
@@ -288,33 +297,50 @@ type hookCommand struct {
 
 const hookSnippet = `registre em ` + settingsFile + `: {"hooks": {"PreToolUse": [{"matcher": "Edit|Write|MultiEdit|NotebookEdit", "hooks": [{"type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/bin/pipeline-claude hook"}]}]}}`
 
-func hookCheck(root string) Check {
+const fmtHookSnippet = `registre em ` + settingsFile + `: {"hooks": {"PostToolUse": [{"matcher": "Edit|Write|MultiEdit", "hooks": [{"type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/bin/pipeline-claude fmt-hook"}]}]}}`
+
+// settingsState é o settings.json lido uma vez para as checagens hook e
+// fmt-hook. Se a leitura falhou, fail traz o erro (com nome da checagem hook).
+type settingsState struct {
+	s    settings
+	fail *Check
+}
+
+func readSettings(root string) settingsState {
 	data, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(settingsFile)))
 	if errors.Is(err, fs.ErrNotExist) {
-		return bad(checkHook, StatusError, settingsFile+" não encontrado", hookSnippet)
+		c := bad(checkHook, StatusError, settingsFile+" não encontrado", hookSnippet)
+		return settingsState{fail: &c}
 	}
 	if err != nil {
-		return bad(checkHook, StatusError, fmt.Sprintf("falha ao ler %s: %v", settingsFile, err), "confira as permissões de "+settingsFile)
+		c := bad(checkHook, StatusError, fmt.Sprintf("falha ao ler %s: %v", settingsFile, err), "confira as permissões de "+settingsFile)
+		return settingsState{fail: &c}
 	}
 	var s settings
 	if err := json.Unmarshal(data, &s); err != nil {
-		return bad(checkHook, StatusError, fmt.Sprintf("%s ilegível: %v", settingsFile, err), "corrija o JSON de "+settingsFile)
+		c := bad(checkHook, StatusError, fmt.Sprintf("%s ilegível: %v", settingsFile, err), "corrija o JSON de "+settingsFile)
+		return settingsState{fail: &c}
 	}
+	return settingsState{s: s}
+}
 
-	covered := map[string]bool{}
-	var wrongEvents []string
+// registrations varre os registros do comando reconhecido por isCmd: quais
+// ferramentas de tools os matchers em wantEvent cobrem e em que outros
+// eventos o comando aparece (ordenados, sem repetição).
+func registrations(s settings, isCmd func(string) bool, wantEvent string, tools []string) (covered map[string]bool, wrongEvents []string) {
+	covered = map[string]bool{}
 	for event, entries := range s.Hooks {
 		for _, en := range entries {
 			if !slices.ContainsFunc(en.Hooks, func(h hookCommand) bool {
-				return h.Type == "command" && isHookCommand(h.Command)
+				return h.Type == "command" && isCmd(h.Command)
 			}) {
 				continue
 			}
-			if event != "PreToolUse" {
+			if event != wantEvent {
 				wrongEvents = append(wrongEvents, event)
 				continue
 			}
-			for _, tool := range editTools {
+			for _, tool := range tools {
 				if matcherCovers(en.Matcher, tool) {
 					covered[tool] = true
 				}
@@ -322,7 +348,24 @@ func hookCheck(root string) Check {
 		}
 	}
 	slices.Sort(wrongEvents)
-	wrongEvents = slices.Compact(wrongEvents)
+	return covered, slices.Compact(wrongEvents)
+}
+
+func missingTools(tools []string, covered map[string]bool) []string {
+	var missing []string
+	for _, tool := range tools {
+		if !covered[tool] {
+			missing = append(missing, tool)
+		}
+	}
+	return missing
+}
+
+func hookCheck(st settingsState) Check {
+	if st.fail != nil {
+		return *st.fail
+	}
+	covered, wrongEvents := registrations(st.s, isHookCommand, "PreToolUse", editTools)
 	if len(wrongEvents) > 0 {
 		return bad(checkHook, StatusError,
 			"pipeline-claude hook registrado em "+strings.Join(wrongEvents, ", ")+"; lá ele bloqueia toda edição",
@@ -331,24 +374,50 @@ func hookCheck(root string) Check {
 	if len(covered) == 0 {
 		return bad(checkHook, StatusError, "pipeline-claude hook não registrado em PreToolUse", hookSnippet)
 	}
-	var missing []string
-	for _, tool := range editTools {
-		if !covered[tool] {
-			missing = append(missing, tool)
-		}
-	}
-	if len(missing) > 0 {
+	if missing := missingTools(editTools, covered); len(missing) > 0 {
 		return bad(checkHook, StatusError, "matcher do hook não cobre "+strings.Join(missing, ", "),
 			`use "matcher": "Edit|Write|MultiEdit|NotebookEdit" em `+settingsFile)
 	}
 	return ok(checkHook, "registrado em PreToolUse para "+strings.Join(editTools, "|"))
 }
 
+// fmtHookCheck confere o fmt-hook no PostToolUse (TD-18). Ausência ou matcher
+// incompleto é aviso: formatação é conveniência, não governança. Em outro
+// evento é erro: o fmt-hook sai com 2 fora do PostToolUse e, no PreToolUse,
+// bloquearia toda edição. Settings ilegível é aviso "não verificado": o erro
+// de leitura já sai, uma vez só, na checagem hook.
+func fmtHookCheck(st settingsState) Check {
+	if st.fail != nil {
+		return bad(checkFmtHook, StatusWarn, "não verificado: "+settingsFile+" ausente ou ilegível", "corrija "+settingsFile+" (ver checagem hook)")
+	}
+	covered, wrongEvents := registrations(st.s, isFmtHookCommand, "PostToolUse", fmtTools)
+	if len(wrongEvents) > 0 {
+		return bad(checkFmtHook, StatusError,
+			"pipeline-claude fmt-hook registrado em "+strings.Join(wrongEvents, ", ")+"; fora do PostToolUse ele sai com 2 e bloqueia toda edição",
+			"mova o registro para PostToolUse em "+settingsFile)
+	}
+	if len(covered) == 0 {
+		return bad(checkFmtHook, StatusWarn, "pipeline-claude fmt-hook não registrado em PostToolUse; arquivos .go não serão formatados", fmtHookSnippet)
+	}
+	if missing := missingTools(fmtTools, covered); len(missing) > 0 {
+		return bad(checkFmtHook, StatusWarn, "matcher do fmt-hook não cobre "+strings.Join(missing, ", "),
+			`use "matcher": "Edit|Write|MultiEdit" em `+settingsFile)
+	}
+	return ok(checkFmtHook, "registrado em PostToolUse para "+strings.Join(fmtTools, "|"))
+}
+
 // isHookCommand reconhece "pipeline-claude hook", com o binário por caminho
 // e aspas opcionais, e nada além.
-func isHookCommand(cmd string) bool {
+func isHookCommand(cmd string) bool { return isToolkitCommand(cmd, "hook") }
+
+// isFmtHookCommand reconhece "pipeline-claude fmt-hook", nas mesmas regras.
+func isFmtHookCommand(cmd string) bool { return isToolkitCommand(cmd, "fmt-hook") }
+
+// isToolkitCommand reconhece "pipeline-claude <sub>" exatamente: subcomando
+// por igualdade, sem argumento extra, então hook e fmt-hook não se confundem.
+func isToolkitCommand(cmd, sub string) bool {
 	f := strings.Fields(cmd)
-	if len(f) != 2 || f[1] != "hook" {
+	if len(f) != 2 || f[1] != sub {
 		return false
 	}
 	bin := strings.NewReplacer(`"`, "", `'`, "").Replace(f[0])

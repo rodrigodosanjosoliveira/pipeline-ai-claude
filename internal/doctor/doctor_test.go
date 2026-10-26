@@ -3,7 +3,8 @@
 // mínima vem do go.mod do projeto; config só api, TD-07); casos de pre-push e
 // .agents removidos com as checagens (Antigravity, TD-02; pre-push é ponto em
 // aberto 6); comandos externos injetados em vez de depender da máquina; casos
-// novos para hook no settings.json, binário e filesystem.
+// novos para hook no settings.json, binário e filesystem; checagem fmt-hook no
+// PostToolUse e convivência dos comandos hook × fmt-hook (TD-18).
 
 package doctor
 
@@ -25,7 +26,23 @@ const validConfig = `{"version": 1, "project_type": "api", "database": "postgres
  "protected_paths": ["internal/"], "editor_agents": ["dev-implementation"]}`
 
 const validSettings = `{"hooks": {"PreToolUse": [{"matcher": "Edit|Write|MultiEdit|NotebookEdit",
+ "hooks": [{"type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/bin/pipeline-claude hook"}]}],
+ "PostToolUse": [{"matcher": "Edit|Write|MultiEdit",
+ "hooks": [{"type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/bin/pipeline-claude fmt-hook"}]}]}}`
+
+// hookOnlySettings é o registro do hook sem o fmt-hook (o validSettings da Fase 1).
+const hookOnlySettings = `{"hooks": {"PreToolUse": [{"matcher": "Edit|Write|MultiEdit|NotebookEdit",
  "hooks": [{"type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/bin/pipeline-claude hook"}]}]}}`
+
+// hookEntryJSON monta uma entrada de evento do settings.json.
+func hookEntryJSON(event, matcher, command string) string {
+	return `"` + event + `": [{"matcher": "` + matcher + `", "hooks": [{"type": "command", "command": "` + command + `"}]}]`
+}
+
+// settingsWith monta um settings.json com as entradas dadas (eventos distintos).
+func settingsWith(entries ...string) string {
+	return `{"hooks": {` + strings.Join(entries, ", ") + `}}`
+}
 
 // fakeEnv simula PATH e saída de comandos.
 type fakeEnv struct {
@@ -277,6 +294,26 @@ func TestCheckHook(t *testing.T) {
 		{"settings ausente", "", StatusError, "settings.json"},
 		{"JSON inválido", `{"hooks":`, StatusError, "settings.json"},
 		{"hooks com tipo errado", `{"hooks": []}`, StatusError, "settings.json"},
+		// Convivência com o fmt-hook (TD-18): um comando não satisfaz nem quebra o outro.
+		{"só hook, sem fmt-hook", hookOnlySettings, StatusOK, ""},
+		{"fmt-hook no PreToolUse não satisfaz o hook",
+			settingsWith(hookEntryJSON("PreToolUse", "Edit|Write|MultiEdit|NotebookEdit", "pipeline-claude fmt-hook")),
+			StatusError, "pipeline-claude hook não registrado"},
+		{"fmt-hook no PostToolUse não satisfaz o hook",
+			settingsWith(hookEntryJSON("PostToolUse", "Edit|Write|MultiEdit|NotebookEdit", "pipeline-claude fmt-hook")),
+			StatusError, "pipeline-claude hook não registrado"},
+		{"fmt-hook no PreToolUse não quebra o hook",
+			`{"hooks": {"PreToolUse": [
+			 {"matcher": "Edit|Write|MultiEdit|NotebookEdit", "hooks": [{"type": "command", "command": "pipeline-claude hook"}]},
+			 {"matcher": "Edit|Write|MultiEdit", "hooks": [{"type": "command", "command": "pipeline-claude fmt-hook"}]}]}}`,
+			StatusOK, ""},
+		{"hook no PostToolUse ao lado do fmt-hook continua erro",
+			settingsWith(
+				hookEntryJSON("PreToolUse", "Edit|Write|MultiEdit|NotebookEdit", "pipeline-claude hook"),
+				`"PostToolUse": [{"matcher": "Edit|Write|MultiEdit", "hooks": [
+				 {"type": "command", "command": "pipeline-claude fmt-hook"},
+				 {"type": "command", "command": "pipeline-claude hook"}]}]`),
+			StatusError, "PostToolUse"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -289,6 +326,138 @@ func TestCheckHook(t *testing.T) {
 				t.Errorf("check não menciona %q: %+v", tt.mention, c)
 			}
 		})
+	}
+}
+
+func TestCheckFmtHook(t *testing.T) {
+	pre := hookEntryJSON("PreToolUse", "Edit|Write|MultiEdit|NotebookEdit", "pipeline-claude hook")
+	post := func(matcher, command string) string { return hookEntryJSON("PostToolUse", matcher, command) }
+	tests := []struct {
+		name     string
+		settings string
+		status   Status
+		mention  string
+		hook     Status // status esperado da checagem hook no mesmo settings
+	}{
+		{"registrado", validSettings, StatusOK, "PostToolUse", StatusOK},
+		{"comando no PATH", settingsWith(pre, post("Edit|Write|MultiEdit", "pipeline-claude fmt-hook")), StatusOK, "", StatusOK},
+		{"comando relativo com aspas", settingsWith(pre, post("Edit|Write|MultiEdit", `\"bin/pipeline-claude\" fmt-hook`)), StatusOK, "", StatusOK},
+		{"matcher com NotebookEdit", settingsWith(pre, post("Edit|Write|MultiEdit|NotebookEdit", "pipeline-claude fmt-hook")), StatusOK, "", StatusOK},
+		{"matcher em outra ordem", settingsWith(pre, post("MultiEdit|Write|Edit", "pipeline-claude fmt-hook")), StatusOK, "", StatusOK},
+		{"matcher curinga", settingsWith(pre, post("*", "pipeline-claude fmt-hook")), StatusOK, "", StatusOK},
+		{"matcher vazio", settingsWith(pre, post("", "pipeline-claude fmt-hook")), StatusOK, "", StatusOK},
+		{"matcher sem MultiEdit", settingsWith(pre, post("Edit|Write", "pipeline-claude fmt-hook")), StatusWarn, "MultiEdit", StatusOK},
+		{"matcher só Edit", settingsWith(pre, post("Edit", "pipeline-claude fmt-hook")), StatusWarn, "Write, MultiEdit", StatusOK},
+		{"ausente", hookOnlySettings, StatusWarn, `"PostToolUse": [{"matcher": "Edit|Write|MultiEdit"`, StatusOK},
+		{"ação mostra o comando", hookOnlySettings, StatusWarn, "pipeline-claude fmt-hook", StatusOK},
+		{"sem hooks", `{}`, StatusWarn, "fmt-hook", StatusError},
+		// No PreToolUse o fmt-hook sai com 2 (evento errado) e bloquearia toda edição.
+		{"no PreToolUse", `{"hooks": {"PreToolUse": [
+			 {"matcher": "Edit|Write|MultiEdit|NotebookEdit", "hooks": [{"type": "command", "command": "pipeline-claude hook"}]},
+			 {"matcher": "Edit|Write|MultiEdit", "hooks": [{"type": "command", "command": "pipeline-claude fmt-hook"}]}]}}`,
+			StatusError, "PreToolUse", StatusOK},
+		{"no PreToolUse e no PostToolUse", `{"hooks": {"PreToolUse": [
+			 {"matcher": "Edit|Write|MultiEdit|NotebookEdit", "hooks": [{"type": "command", "command": "pipeline-claude hook"}]},
+			 {"matcher": "Edit", "hooks": [{"type": "command", "command": "pipeline-claude fmt-hook"}]}],
+			 ` + post("Edit|Write|MultiEdit", "pipeline-claude fmt-hook") + `}}`,
+			StatusError, "PostToolUse", StatusOK},
+		{"em outro evento", settingsWith(pre, hookEntryJSON("Stop", "", "pipeline-claude fmt-hook")), StatusError, "Stop", StatusOK},
+		// O hook no PostToolUse não conta como fmt-hook (e é erro na checagem hook).
+		{"hook no PostToolUse não satisfaz", settingsWith(pre, post("Edit|Write|MultiEdit", "pipeline-claude hook")), StatusWarn, "fmt-hook", StatusError},
+		{"outro subcomando", settingsWith(pre, post("Edit|Write|MultiEdit", "pipeline-claude fmthook")), StatusWarn, "fmt-hook", StatusOK},
+		{"argumento extra", settingsWith(pre, post("Edit|Write|MultiEdit", "pipeline-claude fmt-hook || true")), StatusWarn, "fmt-hook", StatusOK},
+		{"outro binário", settingsWith(pre, post("Edit|Write|MultiEdit", "gofmt-hook fmt-hook")), StatusWarn, "fmt-hook", StatusOK},
+		{"tipo diferente de command", settingsWith(pre,
+			`"PostToolUse": [{"matcher": "Edit|Write|MultiEdit", "hooks": [{"type": "prompt", "command": "pipeline-claude fmt-hook"}]}]`),
+			StatusWarn, "fmt-hook", StatusOK},
+		// Settings ilegível: o erro de leitura é da checagem hook; aqui só aviso.
+		{"settings ausente", "", StatusWarn, "não verificado", StatusError},
+		{"JSON inválido", `{"hooks":`, StatusWarn, "não verificado", StatusError},
+		{"hooks com tipo errado", `{"hooks": []}`, StatusWarn, "não verificado", StatusError},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			root := project(t, map[string]string{".claude/settings.json": tt.settings})
+			checks := collect(root, healthyEnv().env())
+			c := find(t, checks, checkFmtHook)
+			if c.Status != tt.status {
+				t.Errorf("status = %s, quer %s (%s)", c.Status, tt.status, c.Message)
+			}
+			if !strings.Contains(c.Message+" "+c.Action, tt.mention) {
+				t.Errorf("check não menciona %q: %+v", tt.mention, c)
+			}
+			if c.Status != StatusOK && c.Action == "" {
+				t.Error("check sem ação corretiva")
+			}
+			if h := find(t, checks, checkHook); h.Status != tt.hook {
+				t.Errorf("checagem hook = %s, quer %s (%s)", h.Status, tt.hook, h.Message)
+			}
+		})
+	}
+}
+
+func TestToolkitCommand(t *testing.T) {
+	// Os dois reconhecedores nunca aceitam o comando do outro.
+	tests := []struct {
+		cmd       string
+		hook, fmt bool
+	}{
+		{"pipeline-claude hook", true, false},
+		{"pipeline-claude fmt-hook", false, true},
+		{`"$CLAUDE_PROJECT_DIR"/bin/pipeline-claude hook`, true, false},
+		{`"$CLAUDE_PROJECT_DIR"/bin/pipeline-claude fmt-hook`, false, true},
+		{"pipeline-claude fmt-hook hook", false, false},
+		{"pipeline-claude hook fmt-hook", false, false},
+		{"pipeline-claude fmthook", false, false},
+		{"pipeline-claude-fmt hook", false, false},
+		{"pipeline-claude", false, false},
+		{"", false, false},
+	}
+	for _, tt := range tests {
+		if got := isHookCommand(tt.cmd); got != tt.hook {
+			t.Errorf("isHookCommand(%q) = %v, quer %v", tt.cmd, got, tt.hook)
+		}
+		if got := isFmtHookCommand(tt.cmd); got != tt.fmt {
+			t.Errorf("isFmtHookCommand(%q) = %v, quer %v", tt.cmd, got, tt.fmt)
+		}
+	}
+}
+
+func TestSnippetsRegistram(t *testing.T) {
+	// O JSON da ação corretiva, gravado como settings, satisfaz a própria checagem.
+	for _, tt := range []struct{ name, snippet string }{{checkHook, hookSnippet}, {checkFmtHook, fmtHookSnippet}} {
+		_, body, found := strings.Cut(tt.snippet, ": ")
+		if !found {
+			t.Fatalf("snippet sem JSON: %q", tt.snippet)
+		}
+		c := find(t, collect(project(t, map[string]string{".claude/settings.json": body}), healthyEnv().env()), tt.name)
+		if c.Status != StatusOK {
+			t.Errorf("%s com o próprio snippet = %s (%s)", tt.name, c.Status, c.Message)
+		}
+	}
+}
+
+func TestCheckOrdem(t *testing.T) {
+	// fmt-hook entra logo depois de hook.
+	checks := collect(project(t, nil), healthyEnv().env())
+	for i, c := range checks {
+		if c.Name == checkHook {
+			if i+1 >= len(checks) || checks[i+1].Name != checkFmtHook {
+				t.Errorf("checagem depois de hook não é fmt-hook: %+v", checks)
+			}
+			return
+		}
+	}
+	t.Errorf("checagem hook ausente: %+v", checks)
+}
+
+func TestCollectSaudavelSemAviso(t *testing.T) {
+	// No projeto saudável hook e fmt-hook ficam ok (o resto depende do filesystem).
+	checks := collect(project(t, nil), healthyEnv().env())
+	for _, name := range []string{checkHook, checkFmtHook} {
+		if c := find(t, checks, name); c.Status != StatusOK {
+			t.Errorf("%s = %s, quer ok (%s)", name, c.Status, c.Message)
+		}
 	}
 }
 
@@ -473,8 +642,8 @@ func TestGoVersionSemTrocaDeToolchain(t *testing.T) {
 func TestCollectAmbienteReal(t *testing.T) {
 	root := project(t, nil)
 	checks := Collect(root)
-	if len(checks) != 7 {
-		t.Fatalf("checks = %d, quer 7: %+v", len(checks), checks)
+	if len(checks) != 8 {
+		t.Fatalf("checks = %d, quer 8: %+v", len(checks), checks)
 	}
 	for _, c := range checks {
 		t.Logf("[%s] %s: %s", c.Status, c.Name, c.Message)
