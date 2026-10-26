@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -32,7 +34,21 @@ func TestRun(t *testing.T) {
 		{name: "hook com stdin vazio bloqueia", args: []string{"hook"}, wantCode: exitBlocked, wantStderr: "payload"},
 		{name: "hook com argumento extra", args: []string{"hook", "x"}, stdin: "{}", wantCode: exitBlocked, wantStderr: "hook"},
 		{name: "init não implementado", args: []string{"init"}, wantCode: exitBlocked, wantStderr: "Fase 3"},
-		{name: "fmt-hook não implementado", args: []string{"fmt-hook"}, wantCode: exitBlocked, wantStderr: "Fase 2"},
+		// Antes: "fmt-hook não implementado". Agora bloqueia por falha fechada.
+		{name: "fmt-hook com stdin vazio bloqueia", args: []string{"fmt-hook"}, wantCode: exitBlocked, wantStderr: "payload"},
+		{name: "fmt-hook com argumento extra", args: []string{"fmt-hook", "x"}, stdin: "{}", wantCode: exitBlocked, wantStderr: "fmt-hook"},
+		{name: "sensors com opção desconhecida", args: []string{"sensors", "--xpto"}, wantCode: exitBlocked, wantStderr: "xpto"},
+		{name: "sensors --timeout inválido", args: []string{"sensors", "--timeout", "dez"}, wantCode: exitBlocked, wantStderr: "timeout"},
+		{name: "sensors --timeout zero", args: []string{"sensors", "--timeout", "0s"}, wantCode: exitBlocked, wantStderr: "timeout"},
+		{name: "sensors --timeout negativo", args: []string{"sensors", "--timeout=-1m"}, wantCode: exitBlocked, wantStderr: "timeout"},
+		{name: "sensors -h", args: []string{"sensors", "-h"}, wantCode: exitOK, wantStderr: "timeout"},
+		{name: "delivery sem subcomando", args: []string{"delivery"}, wantCode: exitBlocked, wantStderr: "delivery new"},
+		{name: "delivery com subcomando desconhecido", args: []string{"delivery", "rm"}, wantCode: exitBlocked, wantStderr: `"rm"`},
+		{name: "delivery new sem título", args: []string{"delivery", "new"}, wantCode: exitBlocked, wantStderr: "--title"},
+		{name: "delivery new com título vazio", args: []string{"delivery", "new", "--title", "  "}, wantCode: exitBlocked, wantStderr: "--title"},
+		{name: "delivery new com argumento extra", args: []string{"delivery", "new", "--title", "x", "y"}, wantCode: exitBlocked, wantStderr: "argumento"},
+		{name: "delivery new -h", args: []string{"delivery", "new", "-h"}, wantCode: exitOK, wantStderr: "--prefix"},
+		{name: "mcp com argumento", args: []string{"mcp", "x"}, wantCode: exitBlocked, wantStderr: "mcp"},
 		{name: "validate sem alvo", args: []string{"validate"}, wantCode: exitBlocked, wantStderr: "validate"},
 		{name: "validate com dois alvos", args: []string{"validate", "A", "B"}, wantCode: exitBlocked, wantStderr: "um alvo"},
 		{name: "validate com opção desconhecida", args: []string{"validate", "--xpto", "A"}, wantCode: exitBlocked, wantStderr: "xpto"},
@@ -66,7 +82,7 @@ func TestPlannedCoversUsage(t *testing.T) {
 			t.Errorf("comando previsto %q não aparece na ajuda", cmd)
 		}
 	}
-	for _, cmd := range []string{"hook", "validate", "doctor"} {
+	for _, cmd := range []string{"hook", "validate", "doctor", "fmt-hook", "sensors", "delivery", "mcp"} {
 		if _, ok := planned[cmd]; ok {
 			t.Errorf("%q implementado ainda está em planned", cmd)
 		}
@@ -104,11 +120,39 @@ func TestParseValidate(t *testing.T) {
 	}
 }
 
+func TestParseInterspersed(t *testing.T) {
+	tests := []struct {
+		args   []string
+		json   bool
+		names  []string
+		wantOK bool
+	}{
+		{[]string{"a", "--json", "b"}, true, []string{"a", "b"}, true},
+		{[]string{"--json", "a"}, true, []string{"a"}, true},
+		{[]string{"a", "--", "--json"}, false, []string{"a", "--json"}, true},
+		{nil, false, nil, true},
+		{[]string{"a", "--xpto"}, false, nil, false},
+	}
+	for _, tt := range tests {
+		fs := flag.NewFlagSet("t", flag.ContinueOnError)
+		fs.SetOutput(io.Discard)
+		asJSON := fs.Bool("json", false, "")
+		names, _, ok := parseInterspersed(fs, tt.args)
+		if ok != tt.wantOK || (ok && (*asJSON != tt.json || strings.Join(names, ",") != strings.Join(tt.names, ","))) {
+			t.Errorf("parseInterspersed(%q) = %q, json=%v, ok=%v", tt.args, names, *asJSON, ok)
+		}
+	}
+}
+
 // Ponta a ponta com o binário compilado.
 
 var binPath string
 
 func TestMain(m *testing.M) {
+	// Como sensor (TestHelperProcess), o binário de teste não compila nada.
+	if os.Getenv(helperEnv) == "1" {
+		os.Exit(m.Run())
+	}
 	dir, err := os.MkdirTemp("", "pipeline-claude-e2e-")
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "e2e:", err)
@@ -163,6 +207,7 @@ func runBin(t *testing.T, dir, stdin string, args ...string) (int, string, strin
 
 const e2eConfig = `{"version": 1, "project_type": "api", "database": "postgres", "git_provider": "github",
  "delivery_id_pattern": "^DEL-[0-9]{3}$",
+ "delivery_prefixes": ["DEL"],
  "protected_paths": ["internal/", "docs-ai/"],
  "no_agent_paths": ["docs-ai/restrito/"],
  "editor_agents": ["dev-implementation"]}`
@@ -340,5 +385,229 @@ func TestE2EVersion(t *testing.T) {
 	code, stdout, _ := runBin(t, t.TempDir(), "", "version")
 	if code != exitOK || !strings.HasPrefix(stdout, "pipeline-claude ") {
 		t.Errorf("version: código %d, %q", code, stdout)
+	}
+}
+
+func writeFile(t *testing.T, root, rel, content string) {
+	t.Helper()
+	p := filepath.Join(root, filepath.FromSlash(rel))
+	if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(p, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func readFile(t *testing.T, root, rel string) string {
+	t.Helper()
+	data, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(rel)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(data)
+}
+
+func TestE2EFmtHook(t *testing.T) {
+	const (
+		unformatted = "package exemplo\nfunc  Soma(a,b int)int{return a+b}\n"
+		formatted   = "package exemplo\n\nfunc Soma(a, b int) int { return a + b }\n"
+	)
+	t.Run("formata o arquivo da fixture", func(t *testing.T) {
+		root := e2eProject(t)
+		writeFile(t, root, "internal/exemplo/alvo.go", unformatted)
+		code, stdout, stderr := runBin(t, root, fixture(t, "posttooluse-edit-main.json", root), "fmt-hook")
+		if code != exitOK || stdout != "" {
+			t.Fatalf("código = %d, stdout = %q\nstderr:\n%s", code, stdout, stderr)
+		}
+		if got := readFile(t, root, "internal/exemplo/alvo.go"); got != formatted {
+			t.Errorf("arquivo = %q", got)
+		}
+		if !strings.Contains(stderr, "formatado internal/exemplo/alvo.go") {
+			t.Errorf("stderr = %q", stderr)
+		}
+	})
+	t.Run("evento errado bloqueia", func(t *testing.T) {
+		root := e2eProject(t)
+		writeFile(t, root, "internal/exemplo/alvo.go", unformatted)
+		code, _, _ := runBin(t, root, fixture(t, "pretooluse-edit-main.json", root), "fmt-hook")
+		if code != exitBlocked || readFile(t, root, "internal/exemplo/alvo.go") != unformatted {
+			t.Errorf("código = %d", code)
+		}
+	})
+}
+
+// helperEnv liga TestHelperProcess: os sensores do teste rodam o próprio
+// binário de teste, sem depender de sh.
+const helperEnv = "PIPELINE_CLAUDE_CLI_HELPER"
+
+func TestHelperProcess(t *testing.T) {
+	if os.Getenv(helperEnv) != "1" {
+		return
+	}
+	if os.Args[len(os.Args)-1] == "ok" {
+		fmt.Println("sensor ok")
+		os.Exit(0)
+	}
+	fmt.Println("sensor falhou")
+	os.Exit(3)
+}
+
+func TestE2ESensors(t *testing.T) {
+	t.Setenv(helperEnv, "1")
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	sensor := func(name, mode string) string {
+		argv, _ := json.Marshal([]string{exe, "-test.run=^TestHelperProcess$", "--", mode})
+		return fmt.Sprintf(`{"name": %q, "cmd": %s}`, name, argv)
+	}
+	root := e2eProject(t)
+	cfg := strings.Replace(e2eConfig, `"version": 1,`, `"version": 1, "sensors": [`+sensor("passa", "ok")+`, `+sensor("falha", "fail")+`],`, 1)
+	writeFile(t, root, ".pipeline-claude.json", cfg)
+
+	tests := []struct {
+		name   string
+		args   []string
+		want   int
+		stdout string
+	}{
+		{"todos, um falha", []string{"sensors"}, exitFail, "falha"},
+		{"só o que passa", []string{"sensors", "--timeout", "30s", "passa"}, exitOK, "passa"},
+		{"só o que falha", []string{"sensors", "falha"}, exitFail, "falha"},
+		{"nome desconhecido", []string{"sensors", "nenhum"}, exitBlocked, ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			code, stdout, stderr := runBin(t, root, "", tt.args...)
+			if code != tt.want || !strings.Contains(stdout, tt.stdout) {
+				t.Errorf("código = %d, quer %d\nstdout:\n%s\nstderr:\n%s", code, tt.want, stdout, stderr)
+			}
+		})
+	}
+	t.Run("json", func(t *testing.T) {
+		code, stdout, _ := runBin(t, root, "", "sensors", "--json")
+		var out struct {
+			OK      bool `json:"ok"`
+			Sensors []struct {
+				Name string `json:"name"`
+				OK   bool   `json:"ok"`
+			} `json:"sensors"`
+		}
+		if err := json.Unmarshal([]byte(stdout), &out); err != nil {
+			t.Fatalf("saída não é JSON: %v\n%s", err, stdout)
+		}
+		if code != exitFail || out.OK || len(out.Sensors) != 2 || !out.Sensors[0].OK || out.Sensors[1].OK {
+			t.Errorf("código %d, saída %+v\n%s", code, out, stdout)
+		}
+	})
+	t.Run("config ausente", func(t *testing.T) {
+		code, _, stderr := runBin(t, t.TempDir(), "", "sensors")
+		if code != exitBlocked || !strings.Contains(stderr, "doctor") {
+			t.Errorf("código = %d, stderr = %q", code, stderr)
+		}
+	})
+}
+
+func TestE2EDeliveryNew(t *testing.T) {
+	root := e2eProject(t)
+	// DEL-001 e DEL-002 no índice, DEL-003 só em diretório: a próxima é DEL-004.
+	code, stdout, stderr := runBin(t, root, "", "delivery", "new", "--title", "Reserva de livros")
+	if code != exitOK || !strings.Contains(stdout, "DEL-004") || !strings.Contains(stdout, "docs-ai/deliveries/DEL-004/report.md") {
+		t.Fatalf("primeira: código %d\nstdout:\n%s\nstderr:\n%s", code, stdout, stderr)
+	}
+	code, stdout, stderr = runBin(t, root, "", "delivery", "new", "--json", "--prefix", "DEL", "--title", "Renovação online")
+	if code != exitOK {
+		t.Fatalf("segunda: código %d\nstderr:\n%s", code, stderr)
+	}
+	var out struct {
+		ID     string `json:"id"`
+		Report string `json:"report"`
+		Index  string `json:"index"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &out); err != nil {
+		t.Fatalf("saída não é JSON: %v\n%s", err, stdout)
+	}
+	if out.ID != "DEL-005" || out.Report != "docs-ai/deliveries/DEL-005/report.md" || out.Index != "docs-ai/deliveries/INDEX.md" {
+		t.Errorf("json = %+v", out)
+	}
+
+	// O validate reconhece o índice: recém-criada reprova só por conteúdo.
+	code, stdout, _ = runBin(t, root, "", "validate", "--no-git", "DEL-004")
+	if code != exitFail || strings.Contains(stdout, "índice") {
+		t.Errorf("validate recém-criada: código %d\n%s", code, stdout)
+	}
+	report := readFile(t, root, "docs-ai/deliveries/DEL-004/report.md")
+	report = strings.ReplaceAll(report, "<preencher>", "conferido na revisão")
+	report = strings.ReplaceAll(report, "- [ ]", "- [x]")
+	writeFile(t, root, "docs-ai/deliveries/DEL-004/report.md", report)
+	if code, stdout, _ := runBin(t, root, "", "validate", "--no-git", "DEL-004"); code != exitOK {
+		t.Errorf("validate preenchida: código %d\n%s", code, stdout)
+	}
+
+	t.Run("título inválido não cria nada", func(t *testing.T) {
+		before := readFile(t, root, "docs-ai/deliveries/INDEX.md")
+		code, _, stderr := runBin(t, root, "", "delivery", "new", "--title", "a|b")
+		if code != exitFail || !strings.Contains(stderr, "|") {
+			t.Errorf("código = %d, stderr = %q", code, stderr)
+		}
+		if readFile(t, root, "docs-ai/deliveries/INDEX.md") != before {
+			t.Error("índice alterado")
+		}
+	})
+	t.Run("config ausente", func(t *testing.T) {
+		code, _, stderr := runBin(t, t.TempDir(), "", "delivery", "new", "--title", "x")
+		if code != exitBlocked || !strings.Contains(stderr, "doctor") {
+			t.Errorf("código = %d, stderr = %q", code, stderr)
+		}
+	})
+}
+
+func TestE2EMCP(t *testing.T) {
+	root := e2eProject(t)
+	session := strings.Join([]string{
+		`{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"teste","version":"1"}}}`,
+		`{"jsonrpc":"2.0","method":"notifications/initialized"}`,
+		`{"jsonrpc":"2.0","id":2,"method":"tools/list"}`,
+		`{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"pipeline_validate","arguments":{"target":"DEL-001","no_git":true}}}`,
+	}, "\n") + "\n"
+	code, stdout, stderr := runBin(t, root, session, "mcp")
+	if code != exitOK {
+		t.Fatalf("código = %d\nstderr:\n%s", code, stderr)
+	}
+	lines := strings.Split(strings.TrimSuffix(stdout, "\n"), "\n")
+	if len(lines) != 3 {
+		t.Fatalf("respostas = %d:\n%s", len(lines), stdout)
+	}
+	var resp [3]struct {
+		ID     int `json:"id"`
+		Result struct {
+			ProtocolVersion string `json:"protocolVersion"`
+			Tools           []struct {
+				Name string `json:"name"`
+			} `json:"tools"`
+			IsError bool `json:"isError"`
+			Content []struct {
+				Text string `json:"text"`
+			} `json:"content"`
+		} `json:"result"`
+	}
+	for i, l := range lines {
+		if err := json.Unmarshal([]byte(l), &resp[i]); err != nil {
+			t.Fatalf("linha %d não é JSON: %v\n%s", i, err, l)
+		}
+		if resp[i].ID != i+1 {
+			t.Errorf("linha %d com id %d", i, resp[i].ID)
+		}
+	}
+	if resp[0].Result.ProtocolVersion != "2025-06-18" {
+		t.Errorf("initialize: %s", lines[0])
+	}
+	if len(resp[1].Result.Tools) != 4 {
+		t.Errorf("tools/list: %s", lines[1])
+	}
+	if resp[2].Result.IsError || len(resp[2].Result.Content) != 1 || !strings.Contains(resp[2].Result.Content[0].Text, `"ok": true`) {
+		t.Errorf("pipeline_validate: %s", lines[2])
 	}
 }

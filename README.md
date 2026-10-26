@@ -12,7 +12,7 @@ relatório de delivery validado e proteção de caminhos sensíveis.
 Os dois são projetos independentes; código do pipeline-ai é portado com
 atribuição (ver [`NOTICE`](NOTICE)).
 
-> **Estado:** em construção (Fase 1). A CLI expõe `hook`, `validate`, `doctor`, `version` e `help`; os demais comandos saem com código 2 até a fase prevista.
+> **Estado:** em construção (Fase 2). A CLI expõe `hook`, `fmt-hook`, `validate`, `sensors`, `delivery new`, `doctor`, `mcp`, `version` e `help`; `init`, `sync` e `adopt` saem com código 2 até a fase prevista.
 
 ## O que vai fazer
 
@@ -22,7 +22,7 @@ atribuição (ver [`NOTICE`](NOTICE)).
 | `pipeline-claude adopt` | Instala a pipeline num projeto existente sem tocar em código |
 | `pipeline-claude sync` | Atualiza arquivos gerenciados sem sobrescrever edição local |
 | `pipeline-claude hook` | `PreToolUse`: bloqueia edição de caminho protegido fora dos agentes autorizados (falha fechada) |
-| `pipeline-claude fmt-hook` | `PostToolUse`: `gofmt` no arquivo editado |
+| `pipeline-claude fmt-hook` | `PostToolUse`: formata com `go/format` o `.go` editado (sem `gofmt` no PATH) |
 | `pipeline-claude validate` | Valida o relatório de delivery contra o esquema do projeto e o diff completo |
 | `pipeline-claude sensors` | Gates do projeto com saída JSON |
 | `pipeline-claude delivery new` | Cria o relatório da próxima delivery e registra no índice |
