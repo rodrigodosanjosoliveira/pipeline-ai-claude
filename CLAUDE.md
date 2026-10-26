@@ -34,7 +34,9 @@ Arquivo portado do pipeline-ai começa com:
 // Alterações: <lista curta: o que mudou e por quê, citando TD-xx ou C-xx>.
 ```
 
-e ganha uma linha na tabela do `NOTICE`. Testes portados mantêm os casos
+e ganha uma linha na tabela do `NOTICE`. Template portado (arquivo que vai para o
+projeto gerado) não leva cabeçalho: a origem fica só no `NOTICE`, uma linha por
+grupo (TD-22). Testes portados mantêm os casos
 originais; casos cujo comportamento mudou de propósito ficam com comentário
 citando a decisão.
 
@@ -70,7 +72,8 @@ testdata/hooks/claude   fixtures sanitizadas por versão do Claude Code
 docs/                   decisões, guias e prompts de execução por fatia
 ```
 
-Pacotes previstos: `manifest`, `scaffold`, `sync`, `adopt` (Fases 3 e 4).
+Pacotes previstos: `manifest`, `templates`, `scaffold`, `syncer` (Fase 3, prompt em
+`docs/prompts/fase-3-templates.md`) e `adopt` (Fase 4).
 
 ## Convenções
 
