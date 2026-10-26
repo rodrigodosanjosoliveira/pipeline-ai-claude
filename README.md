@@ -12,7 +12,7 @@ relatório de delivery validado e proteção de caminhos sensíveis.
 Os dois são projetos independentes; código do pipeline-ai é portado com
 atribuição (ver [`NOTICE`](NOTICE)).
 
-> **Estado:** em construção (Fase 0). A CLI ainda só expõe `version` e `help`.
+> **Estado:** em construção (Fase 1). A CLI expõe `hook`, `validate`, `doctor`, `version` e `help`; os demais comandos saem com código 2 até a fase prevista.
 
 ## O que vai fazer
 
