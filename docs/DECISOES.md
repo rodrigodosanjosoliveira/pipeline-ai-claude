@@ -92,6 +92,46 @@ projeto (C17).
 projeto) e conferem que todo caminho gravado fica dentro do destino após
 `filepath.Clean` (C18).
 
+## Fase 2
+
+### TD-18 — `fmt-hook` formata com `go/format`, no `PostToolUse`
+Só arquivo `.go` dentro da raiz do projeto e fora de `no_agent_paths`, resolvido
+como no hook (TD-09). Formata com `go/format` da stdlib, sem depender de `gofmt`
+no PATH; grava só se mudou, por arquivo temporário + rename, preservando a
+permissão. Payload ilegível ou evento diferente de `PostToolUse` → exit 2 (TD-08).
+Erro de sintaxe → exit 2 com a mensagem do parser: no `PostToolUse` o exit 2 não
+desfaz a edição, devolve o erro ao agente para ele corrigir.
+**Motivo:** formatação determinística sem gastar turno (D-18 do pipeline-ai) e sem
+dependência de ferramenta externa no Windows (TD-03).
+**Ressalva:** a formatação segue a versão do Go que compilou o binário; o `doctor`
+já confere o Go do projeto.
+
+### TD-19 — `sensors` executa argv, sem shell
+Cada sensor roda `cmd` como argv na raiz do projeto, na ordem declarada, com
+timeout por sensor (`--timeout`, padrão 10 min) e saída capturada com limite.
+Todos rodam, mesmo depois de uma falha, para o relatório ficar completo. Comando
+ausente, timeout ou exit ≠ 0 reprovam. Nenhum sensor configurado → exit 1
+(nada foi verificado; falha fechada, TD-08).
+**Motivo:** sem shell não há quoting nem diferença entre sh e cmd.exe (TD-03).
+
+### TD-20 — `delivery new` gera ID sequencial por prefixo e nunca sobrescreve
+ID = `<prefixo>-<NNN>`, com prefixo de `delivery_prefixes` e `NNN` = maior número
+do prefixo no índice e em `deliveries_dir`, mais um, com três dígitos no mínimo.
+O ID gerado tem de casar `delivery_id_pattern`. Diretório e report criados em modo
+exclusivo; índice reescrito por arquivo temporário + rename; se o índice falhar,
+o diretório criado é removido. Título de uma linha, sem `|` nem caractere de
+controle. Escrita confinada ao destino (TD-17).
+**Motivo:** dois agentes ou duas pessoas criando delivery ao mesmo tempo não
+podem gerar o mesmo ID em silêncio nem corromper o índice.
+
+### TD-21 — MCP: stdio, ferramentas de leitura e `delivery_new` restrita
+JSON-RPC 2.0 por linha no stdin/stdout; stdout só carrega protocolo, log vai
+para stderr. Ferramentas: `pipeline_doctor`, `pipeline_validate`,
+`pipeline_sensors`, `pipeline_delivery_new`. `pipeline_delivery_new` é recusada
+quando `deliveries_dir` ou `index_file` está em `protected_paths` (TD-16).
+Configuração ausente ou inválida → toda ferramenta responde `isError`. `sync`
+não é exposto (TD-16).
+
 ## Pontos em aberto
 
 1. Distribuição da camada Claude também como plugin do Claude Code.

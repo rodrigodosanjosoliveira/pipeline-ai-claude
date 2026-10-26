@@ -52,6 +52,12 @@ make fixtures-check BLOCKLIST=<arquivo privado>
 ```
 cmd/pipeline-claude     dispatcher da CLI (comandos entram por fase)
 internal/buildinfo      versão do binário
+internal/config         carrega e valida .pipeline-claude.json
+internal/gitdiff        arquivos alterados (diff completo, TD-11)
+internal/report         parser e checagem do report de delivery
+internal/hook           hook PreToolUse (bloqueio de caminho protegido)
+internal/validate       validação de delivery (report, índice, diff)
+internal/doctor         diagnóstico do ambiente e do projeto
 internal/fixtures       sanitização e checagem de payloads de hook
 tools/fixture-sanitize  converte capturas brutas em fixtures publicáveis
 scripts/capture-hook.sh grava payload bruto de hook (Fase 0, nunca bloqueia)
@@ -59,9 +65,9 @@ testdata/hooks/claude   fixtures sanitizadas por versão do Claude Code
 docs/                   decisões, guias e prompts de execução por fatia
 ```
 
-Pacotes previstos (Fase 1+): `internal/config`, `gitdiff`, `hook`, `report`,
-`validate`, `doctor`; depois `fmthook`, `sensors`, `delivery`, `mcp`, `manifest`,
-`scaffold`, `sync`, `adopt`.
+Pacotes previstos: Fase 2 `hookio`, `fmthook`, `sensors`, `delivery`, `mcp`
+(prompt em `docs/prompts/fase-2-automacao.md`); depois `manifest`, `scaffold`,
+`sync`, `adopt`.
 
 ## Convenções
 
