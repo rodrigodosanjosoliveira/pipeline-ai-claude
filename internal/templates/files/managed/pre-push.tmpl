@@ -1,0 +1,28 @@
+#!/bin/sh
+# pre-push: bloqueia push direto para a branch main.
+# Gerenciado pelo pipeline-claude (atualizado por `pipeline-claude sync`).
+# Ative com: git config core.hooksPath .githooks
+# Emergência absoluta: git push --no-verify
+
+zero="0000000000000000000000000000000000000000"
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+    # Apagar branch remota não envia commit.
+    if [ "$local_sha" = "$zero" ]; then
+        continue
+    fi
+
+    if [ "$remote_ref" = "refs/heads/main" ]; then
+        echo "======================================================================" >&2
+        echo "BLOQUEADO: push direto para a branch 'main' não é permitido." >&2
+        echo "" >&2
+        echo "Fluxo obrigatório:" >&2
+        echo "  1. Crie uma branch de trabalho: git checkout -b task/<codigo>" >&2
+        echo "  2. Envie a branch:              git push -u origin task/<codigo>" >&2
+        echo "  3. Abra um PR (gh pr create) ou um MR (glab mr create)" >&2
+        echo "======================================================================" >&2
+        exit 1
+    fi
+done
+
+exit 0

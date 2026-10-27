@@ -1,0 +1,63 @@
+# Invariantes globais — [[.Name]]
+
+> Regras invioláveis de arquitetura, código, segurança e fluxo de trabalho.
+> Nenhuma decisão técnica ou implementação viola estes invariantes sem aprovação
+> explícita registrada em `docs-ai/DECISOES.md`.
+>
+> Os agentes leem este arquivo antes de alterar o projeto (`invariants_files`
+> em `.pipeline-claude.json`). Acrescente aqui os invariantes do domínio.
+
+---
+
+## 1. Stack e ferramental
+
+1. **Go 1.24+**, como declarado no `go.mod`.
+2. **Testes com a stdlib `testing`:**
+   - padrão em tabela;
+   - asserções com `t.Errorf` e `t.Fatalf`;
+   - biblioteca de asserção só com decisão registrada.
+3. **Fuzz nativo** para parsing, validação de entrada e desserialização, sempre
+   rodado com `-fuzztime`. Os seeds rodam no `go test ./...` comum.
+4. **PostgreSQL** é o banco do projeto. Mudança de esquema só por arquivo em
+   `migrations/`, com reversão.
+
+---
+
+## 2. Dependências e supply chain
+
+1. **Dependência externa exige justificativa** no handoff da arquitetura: a
+   stdlib cobre a maior parte.
+2. **Toda mudança em `go.mod` ou `go.sum`** liga `require_security` (forçado pelo
+   validador via `auto_flags`) e passa pelo `supply-chain-review`, com
+   `go mod verify` e `govulncheck ./...`.
+3. **O pipeline-claude não entra no `go.mod`**: é instalado em `bin/` por
+   `make tools`, na versão fixada no `Makefile`.
+
+---
+
+## 3. Segurança e segredos
+
+1. **Zero credencial em código:** nenhum segredo, chave, token ou senha no git.
+   Configuração sensível só por variável de ambiente; `.env*`, `*.pem` e `*.key`
+   estão no `.gitignore`.
+2. **Superfície de segurança:** alteração em `security_surface_paths`
+   (`.pipeline-claude.json`) exige `require_security: true` no report e a
+   revisão do `security-review`. O validador reprova a delivery se a flag
+   estiver desligada.
+3. **Erro não vaza** caminho interno, query ou stack trace para o cliente.
+
+---
+
+## 4. Governança e git
+
+1. **A sessão principal não edita código protegido.** O hook `PreToolUse`
+   bloqueia edição em `protected_paths` fora dos subagentes de `editor_agents`.
+2. **Ninguém na sessão edita** `.claude/`, `.mcp.json`, `.pipeline-claude.json`
+   e `.pipeline-claude.lock` (`no_agent_paths` e `permissions.deny`).
+3. **Branch e commit:** `task/{código}`; `{type}({scope}): {resumo} [{código}]`.
+4. **Push direto na `main` é bloqueado** pelo `.githooks/pre-push`; toda entrega
+   entra por [[if eq .Provider "gitlab"]]Merge Request[[else]]Pull Request[[end]].
+5. **Validação de entrega:** toda tarefa tem report em
+   `docs-ai/deliveries/{DELIVERY_ID}/report.md`, registrado no `INDEX.md`, e
+   `bin/pipeline-claude validate {DELIVERY_ID}` sai com 0 antes de abrir o
+   [[if eq .Provider "gitlab"]]MR[[else]]PR[[end]].

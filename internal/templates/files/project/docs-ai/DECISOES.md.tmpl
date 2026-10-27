@@ -1,0 +1,66 @@
+# Decisões — [[.Name]]
+
+> Registro das decisões do projeto, com o motivo de cada uma. Decisão nova entra
+> com número sequencial (`D-NN`), o que foi decidido e o porquê; decisão
+> revista ganha uma nova entrada que cita a anterior.
+
+---
+
+## D-01 — Go no backend, stdlib primeiro
+
+Formato único imposto pelo `gofmt`, linguagem que limita abstrações complexas
+de propósito e stdlib ampla, que reduz a superfície de dependências externas.
+
+**Motivo:** com IA, o gargalo se desloca da geração para a verificação; código
+uniforme e com poucas dependências é mais fácil de verificar.
+
+## D-02 — API em Go com PostgreSQL
+
+Um único banco por projeto. Esquema evolui só por migração versionada em
+`migrations/`, com reversão.
+
+## D-03 — Testes com a stdlib `testing`, em tabela
+
+Biblioteca de asserção é opcional e exige decisão registrada aqui.
+
+**Motivo:** cada dependência que entra precisa ser justificada e revisada; o
+padrão em tabela já cobre bem a necessidade.
+
+## D-04 — Fluxo por subagentes com ferramentas restritas
+
+Toda demanda passa por `pm-triage` e segue o fluxo do `CLAUDE.md`. Revisores
+não têm ferramenta de escrita; só os subagentes de `editor_agents` editam
+caminho protegido.
+
+**Motivo:** no Claude Code a identidade do subagente (`agent_type`) e as
+ferramentas de cada um são aplicadas pelo runtime, não só pelo prompt.
+
+## D-05 — Gates determinísticos
+
+`go build`, `go vet` e `go test` como sensores (`bin/pipeline-claude sensors`);
+`govulncheck` nas revisões de segurança e de dependências; fuzz com
+`-fuzztime` para parsing e validação.
+
+**Motivo:** refatoração iterativa de agente sem validação externa degrada
+rápido; o gate é a validação externa.
+
+## D-06 — Segurança antes do QA; release antes da documentação
+
+`security-review` roda depois do `code-reviewer` e antes do `qa-validation`;
+`release-ops`, quando habilitado, vem antes do `docs-update`.
+
+**Motivo:** achado de segurança muda a implementação, e revalidar o QA depois
+sai mais caro.
+
+## D-07 — `require_security` começa desligada e o validador a força
+
+O triage liga a flag quando há superfície de segurança; o validador a exige
+quando o diff toca `security_surface_paths` ou `go.mod`/`go.sum`
+(`auto_flags`).
+
+**Motivo:** esquecer no triage não pode deixar a delivery passar sem revisão.
+
+## D-08 — Entrega por branch e [[if eq .Provider "gitlab"]]Merge Request[[else]]Pull Request[[end]]
+
+Branch `task/{código}`, commit `{type}({scope}): {resumo} [{código}]`, push
+direto na `main` bloqueado pelo `.githooks/pre-push`.
