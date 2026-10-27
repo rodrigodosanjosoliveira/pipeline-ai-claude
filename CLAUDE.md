@@ -66,6 +66,7 @@ internal/delivery       criação de delivery com ID sequencial e registro no í
 internal/doctor         diagnóstico do ambiente e do projeto
 internal/mcp            servidor MCP por stdio (ferramentas e recursos)
 internal/templates      catálogo e templates embutidos da camada gerada (init e sync)
+internal/syncer         sync dos arquivos gerenciados (plano TD-25, lock, release)
 internal/fixtures       sanitização e checagem de payloads de hook
 tools/fixture-sanitize  converte capturas brutas em fixtures publicáveis
 scripts/capture-hook.sh grava payload bruto de hook (Fase 0, nunca bloqueia)
@@ -73,7 +74,7 @@ testdata/hooks/claude   fixtures sanitizadas por versão do Claude Code
 docs/                   decisões, guias e prompts de execução por fatia
 ```
 
-Pacotes previstos: `manifest`, `scaffold`, `syncer` (Fase 3, prompt em
+Pacotes previstos: `manifest`, `scaffold` (Fase 3, prompt em
 `docs/prompts/fase-3-templates.md`) e `adopt` (Fase 4).
 
 ## Convenções
