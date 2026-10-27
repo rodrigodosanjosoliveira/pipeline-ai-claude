@@ -42,7 +42,12 @@ func TestRun(t *testing.T) {
 		// O binário de teste roda sem versão de módulo (dev): sem
 		// --toolkit-version o init não tem o que fixar no Makefile (TD-24).
 		{name: "init sem versão em build dev", args: []string{"init", "a"}, wantCode: exitBlocked, wantStderr: "--toolkit-version"},
-		{name: "adopt previsto", args: []string{"adopt"}, wantCode: exitBlocked, wantStderr: "Fase 4"},
+		// Antes: "adopt previsto". Agora o adopt existe (TD-31 a TD-33).
+		{name: "adopt com argumento", args: []string{"adopt", "x"}, wantCode: exitBlocked, wantStderr: "argumento"},
+		{name: "adopt com opção desconhecida", args: []string{"adopt", "--xpto"}, wantCode: exitBlocked, wantStderr: "xpto"},
+		{name: "adopt -h", args: []string{"adopt", "-h"}, wantCode: exitOK, wantStderr: "--dry-run"},
+		{name: "adopt com módulo vazio na lista", args: []string{"adopt", "--toolkit-version", "v0.3.0", "--modules", "data-model,"}, wantCode: exitBlocked, wantStderr: "--modules"},
+		{name: "adopt sem versão em build dev", args: []string{"adopt"}, wantCode: exitBlocked, wantStderr: "--toolkit-version"},
 		{name: "sync com argumento", args: []string{"sync", "x"}, wantCode: exitBlocked, wantStderr: "argumento"},
 		{name: "sync com opção desconhecida", args: []string{"sync", "--xpto"}, wantCode: exitBlocked, wantStderr: "xpto"},
 		{name: "sync --release com --dry-run", args: []string{"sync", "--dry-run", "--release", ".claude/agents/x.md"}, wantCode: exitBlocked, wantStderr: "--dry-run"},
@@ -95,7 +100,7 @@ func TestPlannedCoversUsage(t *testing.T) {
 			t.Errorf("comando previsto %q não aparece na ajuda", cmd)
 		}
 	}
-	for _, cmd := range []string{"hook", "validate", "doctor", "fmt-hook", "sensors", "delivery", "mcp", "init", "sync"} {
+	for _, cmd := range []string{"hook", "validate", "doctor", "fmt-hook", "sensors", "delivery", "mcp", "init", "sync", "adopt"} {
 		if _, ok := planned[cmd]; ok {
 			t.Errorf("%q implementado ainda está em planned", cmd)
 		}

@@ -52,7 +52,7 @@ make fixtures-check BLOCKLIST=<arquivo privado>
 ## Layout
 
 ```
-cmd/pipeline-claude     dispatcher da CLI (init e sync em init_sync.go)
+cmd/pipeline-claude     dispatcher da CLI (init e sync em init_sync.go, adopt em adopt.go)
 internal/buildinfo      versão do binário
 internal/config         carrega e valida .pipeline-claude.json
 internal/gitdiff        arquivos alterados (diff completo, TD-11) e diff de revisão (TD-29)
@@ -77,8 +77,8 @@ testdata/hooks/claude   fixtures sanitizadas por versão do Claude Code
 docs/                   decisões, guias e prompts de execução por fatia
 ```
 
-Pacotes previstos: nenhum. Fase 4 em execução (prompt em
-`docs/prompts/fase-4-adopt.md`): o comando `adopt` entra na CLI numa PR seguinte.
+Pacotes previstos: nenhum. Guia de adoção de projeto existente em
+`docs/ADOCAO.md`.
 
 ## Convenções
 
