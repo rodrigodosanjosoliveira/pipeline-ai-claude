@@ -456,9 +456,9 @@ func binaryName() string {
 	return "pipeline-claude"
 }
 
-// declaredVersion lê a versão do toolkit fixada no Makefile do projeto
+// DeclaredVersion lê a versão do toolkit fixada no Makefile do projeto
 // (TD-06). Vazio se não houver Makefile ou versão declarada.
-func declaredVersion(root string) (string, error) {
+func DeclaredVersion(root string) (string, error) {
 	data, err := os.ReadFile(filepath.Join(root, "Makefile"))
 	if errors.Is(err, fs.ErrNotExist) {
 		return "", nil
@@ -478,7 +478,7 @@ func declaredVersion(root string) (string, error) {
 func binaryCheck(root string, e env) Check {
 	rel := "bin/" + binaryName()
 	path := filepath.Join(root, "bin", binaryName())
-	want, err := declaredVersion(root)
+	want, err := DeclaredVersion(root)
 	if err != nil {
 		return bad(checkBinary, StatusError, err.Error(), "confira as permissões do Makefile")
 	}

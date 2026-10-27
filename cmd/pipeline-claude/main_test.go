@@ -33,7 +33,20 @@ func TestRun(t *testing.T) {
 		// bloqueia por falha fechada: stdin vazio não é payload (TD-08).
 		{name: "hook com stdin vazio bloqueia", args: []string{"hook"}, wantCode: exitBlocked, wantStderr: "payload"},
 		{name: "hook com argumento extra", args: []string{"hook", "x"}, stdin: "{}", wantCode: exitBlocked, wantStderr: "hook"},
-		{name: "init não implementado", args: []string{"init"}, wantCode: exitBlocked, wantStderr: "Fase 3"},
+		// Antes: "init não implementado". Agora o init existe (TD-24).
+		{name: "init sem nome", args: []string{"init"}, wantCode: exitBlocked, wantStderr: "nome"},
+		{name: "init com dois nomes", args: []string{"init", "a", "b"}, wantCode: exitBlocked, wantStderr: "um nome"},
+		{name: "init com opção desconhecida", args: []string{"init", "a", "--xpto"}, wantCode: exitBlocked, wantStderr: "xpto"},
+		{name: "init -h", args: []string{"init", "-h"}, wantCode: exitOK, wantStderr: "--toolkit-version"},
+		{name: "init com módulo vazio na lista", args: []string{"init", "a", "--toolkit-version", "v0.3.0", "--modules", "data-model,,release-ops"}, wantCode: exitBlocked, wantStderr: "--modules"},
+		// O binário de teste roda sem versão de módulo (dev): sem
+		// --toolkit-version o init não tem o que fixar no Makefile (TD-24).
+		{name: "init sem versão em build dev", args: []string{"init", "a"}, wantCode: exitBlocked, wantStderr: "--toolkit-version"},
+		{name: "adopt previsto", args: []string{"adopt"}, wantCode: exitBlocked, wantStderr: "Fase 4"},
+		{name: "sync com argumento", args: []string{"sync", "x"}, wantCode: exitBlocked, wantStderr: "argumento"},
+		{name: "sync com opção desconhecida", args: []string{"sync", "--xpto"}, wantCode: exitBlocked, wantStderr: "xpto"},
+		{name: "sync --release com --dry-run", args: []string{"sync", "--dry-run", "--release", ".claude/agents/x.md"}, wantCode: exitBlocked, wantStderr: "--dry-run"},
+		{name: "sync -h", args: []string{"sync", "-h"}, wantCode: exitOK, wantStderr: "--release"},
 		// Antes: "fmt-hook não implementado". Agora bloqueia por falha fechada.
 		{name: "fmt-hook com stdin vazio bloqueia", args: []string{"fmt-hook"}, wantCode: exitBlocked, wantStderr: "payload"},
 		{name: "fmt-hook com argumento extra", args: []string{"fmt-hook", "x"}, stdin: "{}", wantCode: exitBlocked, wantStderr: "fmt-hook"},
@@ -82,7 +95,7 @@ func TestPlannedCoversUsage(t *testing.T) {
 			t.Errorf("comando previsto %q não aparece na ajuda", cmd)
 		}
 	}
-	for _, cmd := range []string{"hook", "validate", "doctor", "fmt-hook", "sensors", "delivery", "mcp"} {
+	for _, cmd := range []string{"hook", "validate", "doctor", "fmt-hook", "sensors", "delivery", "mcp", "init", "sync"} {
 		if _, ok := planned[cmd]; ok {
 			t.Errorf("%q implementado ainda está em planned", cmd)
 		}
@@ -163,7 +176,9 @@ func TestMain(m *testing.M) {
 		name += ".exe"
 	}
 	binPath = filepath.Join(dir, name)
-	build := exec.Command(goTool(), "build", "-o", binPath, ".")
+	// Versão fixada por ldflags, como no make build: init e sync precisam de
+	// uma versão de módulo (TD-24, TD-25).
+	build := exec.Command(goTool(), "build", "-ldflags", "-X "+buildinfoVar+"="+e2eVersion, "-o", binPath, ".")
 	if out, err := build.CombinedOutput(); err != nil {
 		fmt.Fprintf(os.Stderr, "e2e: go build: %v\n%s", err, out)
 		_ = os.RemoveAll(dir)

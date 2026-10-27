@@ -7,7 +7,9 @@
 // e move no fim, com remoção de tudo em falha (TD-24); caminhos conferidos
 // dentro do staging após filepath.Clean (TD-17); lock com o hash de cada
 // gerenciado (TD-23); git init -b main + core.hooksPath sem fallback, sem add
-// nem commit, e falha do git vira erro com o comando a rodar (TD-24, TD-08).
+// nem commit, e falha do git vira erro com o comando a rodar (TD-24, TD-08);
+// ErrInvalid separa entrada ou destino inválido (CLI sai com 2) de falha de
+// escrita (1).
 
 // Package scaffold implementa o init: gera um projeto novo num diretório
 // temporário irmão do destino e o move para o destino no fim (TD-24).
@@ -99,6 +101,24 @@ func defaultDeps() deps {
 		},
 	}
 }
+
+// ErrInvalid marca erro de entrada (nome, módulo, provedor, módulos, versão,
+// resumo) ou de destino (com conteúdo, arquivo ou symlink): a CLI sai com 2
+// nele e com 1 em falha de escrita. A mensagem continua a do erro original.
+var ErrInvalid = errors.New("scaffold: entrada inválida")
+
+// invalidError embrulha um erro de entrada: Is(ErrInvalid) sem mudar a
+// mensagem.
+type invalidError struct{ error }
+
+func (e invalidError) Is(target error) bool { return target == ErrInvalid }
+func (e invalidError) Unwrap() error        { return e.error }
+
+func invalid(err error) error { return invalidError{err} }
+
+// ValidVersion diz se v é versão de módulo aceita como versão do toolkit:
+// vX.Y.Z, com pré-lançamento (inclusive pseudo-versão) ou build opcionais.
+func ValidVersion(v string) bool { return versionRe.MatchString(v) }
 
 // Init valida opts, gera o projeto num staging ao lado do destino e o move
 // para o destino. Em erro antes do move, nada fica no disco. Com Git, uma
@@ -208,7 +228,7 @@ func prepare(opts Options) (*plan, error) {
 // preenchidos.
 func normalize(o Options) (templates.Data, error) {
 	if !nameRe.MatchString(o.Name) {
-		return templates.Data{}, fmt.Errorf("scaffold: nome do projeto %q inválido: use letras minúsculas, dígitos e hífen, começando por letra (^[a-z][a-z0-9-]*$)", o.Name)
+		return templates.Data{}, invalid(fmt.Errorf("scaffold: nome do projeto %q inválido: use letras minúsculas, dígitos e hífen, começando por letra (^[a-z][a-z0-9-]*$)", o.Name))
 	}
 	module := o.Module
 	if module == "" {
@@ -216,31 +236,31 @@ func normalize(o Options) (templates.Data, error) {
 	}
 	if strings.ContainsFunc(module, func(r rune) bool { return unicode.IsSpace(r) || unicode.IsControl(r) }) ||
 		strings.Contains(module, "..") || strings.HasPrefix(module, "/") || strings.HasSuffix(module, "/") {
-		return templates.Data{}, fmt.Errorf("scaffold: módulo Go %q inválido: sem espaço, sem \"..\" e sem \"/\" no início ou no fim", module)
+		return templates.Data{}, invalid(fmt.Errorf("scaffold: módulo Go %q inválido: sem espaço, sem \"..\" e sem \"/\" no início ou no fim", module))
 	}
 	provider := o.Provider
 	if provider == "" {
 		provider = "github"
 	}
 	if provider != "github" && provider != "gitlab" {
-		return templates.Data{}, fmt.Errorf("scaffold: provedor %q não suportado: use github ou gitlab", provider)
+		return templates.Data{}, invalid(fmt.Errorf("scaffold: provedor %q não suportado: use github ou gitlab", provider))
 	}
 	mods := slices.Clone(o.Modules)
 	slices.Sort(mods)
 	for i, m := range mods {
 		if !config.Modules[m] {
-			return templates.Data{}, fmt.Errorf("scaffold: módulo opcional %q desconhecido: use um de %s", m, strings.Join(knownModules(), ", "))
+			return templates.Data{}, invalid(fmt.Errorf("scaffold: módulo opcional %q desconhecido: use um de %s", m, strings.Join(knownModules(), ", ")))
 		}
 		if i > 0 && mods[i-1] == m {
-			return templates.Data{}, fmt.Errorf("scaffold: módulo opcional %q repetido", m)
+			return templates.Data{}, invalid(fmt.Errorf("scaffold: módulo opcional %q repetido", m))
 		}
 	}
-	if !versionRe.MatchString(o.ToolkitVersion) {
-		return templates.Data{}, fmt.Errorf("scaffold: versão do toolkit %q inválida: esperado vX.Y.Z (com pré-lançamento ou build opcionais)", o.ToolkitVersion)
+	if !ValidVersion(o.ToolkitVersion) {
+		return templates.Data{}, invalid(fmt.Errorf("scaffold: versão do toolkit %q inválida: esperado vX.Y.Z (com pré-lançamento ou build opcionais)", o.ToolkitVersion))
 	}
 	summary := strings.TrimSpace(o.Summary)
 	if strings.ContainsFunc(o.Summary, unicode.IsControl) {
-		return templates.Data{}, errors.New("scaffold: o resumo precisa ter uma linha só, sem caractere de controle")
+		return templates.Data{}, invalid(errors.New("scaffold: o resumo precisa ter uma linha só, sem caractere de controle"))
 	}
 	if summary == "" {
 		summary = fmt.Sprintf("API %s em Go com PostgreSQL.", o.Name)
@@ -281,16 +301,16 @@ func checkDest(dest string) (bool, error) {
 	case err != nil:
 		return false, fmt.Errorf("scaffold: falha ao verificar o destino %s: %w", dest, err)
 	case info.Mode()&fs.ModeSymlink != 0:
-		return false, fmt.Errorf("scaffold: o destino %s é um symlink; informe o diretório real", dest)
+		return false, invalid(fmt.Errorf("scaffold: o destino %s é um symlink; informe o diretório real", dest))
 	case !info.IsDir():
-		return false, fmt.Errorf("scaffold: o destino %s existe e não é um diretório", dest)
+		return false, invalid(fmt.Errorf("scaffold: o destino %s existe e não é um diretório", dest))
 	}
 	entries, err := os.ReadDir(dest)
 	if err != nil {
 		return false, fmt.Errorf("scaffold: falha ao ler o destino %s: %w", dest, err)
 	}
 	if len(entries) > 0 {
-		return false, fmt.Errorf("scaffold: o destino %s não está vazio; nada foi criado", dest)
+		return false, invalid(fmt.Errorf("scaffold: o destino %s não está vazio; nada foi criado", dest))
 	}
 	return true, nil
 }

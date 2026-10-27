@@ -1,9 +1,9 @@
 // Command pipeline-claude é a CLI do toolkit pipeline-ai-claude: governança
 // determinística para desenvolvimento assistido por agentes no Claude Code.
 //
-// Estado: Fase 2 (hook, fmt-hook, validate, sensors, delivery new, doctor,
-// mcp). Os demais comandos entram por fatias; até lá, cada um sai com código 2 e informa a fase em que será
-// entregue. O código 2 é deliberado: no hook do Claude Code ele bloqueia (falha
+// Estado: Fase 3 (hook, fmt-hook, validate, sensors, delivery new, doctor,
+// mcp, init, sync). Os demais comandos entram por fatias; até lá, cada um sai
+// com código 2 e informa a fase em que será entregue. O código 2 é deliberado: no hook do Claude Code ele bloqueia (falha
 // fechada), então um binário incompleto nunca libera edição por engano.
 package main
 
@@ -39,8 +39,6 @@ const (
 
 // planned mapeia os comandos previstos para a fase/fatia que os entrega.
 var planned = map[string]string{
-	"init":  "Fase 3",
-	"sync":  "Fase 3",
 	"adopt": "Fase 4",
 }
 
@@ -86,6 +84,10 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		return runDelivery(args[1:], stdout, stderr)
 	case "mcp":
 		return runMCP(args[1:], stdin, stdout, stderr)
+	case "init":
+		return runInit(args[1:], stdout, stderr)
+	case "sync":
+		return runSync(args[1:], stdout, stderr)
 	}
 	if phase, ok := planned[args[0]]; ok {
 		fmt.Fprintf(stderr, "pipeline-claude: comando %q ainda não implementado (previsto para a %s).\n", args[0], phase)
@@ -108,13 +110,17 @@ Comandos:
   delivery new --title <título> [--prefix <p>] [--json]
                                                     cria a próxima delivery e registra no índice
   doctor [--json]                                   diagnostica ambiente e projeto
+  init <nome> [--dir <d>] [--module <m>] [--summary <s>] [--provider github|gitlab]
+       [--modules a,b] [--toolkit-version <v>] [--git] [--json]
+                                                    cria um projeto novo (destino vazio)
+  sync [--dry-run] [--json] [--release <caminho>]...
+                                                    atualiza os arquivos gerenciados pelo lock
   mcp                                               servidor MCP por stdio (até EOF)
   version                                           mostra a versão
   help                                              mostra esta ajuda
 
 Previstos:
-  init, sync (Fase 3)
-  adopt      (Fase 4)
+  adopt (Fase 4)
 
 Códigos de saída: 0 ok · 1 reprovado · 2 bloqueio do hook ou uso inválido.
 `)
