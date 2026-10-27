@@ -212,7 +212,8 @@ func TestNew(t *testing.T) {
 			// Divergência do original, que descartava comentários HTML: toda
 			// célula de linha de tabela conta, como no validador, para nunca
 			// gerar um ID que ele já considere registrado (TD-20). A linha
-			// nova vai para a primeira tabela fora de comentário e de código.
+			// nova vai para a primeira tabela com coluna de ID fora de comentário e
+			// de código.
 			name: "comentário e bloco de código contam para o número mas não recebem a linha",
 			index: ptr("```\n| ID | Título |\n|---|---|\n| FEAT-080 | exemplo |\n```\n\n<!--\n| ID | Título |\n|---|---|\n| FEAT-070 | exemplo |\n-->\n\n" +
 				indexHead + row("FEAT-001", "Cadastro")),
@@ -227,6 +228,17 @@ func TestNew(t *testing.T) {
 			opts:      feat,
 			wantID:    "FEAT-021",
 			wantIndex: indexHead + row("FEAT-001", "Cadastro") + newRow("FEAT-021") + "\nNotas da equipe.\n\n| ID | Arquivo |\n|---|---|\n| FEAT-020 | antigo |\n",
+		},
+		{
+			// Índice com tabela de prefixos antes da de registro: a linha vai
+			// para a primeira tabela com coluna de ID, nunca para a de prefixos.
+			name: "primeira tabela sem coluna de ID é pulada",
+			index: ptr("## Prefixos\n\n| Frente | Prefixo |\n|---|---|\n| Acervo | `FEAT` |\n\n## Registro\n\n" +
+				"| ID | Título | Status | PR/MR |\n|---|---|---|---|\n| FEAT-001 | Cadastro | done | !1 |\n"),
+			opts:   feat,
+			wantID: "FEAT-002",
+			wantIndex: "## Prefixos\n\n| Frente | Prefixo |\n|---|---|\n| Acervo | `FEAT` |\n\n## Registro\n\n" +
+				"| ID | Título | Status | PR/MR |\n|---|---|---|---|\n| FEAT-001 | Cadastro | done | !1 |\n| FEAT-002 | Multa por atraso | draft |  |\n",
 		},
 		{
 			name:      "colunas por título normalizado; desconhecidas ficam vazias",
@@ -321,7 +333,9 @@ func TestNew(t *testing.T) {
 		{name: "tabela sem linha separadora", index: ptr("| ID | Título |\n| FEAT-001 | Cadastro |\n"), opts: feat, wantErr: "tabela com cabeçalho"},
 		{name: "tabela só dentro de comentário", index: ptr("<!--\n" + indexHead + "-->\n"), opts: feat, wantErr: "tabela com cabeçalho"},
 		{name: "tabela só dentro de bloco de código", index: ptr("~~~\n" + indexHead + "~~~\n"), opts: feat, wantErr: "tabela com cabeçalho"},
-		{name: "sem coluna de ID", index: ptr("| Código | Título |\n|---|---|\n"), opts: feat, wantErr: "coluna de ID"},
+		{name: "sem coluna de ID", index: ptr("| Código | Título |\n|---|---|\n"), opts: feat, wantErr: "nenhuma tabela com coluna de ID"},
+		{name: "nenhuma das tabelas com coluna de ID", index: ptr("| Frente | Prefixo |\n|---|---|\n\n| Código | Título |\n|---|---|\n"), opts: feat, wantErr: "nenhuma tabela com coluna de ID"},
+		{name: "tabela de ID só em comentário", index: ptr("| Frente | Prefixo |\n|---|---|\n<!--\n" + indexHead + "-->\n"), opts: feat, wantErr: "nenhuma tabela com coluna de ID"},
 		{
 			name:    "deliveries_dir ausente",
 			fields:  defaultIDs + `, "index_file": "docs/INDEX.md"`,

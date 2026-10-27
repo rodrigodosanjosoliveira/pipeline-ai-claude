@@ -5,7 +5,8 @@
 // sobrescrito: Mkdir e report com O_EXCL, índice por temporário + rename com
 // permissão e fim de linha preservados, rollback do diretório se o índice
 // falhar (TD-20); escrita confinada à raiz, inclusive contra symlink (TD-17);
-// título validado; linha nova no fim da primeira tabela, colunas pelo
+// título validado; linha nova no fim da primeira tabela com coluna de ID
+// (tabela antes dela sem ID, como a de prefixos, é pulada), colunas pelo
 // cabeçalho; data injetada; células em comentário contam para o número.
 
 // Package delivery cria deliveries: o diretório, o report inicial e a linha no
@@ -25,6 +26,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -533,8 +535,8 @@ func sortedKeys[V any](m map[string]V) []string {
 type index struct {
 	lines  []string // linhas com o terminador
 	eol    string   // "\n" ou "\r\n", do original
-	header []string // títulos das colunas da primeira tabela, normalizados
-	last   int      // última linha da primeira tabela
+	header []string // títulos das colunas da tabela de registro, normalizados
+	last   int      // última linha da tabela de registro
 	// cells é o conteúdo de toda célula de linha de tabela, em qualquer parte
 	// do arquivo (inclusive comentário e código, como o validador enxerga),
 	// sem link, crases e ênfase. Nunca contém célula vazia.
@@ -546,9 +548,11 @@ var (
 	separatorRe = regexp.MustCompile(`^:?-+:?$`)
 )
 
-// parseIndex lê o índice. Erro se não houver tabela com cabeçalho (linha de
-// títulos seguida de linha separadora) fora de comentário HTML e de bloco de
-// código.
+// parseIndex lê o índice. A tabela de registro é a primeira com cabeçalho
+// (linha de títulos seguida de linha separadora) e coluna de ID, fora de
+// comentário HTML e de bloco de código: uma tabela antes dela sem coluna de ID
+// (de prefixos, por exemplo) é pulada. Erro se não houver tabela com
+// cabeçalho ou se nenhuma tiver coluna de ID.
 func parseIndex(content string) (*index, error) {
 	lines := strings.SplitAfter(content, "\n")
 	if n := len(lines); lines[n-1] == "" {
@@ -575,21 +579,35 @@ func parseIndex(content string) (*index, error) {
 	isRow := func(i int) bool {
 		return i < len(lines) && !hidden[i] && strings.HasPrefix(strings.TrimSpace(lines[i]), "|")
 	}
+	sawTable := false
 	for i := 0; i+1 < len(lines); i++ {
 		if !isRow(i) || !isRow(i+1) || !isSeparator(lines[i+1]) {
 			continue
 		}
+		sawTable = true
+		var header []string
 		for _, c := range splitCells(strings.TrimSpace(lines[i])) {
-			idx.header = append(idx.header, report.NormalizeTitle(cellValue(c)))
+			header = append(header, report.NormalizeTitle(cellValue(c)))
 		}
-		idx.last = i + 1
-		for isRow(idx.last + 1) {
-			idx.last++
+		last := i + 1
+		for isRow(last + 1) {
+			last++
 		}
+		if !slices.ContainsFunc(header, isIDColumn) {
+			i = last
+			continue
+		}
+		idx.header, idx.last = header, last
 		return idx, nil
+	}
+	if sawTable {
+		return nil, errors.New("nenhuma tabela com coluna de ID (título id, delivery ou delivery_id) fora de comentário e de bloco de código")
 	}
 	return nil, errors.New("nenhuma tabela com cabeçalho (linha de títulos seguida de |---|) fora de comentário e de bloco de código")
 }
+
+// isIDColumn diz se o título normalizado é de coluna de ID.
+func isIDColumn(h string) bool { return h == "id" || h == "delivery" || h == "delivery_id" }
 
 // splitCells divide uma linha de tabela (sem espaços nas pontas) em células,
 // como o validador: sem os "|" das pontas e sem escape.
@@ -690,25 +708,25 @@ func (idx *index) row(id, title, date string) (string, error) {
 	cells := make([]string, len(idx.header))
 	hasID := false
 	for i, h := range idx.header {
-		switch h {
-		case "id", "delivery", "delivery_id":
+		switch {
+		case isIDColumn(h):
 			cells[i], hasID = id, true
-		case "titulo", "title":
+		case h == "titulo" || h == "title":
 			cells[i] = title
-		case "status":
+		case h == "status":
 			cells[i] = "draft"
-		case "data", "date":
+		case h == "data" || h == "date":
 			cells[i] = date
 		}
 	}
 	if !hasID {
-		return "", errors.New("a primeira tabela não tem coluna de ID (título id, delivery ou delivery_id)")
+		return "", errors.New("a tabela de registro não tem coluna de ID (título id, delivery ou delivery_id)")
 	}
 	return "| " + strings.Join(cells, " | ") + " |", nil
 }
 
 // insert devolve o índice com row (sem terminador) depois da última linha da
-// primeira tabela, com o fim de linha do original.
+// tabela de registro, com o fim de linha do original.
 func (idx *index) insert(row string) string {
 	var b strings.Builder
 	for i, l := range idx.lines {
