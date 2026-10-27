@@ -256,6 +256,26 @@ faz o hook bloquear toda edição (TD-08): o `doctor` mostra o motivo.
 templates; cada consumidor novo (o `adopt`, na Fase 4) teria de lembrar de tirar
 a repetição. Sem projeto em versão publicada, recusar agora não quebra ninguém.
 
+### TD-29 — Revisores só leitura; diff e checagens pelo MCP
+Subagente fora de `editor_agents` não recebe Bash nem ferramenta de escrita, com
+uma exceção: `git-delivery` (commit e push). O diff vem da ferramenta MCP
+`pipeline_diff`, só leitura: arquivos alterados como no TD-11 (os não
+rastreados listados à parte, sem conteúdo), patch `git diff <merge-base>` contra
+o `base_ref`, filtro opcional por caminho (pathspec literal, sem mágica) e corte
+em 64 KiB com aviso. Checagem que pedia shell vira sensor do projeto (`vuln`:
+govulncheck fixado; `mod-verify`: `go mod verify`), rodado por
+`pipeline_sensors`: o comando fica na config, que está em `no_agent_paths`.
+Projeto existente recebe os subagentes pelo `sync`; os sensores entram na config
+à mão, e o `doctor` avisa sensor que um subagente usa e a config não tem.
+**Limite conhecido:** a sessão principal, os editores e o `git-delivery` mantêm
+Bash, que grava sem passar pelo hook nem pelo `permissions.deny`. O hook protege
+contra edição pelas ferramentas de edição, não contra um agente com shell; o que
+pega depois é o diff na PR, o `auto_flags` do `validate`, o pre-push e o CI.
+**Motivo:** o revisor lê conteúdo não confiável (o diff) e é o alvo natural de
+injeção de prompt; a lista de ferramentas é garantida pelo Claude Code, a
+instrução "não contorne com o Bash" não. Complementa o TD-21 (ferramentas MCP) e
+o TD-26 (ferramentas dos subagentes).
+
 ## Pontos em aberto
 
 1. Distribuição da camada Claude também como plugin do Claude Code.

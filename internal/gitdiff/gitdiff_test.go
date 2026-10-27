@@ -395,3 +395,176 @@ func TestSplitNUL(t *testing.T) {
 		})
 	}
 }
+
+func TestReview(t *testing.T) {
+	dir := scenarioRepo(t)
+	d, err := Review(context.Background(), dir, "main", nil, 1<<20)
+	if err != nil {
+		t.Fatalf("Review: %v", err)
+	}
+	if !reflect.DeepEqual(d.Files, scenarioWant) {
+		t.Errorf("Files = %q, quero %q", d.Files, scenarioWant)
+	}
+	if want := []string{"dir/relatório final.md", "novo.txt"}; !reflect.DeepEqual(d.Untracked, want) {
+		t.Errorf("Untracked = %q, quero %q", d.Untracked, want)
+	}
+	if len(d.MergeBase) != 40 {
+		t.Errorf("MergeBase = %q, quero hash", d.MergeBase)
+	}
+	// Commitado, staged e não staged entram no patch; não rastreado não.
+	for _, want := range []string{
+		"+alterado de novo", "+alterado", "-original", "+acento",
+		"a/renomear-de.txt", "b/renomear-para.txt", "diff --git a/staged.txt b/staged.txt",
+	} {
+		if !strings.Contains(d.Patch, want) {
+			t.Errorf("patch sem %q:\n%s", want, d.Patch)
+		}
+	}
+	for _, unwanted := range []string{"+novo", "espaço e acento", "ignorado", "\x1b["} {
+		if strings.Contains(d.Patch, unwanted) {
+			t.Errorf("patch com %q:\n%s", unwanted, d.Patch)
+		}
+	}
+	if d.Truncated || d.Size != len(d.Patch) {
+		t.Errorf("Truncated = %v, Size = %d, len = %d", d.Truncated, d.Size, len(d.Patch))
+	}
+}
+
+func TestReviewMergeBase(t *testing.T) {
+	// A base que andou depois da branch não entra no diff: o patch é contra o
+	// merge-base, como o base...HEAD do TD-11.
+	dir := scenarioRepo(t)
+	git(t, dir, "stash", "-q", "--include-untracked")
+	git(t, dir, "checkout", "-q", "main")
+	write(t, dir, "so-na-main.txt", "main andou\n")
+	git(t, dir, "add", "-A")
+	git(t, dir, "commit", "-q", "-m", "main andou")
+	git(t, dir, "checkout", "-q", "task")
+	d, err := Review(context.Background(), dir, "main", nil, 1<<20)
+	if err != nil {
+		t.Fatalf("Review: %v", err)
+	}
+	if strings.Contains(d.Patch, "so-na-main") || slicesContains(d.Files, "so-na-main.txt") {
+		t.Errorf("commit só da base entrou no diff: %q\n%s", d.Files, d.Patch)
+	}
+	if !strings.Contains(d.Patch, "+na branch") {
+		t.Errorf("commit da branch fora do patch:\n%s", d.Patch)
+	}
+}
+
+func slicesContains(s []string, v string) bool {
+	for _, x := range s {
+		if x == v {
+			return true
+		}
+	}
+	return false
+}
+
+func TestReviewPaths(t *testing.T) {
+	dir := scenarioRepo(t)
+	tests := []struct {
+		name      string
+		paths     []string
+		files     []string
+		inPatch   []string
+		notPatch  []string
+		untracked []string
+	}{
+		{"diretório", []string{"docs"}, []string{"docs/ação.md"}, []string{"+acento"}, []string{"staged.txt"}, nil},
+		{"diretório com barra final", []string{"docs/"}, []string{"docs/ação.md"}, []string{"+acento"}, []string{"staged.txt"}, nil},
+		{"arquivo e não rastreado", []string{"staged.txt", "novo.txt"}, []string{"novo.txt", "staged.txt"}, []string{"staged.txt"}, []string{"acento"}, []string{"novo.txt"}},
+		{"prefixo não casa nome parcial", []string{"doc"}, []string{}, nil, []string{"acento"}, nil},
+		// Pathspec literal: ":!" não vira "tudo menos staged.txt".
+		{"sem mágica de pathspec", []string{":!staged.txt"}, []string{}, nil, []string{"diff --git"}, nil},
+		{"nada casa", []string{"inexistente"}, []string{}, nil, []string{"diff --git"}, nil},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			d, err := Review(context.Background(), dir, "main", tt.paths, 1<<20)
+			if err != nil {
+				t.Fatalf("Review: %v", err)
+			}
+			if !reflect.DeepEqual(d.Files, tt.files) {
+				t.Errorf("Files = %q, quero %q", d.Files, tt.files)
+			}
+			if len(tt.untracked) > 0 && !reflect.DeepEqual(d.Untracked, tt.untracked) {
+				t.Errorf("Untracked = %q, quero %q", d.Untracked, tt.untracked)
+			}
+			for _, w := range tt.inPatch {
+				if !strings.Contains(d.Patch, w) {
+					t.Errorf("patch sem %q:\n%s", w, d.Patch)
+				}
+			}
+			for _, w := range tt.notPatch {
+				if strings.Contains(d.Patch, w) {
+					t.Errorf("patch com %q:\n%s", w, d.Patch)
+				}
+			}
+		})
+	}
+}
+
+func TestReviewTruncated(t *testing.T) {
+	dir := scenarioRepo(t)
+	full, err := Review(context.Background(), dir, "main", nil, 1<<20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	max := len(full.Patch) / 2
+	d, err := Review(context.Background(), dir, "main", nil, max)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !d.Truncated || d.Size != len(full.Patch) {
+		t.Errorf("Truncated = %v, Size = %d; quero true e %d", d.Truncated, d.Size, len(full.Patch))
+	}
+	// Corta em fim de linha, nunca no meio.
+	if len(d.Patch) == 0 || len(d.Patch) > max || !strings.HasSuffix(d.Patch, "\n") || !strings.HasPrefix(full.Patch, d.Patch) {
+		t.Errorf("patch cortado inválido (%d de no máximo %d bytes): %q", len(d.Patch), max, d.Patch)
+	}
+	if !reflect.DeepEqual(d.Files, full.Files) {
+		t.Error("corte do patch mudou a lista de arquivos")
+	}
+}
+
+func TestReviewErros(t *testing.T) {
+	dir := scenarioRepo(t)
+	tests := []struct {
+		name  string
+		base  string
+		paths []string
+		max   int
+		want  string
+	}{
+		{"base vazia", "", nil, 1 << 20, "base"},
+		{"base como opção", "--output=x", nil, 1 << 20, "base"},
+		{"base inexistente", "nao-existe", nil, 1 << 20, "nao-existe"},
+		{"caminho vazio", "main", []string{""}, 1 << 20, "caminho"},
+		{"caminho absoluto", "main", []string{"/etc"}, 1 << 20, "caminho"},
+		{"caminho com ..", "main", []string{"../fora"}, 1 << 20, "caminho"},
+		{"caminho que sobe depois de limpo", "main", []string{"docs/../../fora"}, 1 << 20, "caminho"},
+		{"caminho como opção", "main", []string{"-p"}, 1 << 20, "caminho"},
+		{"caminho com contrabarra", "main", []string{`docs\ação.md`}, 1 << 20, "caminho"},
+		{"limite zero", "main", nil, 0, "limite"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := Review(context.Background(), dir, tt.base, tt.paths, tt.max)
+			if err == nil || !strings.Contains(err.Error(), tt.want) {
+				t.Errorf("Review = %v, quero erro com %q", err, tt.want)
+			}
+		})
+	}
+	t.Run("fora de repositório", func(t *testing.T) {
+		if _, err := Review(context.Background(), t.TempDir(), "main", nil, 1<<20); err == nil {
+			t.Error("Review fora de repositório não falhou")
+		}
+	})
+	t.Run("output não é criado", func(t *testing.T) {
+		_, _ = Review(context.Background(), dir, "--output=x", nil, 1<<20)
+		if _, err := os.Stat(filepath.Join(dir, "x")); err == nil {
+			t.Error("--output virou opção do git")
+		}
+	})
+}
