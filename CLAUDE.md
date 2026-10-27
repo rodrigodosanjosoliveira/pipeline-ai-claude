@@ -76,7 +76,7 @@ testdata/hooks/claude   fixtures sanitizadas por versão do Claude Code
 docs/                   decisões, guias e prompts de execução por fatia
 ```
 
-Pacote previsto: `adopt` (Fase 4).
+Pacote previsto: `adopt` (Fase 4, prompt em `docs/prompts/fase-4-adopt.md`).
 
 ## Convenções
 

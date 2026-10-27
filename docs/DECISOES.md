@@ -287,6 +287,53 @@ Sem `flag_front`, nada muda.
 aprovação registrada" não tinha como expressá-la no esquema; o `adopt` (Fase
 4) perderia a regra.
 
+## Fase 4
+
+### TD-31 — `adopt` só cria; arquivo existente nunca é alterado
+`pipeline-claude adopt` instala a pipeline num projeto Go existente sem reescrever
+nada que já está lá. Cria o que falta da camada gerada (subagentes, skills,
+pre-push, `.mcp.json`, `.claude/settings.json`, `.pipeline-claude.json`) e o
+lock. Para arquivo que já existe e precisaria de conteúdo do toolkit
+(`.claude/settings.json` com outros hooks, `Makefile`, `CLAUDE.md`,
+`.gitignore`), imprime o trecho exato a acrescentar; o `doctor` confere se
+entrou. Código, `go.mod`, `docs-ai/` e `.claude/commands/` nunca são tocados.
+Cada arquivo é criado com `O_EXCL`, conferido dentro da raiz (TD-17), sem
+seguir symlink; falha no meio remove o que esta execução criou.
+**Motivo:** mesclar automaticamente JSON e Markdown de outro autor reordena ou
+perde conteúdo; a instrução impressa é revisável no diff da adoção.
+
+### TD-32 — Lock da adoção: o que já existe é do projeto
+Arquivo da área gerenciada (TD-23) criado pelo `adopt` entra em `files`.
+Arquivo que já existia entra em `files` se for igual ao template (hash, TD-23);
+diferente, entra em `released` (do projeto: o `sync` nunca o toca, TD-25).
+Arquivo da área gerenciada fora do catálogo fica fora do lock. O `sync`
+seguinte parte desse lock como num projeto criado pelo `init`.
+**Motivo:** subagentes customizados carregam conhecimento do projeto (regras
+de domínio, build tags, aprovações) que o template genérico não tem; trocar
+por padrão seria regressão.
+
+### TD-33 — Pré-condições da adoção
+O `adopt` exige: raiz com `go.mod` (só `api` Go + PostgreSQL, TD-07), working
+tree do git limpo (`git status --porcelain` vazio, para a adoção ser um diff
+revisável), nenhum `.pipeline-claude.lock` (projeto já adotado usa `sync`) e
+versão do toolkit fixável (como no `init`, TD-24). `.pipeline-claude.json`
+existente precisa passar no `config.Load`; ausente, é criado a partir do
+template com o provedor do remote `origin`, o módulo do `go.mod` e
+`enabled_modules` com os módulos cujos subagentes já existem. `--dry-run`
+mostra o plano sem gravar. Exit 0 ok, 1 falha de escrita, 2 pré-condição ou
+uso inválido. Não exposto via MCP (TD-16).
+**Motivo:** adoção pela metade ou sobre trabalho não commitado mistura a
+mudança do toolkit com a do projeto.
+
+### TD-34 — `doctor` confere os subagentes, gerenciados ou do projeto
+Checagem `subagentes`: cada `.claude/agents/*.md` com front matter legível,
+`name` igual ao arquivo e `tools` explícito; fora de `editor_agents`, nenhum com
+ferramenta de escrita nem Bash, exceto `git-delivery` (TD-29). Violação é
+aviso com o nome e a ferramenta; front matter ilegível é erro. Vale também para
+subagente em `released`.
+**Motivo:** depois do `adopt`, os subagentes do projeto ficam fora do `sync`; a
+regra do TD-29 precisa de uma checagem que não dependa do template.
+
 ## Pontos em aberto
 
 1. Distribuição da camada Claude também como plugin do Claude Code.
