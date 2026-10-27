@@ -65,7 +65,9 @@ internal/sensors        execução dos sensores do projeto (argv, sem shell)
 internal/delivery       criação de delivery com ID sequencial e registro no índice
 internal/doctor         diagnóstico do ambiente e do projeto
 internal/mcp            servidor MCP por stdio (ferramentas e recursos)
+internal/manifest       lock dos arquivos gerenciados (.pipeline-claude.lock)
 internal/templates      catálogo e templates embutidos da camada gerada (init e sync)
+internal/scaffold       init: projeto novo por staging, sem sobrescrever, com lock
 internal/syncer         sync dos arquivos gerenciados (plano TD-25, lock, release)
 internal/fixtures       sanitização e checagem de payloads de hook
 tools/fixture-sanitize  converte capturas brutas em fixtures publicáveis
@@ -74,8 +76,7 @@ testdata/hooks/claude   fixtures sanitizadas por versão do Claude Code
 docs/                   decisões, guias e prompts de execução por fatia
 ```
 
-Pacotes previstos: `manifest`, `scaffold` (Fase 3, prompt em
-`docs/prompts/fase-3-templates.md`) e `adopt` (Fase 4).
+Pacote previsto: `adopt` (Fase 4).
 
 ## Convenções
 
