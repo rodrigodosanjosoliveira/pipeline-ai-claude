@@ -12,22 +12,36 @@ relatório de delivery validado e proteção de caminhos sensíveis.
 Os dois são projetos independentes; código do pipeline-ai é portado com
 atribuição (ver [`NOTICE`](NOTICE)).
 
-> **Estado:** em construção (Fase 2). A CLI expõe `hook`, `fmt-hook`, `validate`, `sensors`, `delivery new`, `doctor`, `mcp`, `version` e `help`; `init`, `sync` e `adopt` saem com código 2 até a fase prevista.
+> **Estado:** em construção (Fase 3). A CLI expõe `init`, `sync`, `hook`, `fmt-hook`, `validate`, `sensors`, `delivery new`, `doctor`, `mcp`, `version` e `help`; `adopt` sai com código 2 até a Fase 4.
 
-## O que vai fazer
+## Comandos
 
 | Comando | Função |
 |---|---|
-| `pipeline-claude init` | Cria um projeto novo (`api` Go + PostgreSQL) com subagentes, commands, hooks, MCP, gates e documentação de delivery |
-| `pipeline-claude adopt` | Instala a pipeline num projeto existente sem tocar em código |
-| `pipeline-claude sync` | Atualiza arquivos gerenciados sem sobrescrever edição local |
+| `pipeline-claude init <nome>` | Cria um projeto novo (`api` Go + PostgreSQL) num diretório vazio: subagentes, skills, hooks, MCP, pre-push, gates, documentação de delivery e o lock dos arquivos gerenciados; `--git` inicia o repositório |
+| `pipeline-claude adopt` | (Fase 4) Instala a pipeline num projeto existente sem tocar em código |
+| `pipeline-claude sync` | Atualiza os arquivos gerenciados pelo lock sem sobrescrever edição local; `--dry-run` mostra o plano, `--release <caminho>` passa o arquivo para o projeto |
 | `pipeline-claude hook` | `PreToolUse`: bloqueia edição de caminho protegido fora dos agentes autorizados (falha fechada) |
 | `pipeline-claude fmt-hook` | `PostToolUse`: formata com `go/format` o `.go` editado (sem `gofmt` no PATH) |
 | `pipeline-claude validate` | Valida o relatório de delivery contra o esquema do projeto e o diff completo |
 | `pipeline-claude sensors` | Gates do projeto com saída JSON |
 | `pipeline-claude delivery new` | Cria o relatório da próxima delivery e registra no índice |
-| `pipeline-claude doctor` | Diagnóstico do ambiente |
+| `pipeline-claude doctor` | Diagnóstico do ambiente e do projeto, inclusive arquivos gerenciados fora do lock |
 | `pipeline-claude mcp` | Servidor MCP (stdio) para o Claude Code |
+
+## Uso
+
+Projeto novo com o binário instalado numa versão publicada:
+
+```sh
+pipeline-claude init biblioteca-bairro --module example.com/biblioteca-bairro --git
+cd biblioteca-bairro && make tools && bin/pipeline-claude doctor
+```
+
+Com um binário de desenvolvimento, informe a versão a fixar no `Makefile`
+(`--toolkit-version vX.Y.Z`). Depois de atualizar `PIPELINE_CLAUDE_VERSION` e
+rodar `make tools`, `bin/pipeline-claude sync` traz os templates novos; arquivo
+editado pelo projeto não é tocado e aparece no `sync` e no `doctor`.
 
 ## Roteiro
 

@@ -44,7 +44,7 @@ func TestGeneratedProjectChecks(t *testing.T) {
 	if c := fmtHookCheck(st); c.Status != StatusOK {
 		t.Errorf("fmt-hook no settings.json gerado: %+v", c)
 	}
-	v, err := declaredVersion(root)
+	v, err := DeclaredVersion(root)
 	if err != nil || v != d.ToolkitVersion {
 		t.Errorf("versão no Makefile gerado = %q, %v; esperado %q", v, err, d.ToolkitVersion)
 	}

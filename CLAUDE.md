@@ -52,7 +52,7 @@ make fixtures-check BLOCKLIST=<arquivo privado>
 ## Layout
 
 ```
-cmd/pipeline-claude     dispatcher da CLI (comandos entram por fase)
+cmd/pipeline-claude     dispatcher da CLI (init e sync em init_sync.go)
 internal/buildinfo      versão do binário
 internal/config         carrega e valida .pipeline-claude.json
 internal/gitdiff        arquivos alterados (diff completo, TD-11)

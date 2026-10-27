@@ -405,6 +405,9 @@ func TestInitValidation(t *testing.T) {
 			if err == nil {
 				t.Fatalf("Init aceitou entrada inválida; Root %q", res.Root)
 			}
+			if !errors.Is(err, ErrInvalid) {
+				t.Errorf("erro %v não é ErrInvalid (a CLI sai com 2 só para entrada inválida)", err)
+			}
 			// A validação é do próprio init, antes da renderização; o caminho
 			// sai da mensagem (o TempDir leva o nome do teste).
 			msg := strings.ReplaceAll(err.Error(), parent, "<pai>")
@@ -482,6 +485,9 @@ func TestInitDestination(t *testing.T) {
 			if err == nil {
 				t.Fatal("Init aceitou destino inválido")
 			}
+			if !errors.Is(err, ErrInvalid) {
+				t.Errorf("erro %v não é ErrInvalid", err)
+			}
 			// O caminho sai da mensagem: o TempDir leva o nome do teste.
 			if msg := strings.ReplaceAll(err.Error(), parent, "<pai>"); !strings.Contains(msg, tt.wantErr) {
 				t.Errorf("erro %q não menciona %q", msg, tt.wantErr)
@@ -495,8 +501,12 @@ func TestInitParentMissing(t *testing.T) {
 	parent := t.TempDir()
 	before := snapshot(t, parent)
 	o := validOpts(filepath.Join(parent, "nao-existe"))
-	if _, err := Init(o); err == nil {
+	_, err := Init(o)
+	if err == nil {
 		t.Fatal("Init aceitou destino com diretório pai inexistente")
+	}
+	if errors.Is(err, ErrInvalid) {
+		t.Errorf("falha de escrita %v marcada como ErrInvalid", err)
 	}
 	assertUnchanged(t, parent, before)
 }
@@ -511,8 +521,12 @@ func TestInitReadOnlyParent(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = os.Chmod(parent, 0o755) })
 	before := snapshot(t, parent)
-	if _, err := Init(validOpts(parent)); err == nil {
+	_, err := Init(validOpts(parent))
+	if err == nil {
 		t.Fatal("Init gravou em diretório somente leitura")
+	}
+	if errors.Is(err, ErrInvalid) {
+		t.Errorf("falha de escrita %v marcada como ErrInvalid", err)
 	}
 	assertUnchanged(t, parent, before)
 }
@@ -591,6 +605,9 @@ func TestInitFailureLeavesNoResidue(t *testing.T) {
 			_, err := initWith(o, d)
 			if !errors.Is(err, errInjected) {
 				t.Fatalf("Init = %v, quero a falha injetada", err)
+			}
+			if errors.Is(err, ErrInvalid) {
+				t.Errorf("falha de escrita %v marcada como ErrInvalid", err)
 			}
 			if tt.failMove > 0 && renames < tt.failMove {
 				t.Fatalf("só %d renames; o caso não exercitou o move", renames)
@@ -743,6 +760,28 @@ func TestConfine(t *testing.T) {
 		}
 		if err != nil || got != tt.want {
 			t.Errorf("confine(%q) = %q, %v; quero %q", tt.rel, got, err, tt.want)
+		}
+	}
+}
+
+func TestValidVersion(t *testing.T) {
+	tests := []struct {
+		v    string
+		want bool
+	}{
+		{"v0.3.0", true},
+		{"v1.2.3-rc.1", true},
+		{"v0.0.0-20261027120000-abcdef123456", true},
+		{"v0.3.0+meta", true},
+		{"", false},
+		{"dev", false},
+		{"0.3.0", false},
+		{"v0.3", false},
+		{"v0.3.0 ", false},
+	}
+	for _, tt := range tests {
+		if got := ValidVersion(tt.v); got != tt.want {
+			t.Errorf("ValidVersion(%q) = %v, quero %v", tt.v, got, tt.want)
 		}
 	}
 }
