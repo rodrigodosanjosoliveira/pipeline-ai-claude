@@ -257,6 +257,17 @@ func Load(start string) (*Config, error) {
 	return c, nil
 }
 
+// Parse interpreta e valida data com as mesmas regras de Load, sem ler o
+// disco: serve para conferir uma configuração antes de gravá-la (adopt). Na
+// Config devolvida, Root() é vazio.
+func Parse(data []byte) (*Config, error) {
+	c, err := decode(data)
+	if err != nil {
+		return nil, fmt.Errorf("config: %w", err)
+	}
+	return c, nil
+}
+
 // decode interpreta, completa com os padrões e valida o conteúdo do arquivo.
 func decode(data []byte) (*Config, error) {
 	dec := json.NewDecoder(bytes.NewReader(data))

@@ -1053,3 +1053,44 @@ func FuzzDecode(f *testing.F) {
 		}
 	})
 }
+
+// TestParse confere que Parse aplica as mesmas regras de Load sem ler arquivo:
+// o adopt valida a config renderizada antes de gravá-la.
+func TestParse(t *testing.T) {
+	cases := []struct {
+		name    string
+		body    string
+		wantErr string
+	}{
+		{"válida", validBody, ""},
+		{"JSON inválido", "{", "JSON inválido"},
+		{"campo desconhecido", bodyWith(t, map[string]any{"extra": 1}), "unknown field"},
+		{"módulo repetido", bodyWith(t, map[string]any{"enabled_modules": []any{"data-model", "data-model"}}), "repetido"},
+		{"sem version", bodyWith(t, map[string]any{"version": nil}), "version"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			c, err := Parse([]byte(tc.body))
+			if tc.wantErr != "" {
+				if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
+					t.Fatalf("Parse: erro %v, quer %q", err, tc.wantErr)
+				}
+				if _, lerr := Load(filepath.Dir(writeConfig(t, t.TempDir(), tc.body))); lerr == nil {
+					t.Errorf("Load aceitou o que Parse reprovou")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("Parse: %v", err)
+			}
+			want := loadBody(t, tc.body)
+			if c.Root() != "" {
+				t.Errorf("Root = %q, quer vazio", c.Root())
+			}
+			if !reflect.DeepEqual(c.ProtectedPaths, want.ProtectedPaths) || c.GitProvider != want.GitProvider ||
+				!reflect.DeepEqual(c.EditorAgents, want.EditorAgents) {
+				t.Errorf("Parse = %+v, Load = %+v", c, want)
+			}
+		})
+	}
+}
