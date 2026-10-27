@@ -21,7 +21,6 @@ import (
 	"github.com/rodrigodosanjosoliveira/pipeline-ai-claude/internal/config"
 	"github.com/rodrigodosanjosoliveira/pipeline-ai-claude/internal/delivery"
 	"github.com/rodrigodosanjosoliveira/pipeline-ai-claude/internal/manifest"
-	"github.com/rodrigodosanjosoliveira/pipeline-ai-claude/internal/mcp"
 	"github.com/rodrigodosanjosoliveira/pipeline-ai-claude/internal/report"
 	"github.com/rodrigodosanjosoliveira/pipeline-ai-claude/internal/validate"
 )
@@ -181,28 +180,26 @@ func splitTools(s string) []string {
 	return out
 }
 
-// mcpToolNames devolve as ferramentas que o servidor MCP do toolkit expõe.
+// MCPToolNames devolve os nomes das ferramentas do servidor MCP do toolkit
+// (tools/list). É preenchida por mcp_test.go, no pacote externo templates_test:
+// importar internal/mcp aqui fecharia o ciclo templates → mcp → doctor →
+// syncer → templates.
+var MCPToolNames func() ([]string, error)
+
+// mcpToolNames devolve as ferramentas que o servidor MCP do toolkit expõe, com
+// o prefixo que o Claude Code usa em tools.
 func mcpToolNames(t *testing.T) []string {
 	t.Helper()
-	var out, errOut bytes.Buffer
-	in := strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"tools/list"}` + "\n")
-	getwd := func() (string, error) { return t.TempDir(), nil }
-	if err := mcp.Serve(context.Background(), in, &out, &errOut, getwd); err != nil {
-		t.Fatalf("mcp.Serve: %v", err)
+	if MCPToolNames == nil {
+		t.Fatal("MCPToolNames não preenchida (mcp_test.go)")
 	}
-	var resp struct {
-		Result struct {
-			Tools []struct {
-				Name string `json:"name"`
-			} `json:"tools"`
-		} `json:"result"`
-	}
-	if err := json.Unmarshal(bytes.TrimSpace(out.Bytes()), &resp); err != nil {
-		t.Fatalf("resposta do tools/list ilegível: %v: %s", err, out.String())
+	tools, err := MCPToolNames()
+	if err != nil {
+		t.Fatal(err)
 	}
 	var names []string
-	for _, tl := range resp.Result.Tools {
-		names = append(names, "mcp__pipeline-claude__"+tl.Name)
+	for _, tl := range tools {
+		names = append(names, "mcp__pipeline-claude__"+tl)
 	}
 	if len(names) == 0 {
 		t.Fatal("servidor MCP sem ferramentas")
