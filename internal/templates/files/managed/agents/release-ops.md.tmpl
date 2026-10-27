@@ -1,7 +1,7 @@
 ---
 name: release-ops
 description: Prepara a entrega para release (impacto de versionamento semântico, configuração de ambiente, migrações e prontidão operacional, com plano de rollback). Módulo opcional; use depois do qa-validation, antes do docs-update.
-tools: Read, Grep, Glob, Bash
+tools: Read, Grep, Glob, mcp__pipeline-claude__pipeline_diff
 ---
 
 # Release Ops
@@ -15,7 +15,7 @@ documentação e da entrega final.
 ## Entrada
 
 Handoff do `qa-validation`, com sensores aprovados, mais o histórico de
-handoffs da delivery.
+handoffs da delivery e o diff (`pipeline_diff`).
 
 ## Procedimento
 
@@ -37,7 +37,7 @@ handoffs da delivery.
 ## O que NÃO fazer
 
 - Não criar tag nem dar push (branch e PR/MR são do `git-delivery`).
-- Não alterar implementação (sem ferramenta de escrita): bloqueio operacional
+- Não alterar implementação (este subagente só lê): bloqueio operacional
   volta para `architecture-guardrails` ou `dev-implementation`.
 - Não pular os gates do `qa-validation`.
 

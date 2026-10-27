@@ -332,3 +332,65 @@ func (d Data) vars() (map[string]any, error) {
 	v["Modules"] = mods
 	return v, nil
 }
+
+// agentSensors são os sensores que cada subagente pede pelo nome em
+// pipeline_sensors, no lugar dos comandos que rodava pelo Bash (TD-29).
+var agentSensors = map[string][]string{
+	"agent-auditor":       {"test"},
+	"security-review":     {"vuln"},
+	"supply-chain-review": {"mod_verify", "vuln"},
+}
+
+// RequiredSensors devolve, ordenados e sem repetição, os sensores que os
+// subagentes do projeto com os módulos dados pedem pelo nome: a config precisa
+// declará-los (o doctor confere).
+func RequiredSensors(modules []string) []string {
+	var out []string
+	for _, f := range Expected(Managed, modules) {
+		name, ok := strings.CutPrefix(f.Path, ".claude/agents/")
+		if !ok {
+			continue
+		}
+		out = append(out, agentSensors[strings.TrimSuffix(name, ".md")]...)
+	}
+	slices.Sort(out)
+	return slices.Compact(out)
+}
+
+// DefaultSensors devolve os sensores da config gerada pelo init, na ordem do
+// template: é a referência para quem precisa acrescentar um sensor à mão.
+func DefaultSensors() ([]config.Sensor, error) {
+	for _, e := range catalog {
+		if e.Path != config.FileName {
+			continue
+		}
+		out, err := Render(e.File, Data{
+			Name: "projeto", Module: "projeto", Summary: "Projeto.",
+			Provider: "github", ToolkitVersion: "v0.0.0",
+		})
+		if err != nil {
+			return nil, err
+		}
+		var cfg struct {
+			Sensors []config.Sensor `json:"sensors"`
+		}
+		if err := json.Unmarshal(out, &cfg); err != nil {
+			return nil, fmt.Errorf("templates: %s gerado ilegível: %w", config.FileName, err)
+		}
+		return cfg.Sensors, nil
+	}
+	return nil, fmt.Errorf("templates: %s fora do catálogo", config.FileName)
+}
+
+// SensorUsers devolve, ordenados, os subagentes do catálogo que pedem o
+// sensor pelo nome.
+func SensorUsers(sensor string) []string {
+	var out []string
+	for agent, sensors := range agentSensors {
+		if slices.Contains(sensors, sensor) {
+			out = append(out, agent)
+		}
+	}
+	slices.Sort(out)
+	return out
+}

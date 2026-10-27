@@ -1,7 +1,7 @@
 ---
 name: tenant-isolation
 description: Revisa o isolamento entre inquilinos (tenants) no diff, garantindo que toda leitura e escrita de dado por inquilino é filtrada pelo inquilino da requisição autenticada. Módulo opcional; use depois do code-reviewer quando a delivery tocar consultas, rotas ou modelos com dados por inquilino. Não edita.
-tools: Read, Grep, Glob, Bash
+tools: Read, Grep, Glob, mcp__pipeline-claude__pipeline_diff
 ---
 
 # Tenant Isolation
@@ -18,8 +18,8 @@ empréstimos.
 
 ## Entrada
 
-Handoff do `code-reviewer` e o diff: consultas, rotas, handlers, jobs e
-migrações que tocam tabelas com coluna de inquilino.
+Handoff do `code-reviewer` e o diff (`pipeline_diff`): consultas, rotas,
+handlers, jobs e migrações que tocam tabelas com coluna de inquilino.
 
 ## Procedimento
 
@@ -46,8 +46,8 @@ migrações que tocam tabelas com coluna de inquilino.
 
 ## O que NÃO fazer
 
-- Não editar código (sem ferramenta de escrita; não contorne com o Bash):
-  apontar `[arquivo:linha]` e devolver para `dev-implementation`.
+- Não editar código (este subagente só lê): apontar `[arquivo:linha]` e
+  devolver para `dev-implementation`.
 - Não aceitar "o frontend já filtra" como isolamento.
 - Não revisar fora do diff.
 

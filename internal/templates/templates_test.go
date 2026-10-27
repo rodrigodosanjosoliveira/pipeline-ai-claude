@@ -46,16 +46,21 @@ var testCoreAgents = []string{
 	"docs-update", "git-delivery",
 }
 
-// reviewers não podem ter ferramenta de escrita (TD-26).
+// reviewers não podem ter ferramenta de escrita (TD-26) nem Bash (TD-29).
 var reviewers = []string{
 	"code-reviewer", "security-review", "supply-chain-review", "architecture-guardrails",
-	"migration-reviewer", "agent-auditor", "tenant-isolation",
+	"migration-reviewer", "agent-auditor", "tenant-isolation", "qa-validation", "release-ops",
 }
+
+// shellAgents são os subagentes fora de editor_agents que mantêm Bash: o
+// git-delivery faz commit e push (TD-29).
+var shellAgents = []string{"git-delivery"}
 
 var writeTools = []string{"Edit", "Write", "MultiEdit", "NotebookEdit"}
 
 const (
 	mcpDeliveryNew = "mcp__pipeline-claude__pipeline_delivery_new"
+	mcpDiff        = "mcp__pipeline-claude__pipeline_diff"
 	mcpSensors     = "mcp__pipeline-claude__pipeline_sensors"
 	mcpValidate    = "mcp__pipeline-claude__pipeline_validate"
 )
@@ -71,21 +76,29 @@ var agentTools = map[string]struct {
 	"architecture-guardrails": {"Read, Grep, Glob", false},
 	"test-writer":             {"Read, Grep, Glob, Edit, Write, Bash", true},
 	"dev-implementation":      {"Read, Grep, Glob, Edit, Write, MultiEdit, Bash, " + mcpSensors, true},
-	"code-reviewer":           {"Read, Grep, Glob, Bash", false},
-	"security-review":         {"Read, Grep, Glob, Bash", false},
-	"supply-chain-review":     {"Read, Grep, Glob, Bash", false},
-	"qa-validation":           {"Read, Grep, Glob, Bash, " + mcpSensors, false},
+	// Revisores: diff e sensores pelo MCP, sem Bash (TD-29).
+	"code-reviewer":       {"Read, Grep, Glob, " + mcpDiff, false},
+	"security-review":     {"Read, Grep, Glob, " + mcpDiff + ", " + mcpSensors, false},
+	"supply-chain-review": {"Read, Grep, Glob, " + mcpDiff + ", " + mcpSensors, false},
+	"qa-validation":       {"Read, Grep, Glob, " + mcpDiff + ", " + mcpSensors, false},
 	// Edita docs-ai/ e o report; valida pela ferramenta MCP, sem Bash.
 	"docs-update":  {"Read, Grep, Glob, Edit, Write, " + mcpValidate, true},
 	"git-delivery": {"Read, Grep, Glob, Bash, " + mcpValidate, false},
 	// Módulos.
 	"data-model":         {"Read, Grep, Glob", false},
-	"migration-reviewer": {"Read, Grep, Glob, Bash", false},
+	"migration-reviewer": {"Read, Grep, Glob, " + mcpDiff, false},
 	"query-performance":  {"Read, Grep, Glob, Edit, Write, Bash", true},
-	"release-ops":        {"Read, Grep, Glob, Bash", false},
-	"agent-auditor":      {"Read, Grep, Glob, Bash", false},
+	"release-ops":        {"Read, Grep, Glob, " + mcpDiff, false},
+	"agent-auditor":      {"Read, Grep, Glob, " + mcpDiff + ", " + mcpSensors, false},
 	"context-loader":     {"Read, Grep, Glob, WebFetch, WebSearch", false},
-	"tenant-isolation":   {"Read, Grep, Glob, Bash", false},
+	"tenant-isolation":   {"Read, Grep, Glob, " + mcpDiff, false},
+}
+
+// agentSensorsWant são os sensores que cada subagente pede pelo nome (TD-29).
+var agentSensorsWant = map[string][]string{
+	"agent-auditor":       {"test"},
+	"security-review":     {"vuln"},
+	"supply-chain-review": {"mod_verify", "vuln"},
 }
 
 // builtinTools são as ferramentas nativas do Claude Code aceitas em tools.
@@ -731,7 +744,11 @@ func TestGeneratedConfigLoads(t *testing.T) {
 				for _, s := range cfg.Sensors {
 					sensors = append(sensors, s.Cmd)
 				}
-				wantSensors := [][]string{{"go", "vet", "./..."}, {"go", "test", "./..."}, {"go", "build", "./..."}}
+				wantSensors := [][]string{
+					{"go", "vet", "./..."}, {"go", "test", "./..."}, {"go", "build", "./..."},
+					{"go", "run", "golang.org/x/vuln/cmd/govulncheck@" + toolkitGovulncheck(t), "./..."},
+					{"go", "mod", "verify"},
+				}
 				if !slices.EqualFunc(sensors, wantSensors, slices.Equal[[]string]) {
 					t.Errorf("sensors = %v", sensors)
 				}
@@ -1152,4 +1169,129 @@ func TestNoBlocklistTerms(t *testing.T) {
 			}
 		}
 	})
+}
+
+// toolkitGovulncheck lê o GOVULNCHECK_VERSION do Makefile do toolkit: o
+// sensor vuln do projeto gerado usa a mesma versão.
+func toolkitGovulncheck(t *testing.T) string {
+	t.Helper()
+	data, err := os.ReadFile(filepath.Join("..", "..", "Makefile"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := regexp.MustCompile(`(?m)^GOVULNCHECK_VERSION := (\S+)$`).FindSubmatch(data)
+	if m == nil {
+		t.Fatal("Makefile do toolkit sem GOVULNCHECK_VERSION")
+	}
+	return string(m[1])
+}
+
+// TestNonEditorsReadOnly: fora de editor_agents, nenhum subagente tem
+// ferramenta de escrita nem Bash, exceto shellAgents (TD-29).
+func TestNonEditorsReadOnly(t *testing.T) {
+	cfg, _ := loadGenerated(t, sampleData())
+	d := sampleData()
+	for _, f := range Catalog() {
+		name, ok := agentName(f.Path)
+		if !ok || cfg.IsEditorAgent(name) {
+			continue
+		}
+		tools := splitTools(frontMatter(t, f.Path, render(t, f.Path, d))["tools"])
+		for _, tl := range tools {
+			if slices.Contains(writeTools, tl) {
+				t.Errorf("%s fora de editor_agents com %s", name, tl)
+			}
+			if tl == "Bash" && !slices.Contains(shellAgents, name) {
+				t.Errorf("%s fora de editor_agents com Bash (TD-29)", name)
+			}
+		}
+	}
+	for _, r := range reviewers {
+		if slices.Contains(splitTools(agentTools[r].tools), "Bash") {
+			t.Errorf("revisor %s com Bash na tabela", r)
+		}
+	}
+}
+
+// TestNoBashInstructions: subagente sem Bash não pode mandar rodar comando de
+// shell (git, go, govulncheck, bin/pipeline-claude, make), exceto pedido ao
+// usuário, nem citar o Bash.
+func TestNoBashInstructions(t *testing.T) {
+	d := sampleData()
+	cmd := regexp.MustCompile("`(git|go|govulncheck|bin/pipeline-claude|make) [^`]*`|```(bash|sh)")
+	for _, f := range Catalog() {
+		name, ok := agentName(f.Path)
+		if !ok {
+			continue
+		}
+		if slices.Contains(splitTools(agentTools[name].tools), "Bash") {
+			continue
+		}
+		body := string(render(t, f.Path, d))
+		for _, line := range strings.Split(body, "\n") {
+			// Comando pedido ao usuário (fora da sessão) não é instrução de shell
+			// para o subagente.
+			if m := cmd.FindString(line); m != "" && !strings.Contains(line, "usuário") {
+				t.Errorf("%s não tem Bash e manda rodar %s", name, m)
+			}
+		}
+		if strings.Contains(body, "Bash") {
+			t.Errorf("%s não tem Bash e cita Bash", name)
+		}
+	}
+}
+
+// TestRequiredSensors: os sensores que os subagentes pedem pelo nome estão na
+// config gerada, no texto do subagente e no RequiredSensors (TD-29).
+func TestRequiredSensors(t *testing.T) {
+	cfg, _ := loadGenerated(t, sampleData())
+	var names []string
+	for _, s := range cfg.Sensors {
+		names = append(names, s.Name)
+	}
+	d := sampleData()
+	for agent, sensors := range agentSensorsWant {
+		p := ".claude/agents/" + agent + ".md"
+		body := string(render(t, p, d))
+		if !slices.Contains(splitTools(agentTools[agent].tools), mcpSensors) {
+			t.Errorf("%s pede sensores sem %s", agent, mcpSensors)
+		}
+		for _, s := range sensors {
+			if !slices.Contains(names, s) {
+				t.Errorf("sensor %s de %s fora da config gerada", s, agent)
+			}
+			if !strings.Contains(body, `"`+s+`"`) {
+				t.Errorf("%s não pede o sensor %q pelo nome", agent, s)
+			}
+		}
+	}
+	tests := []struct {
+		modules []string
+		want    []string
+	}{
+		{nil, []string{"mod_verify", "vuln"}},
+		{[]string{"agent-auditor"}, []string{"mod_verify", "test", "vuln"}},
+		{allModules(), []string{"mod_verify", "test", "vuln"}},
+	}
+	for _, tt := range tests {
+		if got := RequiredSensors(tt.modules); !slices.Equal(got, tt.want) {
+			t.Errorf("RequiredSensors(%v) = %v, quero %v", tt.modules, got, tt.want)
+		}
+	}
+	for _, r := range RequiredSensors(allModules()) {
+		if len(SensorUsers(r)) == 0 {
+			t.Errorf("SensorUsers(%q) vazio", r)
+		}
+	}
+	if got := SensorUsers("vuln"); !slices.Equal(got, []string{"security-review", "supply-chain-review"}) {
+		t.Errorf("SensorUsers(vuln) = %v", got)
+	}
+	// DefaultSensors é a config gerada, comando por comando.
+	def, err := DefaultSensors()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.EqualFunc(def, cfg.Sensors, func(a, b config.Sensor) bool { return a.Name == b.Name && slices.Equal(a.Cmd, b.Cmd) }) {
+		t.Errorf("DefaultSensors = %v, config gerada = %v", def, cfg.Sensors)
+	}
 }

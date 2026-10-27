@@ -26,6 +26,15 @@ sensores padrão são:
 go vet ./...
 go test ./...
 go build ./...
+go run golang.org/x/vuln/cmd/govulncheck@<versão> ./...   # sensor vuln
+go mod verify                                            # sensor mod_verify
+```
+
+Alvo de fuzz tocado pela delivery: rodar cada um por 30 s e colar a saída no
+handoff, que o `qa-validation` (sem shell) confere:
+
+```bash
+go test -fuzz=FuzzX -fuzztime=30s ./pacote
 ```
 
 A formatação é automática (hook `fmt-hook` depois de cada edição de `.go`); erro
