@@ -8,7 +8,8 @@
 // com argumentos estritos (-32602); pipeline_sync_skills removida e
 // pipeline_delivery_new recusada em caminho protegido (TD-16); caminhos
 // conferidos dentro da raiz (TD-17); recursos pipeline://config,
-// pipeline://invariants e pipeline://deliveries/index lidos da config.
+// pipeline://invariants e pipeline://deliveries/index lidos da config;
+// pipeline_diff só leitura para os revisores (TD-29).
 
 // Package mcp implementa o servidor MCP do pipeline-claude por stdio (TD-21).
 //
@@ -26,6 +27,7 @@ import (
 	"io"
 	"os"
 	"path"
+	"slices"
 	"strings"
 	"time"
 
@@ -33,6 +35,7 @@ import (
 	"github.com/rodrigodosanjosoliveira/pipeline-ai-claude/internal/config"
 	"github.com/rodrigodosanjosoliveira/pipeline-ai-claude/internal/delivery"
 	"github.com/rodrigodosanjosoliveira/pipeline-ai-claude/internal/doctor"
+	"github.com/rodrigodosanjosoliveira/pipeline-ai-claude/internal/gitdiff"
 	"github.com/rodrigodosanjosoliveira/pipeline-ai-claude/internal/hookio"
 	"github.com/rodrigodosanjosoliveira/pipeline-ai-claude/internal/sensors"
 	"github.com/rodrigodosanjosoliveira/pipeline-ai-claude/internal/validate"
@@ -43,6 +46,10 @@ const MaxLine = 1 << 20
 
 // maxResource limita o arquivo lido por um recurso.
 const maxResource = 4 << 20
+
+// maxDiff limita o patch devolvido por pipeline_diff (TD-29); o resto se lê
+// com Read ou filtrando por paths.
+const maxDiff = 64 << 10
 
 // maxTimeoutSeconds limita timeout_seconds de pipeline_sensors (24 h).
 const maxTimeoutSeconds = 24 * 60 * 60
@@ -298,6 +305,16 @@ var tools = []toolSpec{
 		},
 		run: (*server).toolDeliveryNew,
 	},
+	{
+		name:        "pipeline_diff",
+		description: "Diff de revisão, só leitura: arquivos alterados contra a base (commits da branch, índice, working tree e não rastreados) e o patch contra o merge-base, cortado em 64 KiB. Filtre com paths.",
+		args: []argSpec{
+			{name: "base", kind: kindString, description: "Ref base do diff; padrão: base_ref da configuração."},
+			{name: "paths", kind: kindStrings, description: "Arquivos ou diretórios relativos à raiz do repositório; padrão: tudo."},
+			{name: "name_only", kind: kindBool, description: "Só a lista de arquivos, sem o patch."},
+		},
+		run: (*server).toolDiff,
+	},
 }
 
 func toolList() []Tool {
@@ -507,6 +524,41 @@ func (s *server) toolDeliveryNew(a args) ToolResult {
 		return text(fmt.Sprintf("delivery não criada: %v", err), true)
 	}
 	return text(fmt.Sprintf("Delivery %s criada.\nReport: %s\nÍndice: %s\n", created.ID, created.ReportPath, created.IndexPath), false)
+}
+
+func (s *server) toolDiff(a args) ToolResult {
+	cfg, _, err := s.loadConfig()
+	if err != nil {
+		return text(err.Error(), true)
+	}
+	base := a.str("base")
+	if base == "" {
+		base = cfg.BaseRef
+	}
+	d, err := gitdiff.Review(s.ctx, cfg.Root(), base, a.strs("paths"), maxDiff)
+	if err != nil {
+		return text(fmt.Sprintf("diff não calculado: %v", err), true)
+	}
+	if len(d.Files) == 0 {
+		return text(fmt.Sprintf("Nenhum arquivo alterado contra %s (merge-base %s).\n", base, d.MergeBase), false)
+	}
+	var b strings.Builder
+	fmt.Fprintf(&b, "Base: %s (merge-base %s)\nArquivos alterados (%d):\n", base, d.MergeBase, len(d.Files))
+	for _, f := range d.Files {
+		if slices.Contains(d.Untracked, f) {
+			fmt.Fprintf(&b, "  %s (não rastreado: leia com Read)\n", f)
+			continue
+		}
+		fmt.Fprintf(&b, "  %s\n", f)
+	}
+	if !a.boolean("name_only") {
+		b.WriteString("\n")
+		b.WriteString(d.Patch)
+		if d.Truncated {
+			fmt.Fprintf(&b, "\n[diff cortado: %d de %d bytes. Filtre com paths ou leia os arquivos com Read.]\n", len(d.Patch), d.Size)
+		}
+	}
+	return text(b.String(), false)
 }
 
 // checkDeliveryWritable recusa pipeline_delivery_new quando deliveries_dir ou

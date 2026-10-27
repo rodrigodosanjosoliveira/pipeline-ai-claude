@@ -1,5 +1,6 @@
 // Package gitdiff lista os arquivos alterados de um repositório git em relação
-// a uma base, para o validador decidir o que o diff toca.
+// a uma base, para o validador decidir o que o diff toca, e monta o diff de
+// revisão que o MCP entrega aos revisores (TD-29).
 //
 // O diff é completo (TD-11): commits da branch desde a base, working tree,
 // índice (staged) e arquivos novos não rastreados, sem detecção de renomeação
@@ -13,6 +14,7 @@ import (
 	"errors"
 	"fmt"
 	"os/exec"
+	"path"
 	"slices"
 	"strings"
 )
@@ -105,4 +107,123 @@ func splitNUL(b []byte) []string {
 		}
 	}
 	return out
+}
+
+// Diff é o diff de revisão de uma branch contra a base (TD-29).
+type Diff struct {
+	// MergeBase é o commit comum entre a base e HEAD, contra o qual o patch é
+	// calculado.
+	MergeBase string
+	// Files são os arquivos alterados como em ChangedFiles, filtrados pelos
+	// caminhos pedidos; relativos à raiz do repositório, com "/".
+	Files []string
+	// Untracked são os de Files ainda não rastreados: o patch não traz o
+	// conteúdo deles.
+	Untracked []string
+	// Patch é git diff <MergeBase> (commits da branch, índice e working tree),
+	// cortado em fim de linha se passar do limite.
+	Patch string
+	// Truncated diz se Patch foi cortado.
+	Truncated bool
+	// Size é o tamanho do patch completo, em bytes.
+	Size int
+}
+
+// Review devolve o diff de revisão de root contra base: a lista do TD-11 e o
+// patch contra o merge-base, sem cor, diff externo, textconv nem detecção de
+// renomeação. paths filtra por arquivo ou diretório, relativos à raiz do
+// repositório, como pathspec literal (sem mágica como ":!"); vazio é tudo.
+// max limita o patch em bytes. Qualquer falha do git é erro; nunca há diff
+// parcial além do corte declarado em Truncated.
+func Review(ctx context.Context, root, base string, paths []string, max int) (Diff, error) {
+	if max <= 0 {
+		return Diff{}, fmt.Errorf("gitdiff: limite do patch %d inválido", max)
+	}
+	clean := make([]string, 0, len(paths))
+	for _, p := range paths {
+		c, err := cleanPath(p)
+		if err != nil {
+			return Diff{}, err
+		}
+		clean = append(clean, c)
+	}
+	files, err := ChangedFiles(ctx, root, base)
+	if err != nil {
+		return Diff{}, err
+	}
+	top, err := run(ctx, root, "rev-parse", "--show-toplevel")
+	if err != nil {
+		return Diff{}, err
+	}
+	dir := strings.TrimSpace(string(top))
+	mb, err := run(ctx, dir, "merge-base", "--end-of-options", base, "HEAD")
+	if err != nil {
+		return Diff{}, err
+	}
+	d := Diff{MergeBase: strings.TrimSpace(string(mb)), Files: []string{}}
+	for _, f := range files {
+		if matchAny(f, clean) {
+			d.Files = append(d.Files, f)
+		}
+	}
+	untracked, err := run(ctx, dir, "ls-files", "--others", "--exclude-standard", "--full-name", "-z", "--", ":/")
+	if err != nil {
+		return Diff{}, err
+	}
+	for _, f := range splitNUL(untracked) {
+		if matchAny(f, clean) {
+			d.Untracked = append(d.Untracked, f)
+		}
+	}
+	slices.Sort(d.Untracked)
+
+	args := []string{"--literal-pathspecs", "diff", "--no-color", "--no-ext-diff", "--no-textconv", "--no-renames",
+		"--src-prefix=a/", "--dst-prefix=b/", "--end-of-options", d.MergeBase, "--"}
+	patch, err := run(ctx, dir, append(args, clean...)...)
+	if err != nil {
+		return Diff{}, err
+	}
+	d.Size = len(patch)
+	if len(patch) > max {
+		cut := bytes.LastIndexByte(patch[:max], '\n')
+		patch = patch[:cut+1]
+		d.Truncated = true
+	}
+	d.Patch = string(patch)
+	return d, nil
+}
+
+// cleanPath valida um caminho de filtro: relativo, sem subir da raiz, sem
+// contrabarra e sem começar com "-".
+func cleanPath(p string) (string, error) {
+	bad := func(why string) error { return fmt.Errorf("gitdiff: caminho %q inválido: %s", p, why) }
+	switch {
+	case p == "":
+		return "", bad("vazio")
+	case strings.HasPrefix(p, "-"):
+		return "", bad("não pode começar com \"-\"")
+	case strings.ContainsRune(p, '\\'):
+		return "", bad("use \"/\" como separador")
+	case path.IsAbs(p):
+		return "", bad("precisa ser relativo à raiz do repositório")
+	}
+	c := path.Clean(p)
+	if c == ".." || strings.HasPrefix(c, "../") {
+		return "", bad("sai da raiz do repositório")
+	}
+	return c, nil
+}
+
+// matchAny diz se f é um dos caminhos ou está dentro de um deles; sem
+// caminhos, tudo casa.
+func matchAny(f string, paths []string) bool {
+	if len(paths) == 0 {
+		return true
+	}
+	for _, p := range paths {
+		if p == "." || f == p || strings.HasPrefix(f, p+"/") {
+			return true
+		}
+	}
+	return false
 }

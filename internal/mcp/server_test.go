@@ -2,7 +2,8 @@
 // Alterações: testes por transcrição (entrada em linhas, saída comparada por
 // campo); casos originais mantidos onde a ferramenta existe (initialize, ping,
 // tools/list, doctor, validate, resources, criação de delivery), adaptados às
-// ferramentas e recursos do TD-21; pipeline_sync_skills removido (TD-16).
+// ferramentas e recursos do TD-21; pipeline_sync_skills removido (TD-16);
+// tools/list com pipeline_diff (TD-29, casos em diff_test.go).
 
 package mcp
 
@@ -323,7 +324,8 @@ func TestFerramentas(t *testing.T) {
 				{"name":"pipeline_doctor","inputSchema":{"type":"object","additionalProperties":false}},
 				{"name":"pipeline_validate","inputSchema":{"type":"object","additionalProperties":false,"required":["target"]}},
 				{"name":"pipeline_sensors","inputSchema":{"type":"object","additionalProperties":false}},
-				{"name":"pipeline_delivery_new","inputSchema":{"type":"object","additionalProperties":false,"required":["title"]}}]}}`},
+				{"name":"pipeline_delivery_new","inputSchema":{"type":"object","additionalProperties":false,"required":["title"]}},
+				{"name":"pipeline_diff","inputSchema":{"type":"object","additionalProperties":false}}]}}`},
 		},
 		{
 			name: "doctor (caso original)",

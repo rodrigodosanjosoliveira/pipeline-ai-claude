@@ -55,7 +55,7 @@ make fixtures-check BLOCKLIST=<arquivo privado>
 cmd/pipeline-claude     dispatcher da CLI (init e sync em init_sync.go)
 internal/buildinfo      versão do binário
 internal/config         carrega e valida .pipeline-claude.json
-internal/gitdiff        arquivos alterados (diff completo, TD-11)
+internal/gitdiff        arquivos alterados (diff completo, TD-11) e diff de revisão (TD-29)
 internal/report         parser e checagem do report de delivery
 internal/hookio         leitura do payload de hook e resolução de caminho na raiz
 internal/hook           hook PreToolUse (bloqueio de caminho protegido)
