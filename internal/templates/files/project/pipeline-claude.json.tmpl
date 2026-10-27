@@ -55,6 +55,8 @@
   "sensors": [
     {"name": "vet", "cmd": ["go", "vet", "./..."]},
     {"name": "test", "cmd": ["go", "test", "./..."]},
-    {"name": "build", "cmd": ["go", "build", "./..."]}
+    {"name": "build", "cmd": ["go", "build", "./..."]},
+    {"name": "vuln", "cmd": ["go", "run", "golang.org/x/vuln/cmd/govulncheck@v1.8.0", "./..."]},
+    {"name": "mod_verify", "cmd": ["go", "mod", "verify"]}
   ]
 }

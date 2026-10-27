@@ -5,11 +5,12 @@
 // versão fixada no Makefile (TD-06); aviso de filesystem case-insensitive (TD-09);
 // status ok/aviso/erro com ação corretiva; comandos externos injetáveis; checagem
 // do fmt-hook no PostToolUse, com o settings.json lido uma vez só (TD-18);
-// checagem sync só leitura, pelo lock e pelo plano do syncer (TD-27).
+// checagem sync só leitura, pelo lock e pelo plano do syncer (TD-27); checagem
+// sensores dos sensores pedidos pelos subagentes (TD-29).
 
 // Package doctor diagnostica se o ambiente e o projeto estão prontos para o
 // toolkit: ferramentas no PATH, configuração, registro do hook e do fmt-hook,
-// arquivos gerenciados (sync) e binário.
+// arquivos gerenciados (sync), sensores pedidos pelos subagentes e binário.
 package doctor
 
 import (
@@ -32,6 +33,7 @@ import (
 	"github.com/rodrigodosanjosoliveira/pipeline-ai-claude/internal/config"
 	"github.com/rodrigodosanjosoliveira/pipeline-ai-claude/internal/manifest"
 	"github.com/rodrigodosanjosoliveira/pipeline-ai-claude/internal/syncer"
+	"github.com/rodrigodosanjosoliveira/pipeline-ai-claude/internal/templates"
 )
 
 // Status é o resultado de uma checagem.
@@ -61,6 +63,7 @@ const (
 	checkHook     = "hook"
 	checkFmtHook  = "fmt-hook"
 	checkSync     = "sync"
+	checkSensors  = "sensores"
 	checkBinary   = "binário"
 	checkCaseFS   = "filesystem"
 )
@@ -169,6 +172,7 @@ func collect(start string, e env) []Check {
 		hookCheck(st),
 		fmtHookCheck(st),
 		syncCheck(root, cfg, cfgErr),
+		sensorsCheck(cfg, cfgErr),
 		binaryCheck(root, e),
 		caseFSCheck(root),
 	}
@@ -601,4 +605,45 @@ func syncCheck(root string, cfg *config.Config, cfgErr error) Check {
 		msg += fmt.Sprintf("; %d liberado(s)", released)
 	}
 	return ok(checkSync, msg)
+}
+
+// sensorsCheck confere que a config declara os sensores que os subagentes do
+// projeto pedem pelo nome em pipeline_sensors (TD-29). Ausência é aviso, com a
+// entrada da config gerada para copiar: o sync não toca na config. Config
+// ausente ou inválida é aviso "não verificado".
+func sensorsCheck(cfg *config.Config, cfgErr error) Check {
+	if cfgErr != nil {
+		return bad(checkSensors, StatusWarn, "não verificado: configuração ausente ou inválida", "corrija a configuração (ver checagem configuração)")
+	}
+	required := templates.RequiredSensors(cfg.EnabledModules)
+	have := map[string]bool{}
+	for _, s := range cfg.Sensors {
+		have[s.Name] = true
+	}
+	defaults, err := templates.DefaultSensors()
+	if err != nil {
+		return bad(checkSensors, StatusError, err.Error(), "reporte o erro: os templates embutidos do toolkit estão inconsistentes")
+	}
+	var missing, entries []string
+	for _, name := range required {
+		if have[name] {
+			continue
+		}
+		missing = append(missing, fmt.Sprintf("%s (%s)", name, strings.Join(templates.SensorUsers(name), ", ")))
+		for _, d := range defaults {
+			if d.Name == name {
+				argv, _ := json.Marshal(d.Cmd)
+				entries = append(entries, fmt.Sprintf(`{"name": %q, "cmd": %s}`, d.Name, argv))
+			}
+		}
+	}
+	if len(missing) > 0 {
+		return bad(checkSensors, StatusWarn,
+			"sensores pedidos pelos subagentes e ausentes em sensors: "+strings.Join(missing, ", "),
+			"acrescente em sensors no "+config.FileName+": "+strings.Join(entries, ", "))
+	}
+	if len(required) == 0 {
+		return ok(checkSensors, "nenhum sensor pedido pelos subagentes")
+	}
+	return ok(checkSensors, "sensores pedidos pelos subagentes declarados: "+strings.Join(required, ", "))
 }

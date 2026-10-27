@@ -29,8 +29,8 @@ A demanda como o usuário escreveu. Nada mais.
 4. Criar a delivery com a ferramenta MCP `pipeline_delivery_new` (título de uma
    linha, sem `|`). Ela gera o próximo `DELIVERY_ID` da sequência, cria o report
    e registra no índice. Nunca invente o ID nem edite o índice à mão. Se a
-   ferramenta recusar, devolva `STATUS: bloqueado` pedindo ao usuário
-   `bin/pipeline-claude delivery new --title "<título>"`.
+   ferramenta recusar, devolva `STATUS: bloqueado` para a delivery ser criada
+   fora da sessão. Comando do usuário: `bin/pipeline-claude delivery new --title "<título>"`.
 5. Identificar os módulos impactados pelo caminho, não por suposição.
 6. Avaliar os quatro sinais do contrato de handoff. Na dúvida, marcar `sim`: um
    subagente a mais custa pouco, uma revisão de segurança ausente custa caro.

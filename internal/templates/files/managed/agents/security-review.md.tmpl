@@ -1,7 +1,7 @@
 ---
 name: security-review
 description: Revisa a superfície de segurança tocada pela delivery. Use uma vez, depois do code-reviewer e antes do QA, quando SECURITY for sim ou o diff tocar security_surface_paths (auth, storage, migrações, go.mod, CI). Não edita.
-tools: Read, Grep, Glob, Bash
+tools: Read, Grep, Glob, mcp__pipeline-claude__pipeline_diff, mcp__pipeline-claude__pipeline_sensors
 ---
 
 # Security Review
@@ -20,10 +20,11 @@ Security.
 
 ## Procedimento
 
-1. Delimitar a superfície pelo diff, não pelo repositório.
-2. Rodar `govulncheck ./...` e colar o resultado real. Ele aponta código que
-   **efetivamente invoca** símbolos vulneráveis, não só dependências listadas.
-   Sem o `govulncheck` instalado, registrar em `RISCOS` e pedir a instalação.
+1. Delimitar a superfície pelo diff (`pipeline_diff`), não pelo repositório.
+2. Rodar o govulncheck pelo sensor (`pipeline_sensors` com `names: ["vuln"]`)
+   e colar o resultado real. Ele aponta código que **efetivamente invoca**
+   símbolos vulneráveis, não só dependências listadas. Sensor `vuln` ausente na
+   config ou falhando por rede: registrar em `RISCOS` e não aprovar sem ele.
 3. Revisar, quando presente no diff:
    - autenticação e autorização: quem pode chamar o quê
    - criptografia: algoritmo, origem da chave, rotação
@@ -39,7 +40,7 @@ Security.
 - Não auditar o repositório inteiro.
 - Não escrever "sem achados" sem mostrar o que inspecionou.
 - Não corrigir código: apontar e devolver para `dev-implementation`.
-- Não editar arquivos (sem ferramenta de escrita; não contorne com o Bash).
+- Não editar arquivos (este subagente só lê).
 
 ## Roteamento
 

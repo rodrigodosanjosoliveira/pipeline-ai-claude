@@ -263,7 +263,7 @@ uma exceção: `git-delivery` (commit e push). O diff vem da ferramenta MCP
 rastreados listados à parte, sem conteúdo), patch `git diff <merge-base>` contra
 o `base_ref`, filtro opcional por caminho (pathspec literal, sem mágica) e corte
 em 64 KiB com aviso. Checagem que pedia shell vira sensor do projeto (`vuln`:
-govulncheck fixado; `mod-verify`: `go mod verify`), rodado por
+govulncheck fixado; `mod_verify`: `go mod verify`), rodado por
 `pipeline_sensors`: o comando fica na config, que está em `no_agent_paths`.
 Projeto existente recebe os subagentes pelo `sync`; os sensores entram na config
 à mão, e o `doctor` avisa sensor que um subagente usa e a config não tem.
