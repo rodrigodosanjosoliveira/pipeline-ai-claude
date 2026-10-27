@@ -1,0 +1,29 @@
+# Binários e saída de build (inclui bin/pipeline-claude, instalado por make tools)
+bin/
+dist/
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Artefatos de teste e cobertura
+*.out
+*.test
+coverage.html
+
+# Segredos e variáveis de ambiente
+.env
+.env.*
+!.env.example
+secrets/
+*.pem
+*.key
+credentials
+
+# Configuração pessoal do Claude Code (não versionada)
+.claude/settings.local.json
+
+# Sistema operacional e temporários
+.DS_Store
+Thumbs.db
+*.tmp

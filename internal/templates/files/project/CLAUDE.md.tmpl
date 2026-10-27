@@ -1,0 +1,119 @@
+# [[.Name]]
+
+[[.Summary]]
+
+**Formato:** API em Go · **Banco:** PostgreSQL · **Repositório:** [[if eq .Provider "gitlab"]]GitLab[[else]]GitHub[[end]]
+
+---
+
+## Como o trabalho acontece aqui
+
+Este projeto é governado pelo **pipeline-claude**. **Você, na sessão principal,
+não edita código protegido.** O hook `PreToolUse` (`bin/pipeline-claude hook`)
+bloqueia edição em `protected_paths` quando a chamada não vem de um subagente de
+`editor_agents` (`.pipeline-claude.json`), e ninguém na sessão edita
+`no_agent_paths` (`.claude/`, `.mcp.json`, `.pipeline-claude.json`,
+`.pipeline-claude.lock`): essas mudanças são feitas fora da sessão.
+
+Com IA, o gargalo não é gerar código, é verificá-lo. Cada etapa do fluxo é um
+subagente com ferramentas restritas e um gate determinístico com evidência.
+
+**Toda demanda técnica começa no subagente `pm-triage`** (ou na skill `/fluxo`).
+O triage define o escopo, cria a delivery e roteia para as próximas etapas.
+
+## Fluxo
+
+```text
+pm-triage
+  → architecture-guardrails
+  → [data-model]
+  → test-writer
+  → dev-implementation
+  → code-reviewer
+  → [migration-reviewer] [query-performance] [tenant-isolation]
+  → security-review        (quando o diff toca security_surface_paths)
+  → supply-chain-review    (quando go.mod/go.sum mudarem)
+  → qa-validation
+  → [release-ops]
+  → docs-update
+  → git-delivery
+```
+
+Colchetes são módulos opcionais, ligados em `enabled_modules` no
+`.pipeline-claude.json` (`agent-auditor` e `context-loader` são acionados sob
+demanda). Os revisores não têm ferramenta de escrita: ajuste depois de revisão
+volta para o `dev-implementation`.
+
+## Gates
+
+| Comando | Quando | Motivo |
+|---|---|---|
+| formatação Go | a cada edição (hook `PostToolUse`, `bin/pipeline-claude fmt-hook`) | Formatação determinística sem gastar turno |
+| `go build ./...` | dev | Compila o projeto |
+| `go vet ./...` | dev e CI | Análise estática da stdlib |
+| `go test ./...` | dev, QA e CI | Suíte completa |
+| `bin/pipeline-claude sensors` (`make check`) | dev e QA | Roda os sensores declarados na configuração |
+| `govulncheck ./...` | security-review, supply-chain-review e CI | Símbolo vulnerável efetivamente invocado |
+| `go test -fuzz=FuzzX -fuzztime=30s ./pacote` | parsing, validação e desserialização | Fuzz sempre com `-fuzztime` |
+
+## Invariantes
+
+1. **Go 1.24+**, como declarado no `go.mod`.
+2. **Testes com a stdlib `testing`**, em tabela. Biblioteca de asserção só se o
+   projeto optar explicitamente (registre em `docs-ai/DECISOES.md`).
+3. **Dependência externa precisa de justificativa**: a stdlib cobre a maior
+   parte. Mudança em `go.mod`/`go.sum` exige `require_security` e passa pelo
+   `supply-chain-review`.
+4. **O pipeline-claude fica fora do `go.mod`**: instalado em `bin/` por
+   `make tools`, na versão fixada no `Makefile`.
+5. **Nada de segredo em código nem em log.** Credenciais só por variável de
+   ambiente.
+
+Invariantes específicos do projeto: `docs-ai/01-INVARIANTES-GLOBAIS.md`.
+
+## Git e [[if eq .Provider "gitlab"]]Merge Requests[[else]]Pull Requests[[end]]
+
+- **Branch:** `task/{código}` (ou `feat/{nome}`, `fix/{nome}`)
+- **Commit:** `{type}({scope}): {resumo} [{código}]`
+- **Entrega:** push direto na `main` é bloqueado pelo `.githooks/pre-push`
+  (ative com `git config core.hooksPath .githooks`). Toda entrega sobe por
+  branch e [[if eq .Provider "gitlab"]]Merge Request (`glab mr create`)[[else]]Pull Request (`gh pr create`)[[end]].
+
+## Delivery
+
+Toda entrega tem um report em `docs-ai/deliveries/{DELIVERY_ID}/report.md`
+registrado em `docs-ai/deliveries/INDEX.md`.
+
+- Criar: ferramenta MCP `pipeline_delivery_new`, skill `/nova-delivery` ou
+  `bin/pipeline-claude delivery new --title "<título>"`.
+- Validar antes do commit: ferramenta MCP `pipeline_validate`, skill `/validar`
+  ou `bin/pipeline-claude validate {DELIVERY_ID}`.
+
+O validador reprova se o diff tocar `security_surface_paths` ou um padrão de
+`auto_flags` com a flag correspondente desligada, ou se o `git diff` falhar
+(salvo `--no-git` explícito).
+
+## Camada do Claude Code
+
+```text
+.claude/
+├── settings.json   # hooks (hook e fmt-hook) e permissions.deny (do projeto)
+├── agents/         # subagentes do fluxo (gerenciados pelo pipeline-claude)
+└── skills/         # skills /fluxo, /nova-delivery, /validar (gerenciadas)
+.mcp.json           # servidor MCP pipeline-claude (doctor, validate, sensors, delivery_new)
+.githooks/pre-push  # bloqueio de push direto na main (gerenciado)
+```
+
+Arquivos gerenciados são atualizados por `bin/pipeline-claude sync` enquanto o
+projeto não os editar; o resto é do projeto. `bin/pipeline-claude doctor`
+confere ambiente, configuração, hooks e binário.
+
+## Onde está o resto
+
+| Arquivo | Conteúdo |
+|---|---|
+| `docs-ai/DECISOES.md` | Decisões do projeto e o motivo de cada uma |
+| `docs-ai/01-INVARIANTES-GLOBAIS.md` | Invariantes específicos deste projeto |
+| `docs-ai/03-MAPA-RAPIDO-MODULOS.md` | Mapa dos módulos e roteamento por caminho |
+| `docs-ai/agents/08-HANDOFF-CONTRACT.md` | Bloco que todo subagente entrega ao terminar |
+| `.pipeline-claude.json` | Caminhos protegidos, editores, superfície de segurança, módulos, sensores |

@@ -1,0 +1,60 @@
+{
+  "version": 1,
+  "project_type": "api",
+  "database": "postgres",
+  "git_provider": [[json .Provider]],
+  "base_ref": "origin/main",
+
+  "deliveries_dir": "docs-ai/deliveries",
+  "index_file": "docs-ai/deliveries/INDEX.md",
+  "report_template": "docs-ai/deliveries/_template/report.md",
+  "delivery_prefixes": ["DEL"],
+  "delivery_id_pattern": "^DEL-[0-9]{3,}$",
+  "invariants_files": ["docs-ai/01-INVARIANTES-GLOBAIS.md"],
+
+  "protected_paths": [
+    "cmd/",
+    "internal/",
+    "migrations/",
+    "go.mod",
+    "go.sum",
+    "Makefile",
+    ".claude/",
+    ".mcp.json",
+    ".pipeline-claude.json",
+    ".pipeline-claude.lock"
+  ],
+  "no_agent_paths": [
+    ".claude/",
+    ".mcp.json",
+    ".pipeline-claude.json",
+    ".pipeline-claude.lock"
+  ],
+  "editor_agents": [
+    "dev-implementation",
+    "test-writer",
+    "query-performance",
+    "docs-update"
+  ],
+  "enabled_modules": [[json .Modules]],
+
+  "security_surface_paths": [
+    "internal/auth/",
+    "internal/http/middleware/",
+    "internal/storage/",
+    "migrations/",
+    "go.mod",
+    "go.sum",
+    ".github/workflows/",
+    ".gitlab-ci.yml"
+  ],
+  "auto_flags": {
+    "require_security": ["go.mod", "go.sum"]
+  },
+
+  "sensors": [
+    {"name": "vet", "cmd": ["go", "vet", "./..."]},
+    {"name": "test", "cmd": ["go", "test", "./..."]},
+    {"name": "build", "cmd": ["go", "build", "./..."]}
+  ]
+}

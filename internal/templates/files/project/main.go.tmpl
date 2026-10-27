@@ -1,0 +1,41 @@
+// Command [[.Name]] é o servidor HTTP do projeto.
+package main
+
+import (
+	"errors"
+	"log"
+	"net/http"
+	"os"
+	"time"
+)
+
+func main() {
+	addr := os.Getenv("ADDR")
+	if addr == "" {
+		addr = ":8080"
+	}
+	srv := &http.Server{
+		Addr:              addr,
+		Handler:           newMux(),
+		ReadHeaderTimeout: 5 * time.Second,
+	}
+	log.Printf("[[.Name]]: ouvindo em %s", addr)
+	if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		log.Fatalf("[[.Name]]: %v", err)
+	}
+}
+
+// newMux registra as rotas do servidor.
+func newMux() *http.ServeMux {
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /healthz", healthz)
+	return mux
+}
+
+// healthz responde que o processo está de pé.
+func healthz(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	if _, err := w.Write([]byte(`{"status":"ok"}` + "\n")); err != nil {
+		log.Printf("healthz: %v", err)
+	}
+}

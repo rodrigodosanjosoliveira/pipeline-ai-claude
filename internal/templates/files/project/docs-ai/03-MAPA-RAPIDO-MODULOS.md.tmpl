@@ -1,0 +1,48 @@
+# Mapa rápido dos módulos — [[.Name]]
+
+> Guia para o `pm-triage` e os subagentes técnicos identificarem os módulos
+> impactados pelo caminho dos arquivos, sem ler a base de código inteira.
+> Atualize quando um módulo nascer, sumir ou mudar de responsabilidade.
+
+---
+
+## Estrutura
+
+```text
+├── cmd/
+│   └── [[.Name]]/
+│       └── main.go         # ponto de entrada do servidor HTTP
+├── internal/               # código do backend (protegido)
+│   ├── http/               # rotas, handlers, serialização e middlewares
+│   ├── domain/             # entidades e regras de negócio, sem I/O
+│   ├── storage/            # persistência e repositórios (superfície de segurança)
+│   └── config/             # leitura e validação de variáveis de ambiente
+├── migrations/             # migrações SQL do PostgreSQL (superfície de segurança)
+├── docs-ai/                # decisões, invariantes, contrato de handoff e deliveries
+├── Makefile                # gates e instalação do pipeline-claude
+├── .pipeline-claude.json   # governança: caminhos protegidos, editores, módulos, sensores
+├── .claude/                # subagentes, skills e settings do Claude Code
+└── .mcp.json               # servidor MCP do pipeline-claude
+```
+
+Os diretórios de `internal/` são o ponto de partida sugerido; crie-os conforme
+a necessidade e mantenha este mapa em dia.
+
+## Roteamento por caminho
+
+- `internal/http/middleware/` ou `internal/auth/`: `SECURITY: sim`.
+- `migrations/`: `MIGRATION: sim` e `migration-reviewer`, se habilitado.
+- `internal/storage/`: avaliar `PERFORMANCE: sim` (índices, N+1) e
+  `query-performance`, se habilitado.
+- `go.mod` / `go.sum`: `SUPPLY_CHAIN: sim` e `SECURITY: sim`.
+- `cmd/`: ciclo de vida do servidor, sinais e desligamento gracioso.
+
+## Diretórios do padrão
+
+| Diretório / arquivo | Função | Acesso na sessão |
+|---|---|---|
+| `cmd/`, `internal/`, `migrations/`, `go.mod`, `go.sum`, `Makefile` | Código e build | Só subagentes de `editor_agents` |
+| `.claude/`, `.mcp.json`, `.pipeline-claude.json`, `.pipeline-claude.lock` | Governança | Ninguém na sessão; mudança feita fora dela |
+| `.github/workflows/`, `.gitlab-ci.yml` | CI | Superfície de segurança |
+| `docs-ai/deliveries/` | Reports e índice | Aberto para o fluxo de delivery |
+| `docs-ai/` | Decisões e invariantes | Aberto |
