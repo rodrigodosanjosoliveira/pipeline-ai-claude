@@ -4,11 +4,12 @@
 // GOTOOLCHAIN=local; gh ou glab conforme git_provider (TD-07); binário com a
 // versão fixada no Makefile (TD-06); aviso de filesystem case-insensitive (TD-09);
 // status ok/aviso/erro com ação corretiva; comandos externos injetáveis; checagem
-// do fmt-hook no PostToolUse, com o settings.json lido uma vez só (TD-18).
+// do fmt-hook no PostToolUse, com o settings.json lido uma vez só (TD-18);
+// checagem sync só leitura, pelo lock e pelo plano do syncer (TD-27).
 
 // Package doctor diagnostica se o ambiente e o projeto estão prontos para o
-// toolkit: ferramentas no PATH, configuração, registro do hook e do fmt-hook
-// e binário.
+// toolkit: ferramentas no PATH, configuração, registro do hook e do fmt-hook,
+// arquivos gerenciados (sync) e binário.
 package doctor
 
 import (
@@ -29,6 +30,8 @@ import (
 	"time"
 
 	"github.com/rodrigodosanjosoliveira/pipeline-ai-claude/internal/config"
+	"github.com/rodrigodosanjosoliveira/pipeline-ai-claude/internal/manifest"
+	"github.com/rodrigodosanjosoliveira/pipeline-ai-claude/internal/syncer"
 )
 
 // Status é o resultado de uma checagem.
@@ -57,6 +60,7 @@ const (
 	checkConfig   = "configuração"
 	checkHook     = "hook"
 	checkFmtHook  = "fmt-hook"
+	checkSync     = "sync"
 	checkBinary   = "binário"
 	checkCaseFS   = "filesystem"
 )
@@ -164,6 +168,7 @@ func collect(start string, e env) []Check {
 		configCheck(cfgErr),
 		hookCheck(st),
 		fmtHookCheck(st),
+		syncCheck(root, cfg, cfgErr),
 		binaryCheck(root, e),
 		caseFSCheck(root),
 	}
@@ -534,4 +539,66 @@ func caseFSCheck(root string) Check {
 		return bad(checkCaseFS, StatusWarn, fmt.Sprintf("não foi possível verificar a caixa do filesystem: %v", err), "confira a permissão de escrita na raiz do projeto")
 	}
 	return ok(checkCaseFS, "diferencia caixa")
+}
+
+// syncLabel é como cada ação do plano aparece na mensagem da checagem sync.
+var syncLabel = map[syncer.Action]string{
+	syncer.Editado:       "editado",
+	syncer.NaoGerenciado: "não gerenciado",
+}
+
+// syncCheck confere os arquivos gerenciados contra o lock pelo plano do sync,
+// sem gravar nada (TD-27). Editado ou não gerenciado é aviso com os caminhos
+// (o sync não os toca); criar, atualizar, recriar ou apagar pendente é aviso
+// com pipeline-claude sync. Config ausente ou inválida é aviso "não
+// verificado": o erro já sai na checagem configuração.
+func syncCheck(root string, cfg *config.Config, cfgErr error) Check {
+	if cfgErr != nil {
+		return bad(checkSync, StatusWarn, "não verificado: configuração ausente ou inválida", "corrija a configuração (ver checagem configuração)")
+	}
+	lock, err := manifest.Read(root)
+	if errors.Is(err, manifest.ErrNotFound) {
+		return bad(checkSync, StatusWarn, manifest.FileName+" não encontrado; arquivos gerenciados não verificados",
+			"projeto criado fora do `pipeline-claude init`: gere o lock com `pipeline-claude adopt` (Fase 4) ou recrie o projeto com `pipeline-claude init`")
+	}
+	if err != nil {
+		return bad(checkSync, StatusError, err.Error(), "corrija ou restaure "+manifest.FileName+" pelo git")
+	}
+	items, err := syncer.Plan(root, cfg, lock)
+	if err != nil {
+		return bad(checkSync, StatusError, err.Error(), "corrija "+manifest.FileName+" ou o disco conforme a mensagem")
+	}
+
+	var conflicts, pending []string
+	var managed, released int
+	for _, it := range items {
+		switch {
+		case syncLabel[it.Action] != "":
+			conflicts = append(conflicts, fmt.Sprintf("%s (%s: %s)", it.Path, syncLabel[it.Action], it.Reason))
+		case it.Action == syncer.Liberado:
+			released++
+		case it.Action == syncer.Nada:
+			managed++
+		default:
+			pending = append(pending, fmt.Sprintf("%s (%s)", it.Path, it.Action))
+		}
+	}
+	pendingMsg := fmt.Sprintf("%d atualização(ões) pendente(s): %s", len(pending), strings.Join(pending, ", "))
+	const syncAction = "rode `pipeline-claude sync`"
+	switch {
+	case len(conflicts) > 0:
+		msg := "o sync não toca: " + strings.Join(conflicts, ", ")
+		action := "assuma o arquivo com `pipeline-claude sync --release <caminho>` ou restaure o conteúdo gerado (apague-o e rode `pipeline-claude sync`)"
+		if len(pending) > 0 {
+			msg += "; " + pendingMsg
+		}
+		return bad(checkSync, StatusWarn, msg, action)
+	case len(pending) > 0:
+		return bad(checkSync, StatusWarn, pendingMsg, syncAction)
+	}
+	msg := fmt.Sprintf("%d arquivo(s) gerenciado(s) em dia com %s", managed, manifest.FileName)
+	if released > 0 {
+		msg += fmt.Sprintf("; %d liberado(s)", released)
+	}
+	return ok(checkSync, msg)
 }

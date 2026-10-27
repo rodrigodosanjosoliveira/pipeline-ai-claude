@@ -4,7 +4,8 @@
 // .agents removidos com as checagens (Antigravity, TD-02; pre-push é ponto em
 // aberto 6); comandos externos injetados em vez de depender da máquina; casos
 // novos para hook no settings.json, binário e filesystem; checagem fmt-hook no
-// PostToolUse e convivência dos comandos hook × fmt-hook (TD-18).
+// PostToolUse e convivência dos comandos hook × fmt-hook (TD-18); total de
+// checagens com sync (TD-27, casos em sync_test.go).
 
 package doctor
 
@@ -642,8 +643,8 @@ func TestGoVersionSemTrocaDeToolchain(t *testing.T) {
 func TestCollectAmbienteReal(t *testing.T) {
 	root := project(t, nil)
 	checks := Collect(root)
-	if len(checks) != 8 {
-		t.Fatalf("checks = %d, quer 8: %+v", len(checks), checks)
+	if len(checks) != 9 {
+		t.Fatalf("checks = %d, quer 9: %+v", len(checks), checks)
 	}
 	for _, c := range checks {
 		t.Logf("[%s] %s: %s", c.Status, c.Name, c.Message)
