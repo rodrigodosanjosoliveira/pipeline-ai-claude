@@ -5,8 +5,8 @@
 // aberto 6); comandos externos injetados em vez de depender da máquina; casos
 // novos para hook no settings.json, binário e filesystem; checagem fmt-hook no
 // PostToolUse e convivência dos comandos hook × fmt-hook (TD-18); total de
-// checagens com sync e sensores (TD-27, TD-29; casos em sync_test.go e
-// sensors_test.go).
+// checagens com sync, sensores e subagentes (TD-27, TD-29, TD-34; casos em
+// sync_test.go, sensors_test.go e agents_test.go).
 
 package doctor
 
@@ -644,8 +644,8 @@ func TestGoVersionSemTrocaDeToolchain(t *testing.T) {
 func TestCollectAmbienteReal(t *testing.T) {
 	root := project(t, nil)
 	checks := Collect(root)
-	if len(checks) != 10 {
-		t.Fatalf("checks = %d, quer 10: %+v", len(checks), checks)
+	if len(checks) != 11 {
+		t.Fatalf("checks = %d, quer 11: %+v", len(checks), checks)
 	}
 	for _, c := range checks {
 		t.Logf("[%s] %s: %s", c.Status, c.Name, c.Message)

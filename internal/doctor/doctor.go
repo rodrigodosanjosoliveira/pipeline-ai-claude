@@ -6,11 +6,13 @@
 // status ok/aviso/erro com ação corretiva; comandos externos injetáveis; checagem
 // do fmt-hook no PostToolUse, com o settings.json lido uma vez só (TD-18);
 // checagem sync só leitura, pelo lock e pelo plano do syncer (TD-27); checagem
-// sensores dos sensores pedidos pelos subagentes (TD-29).
+// sensores dos sensores pedidos pelos subagentes (TD-29); checagem subagentes
+// das ferramentas de cada .claude/agents/*.md (TD-34, em agents.go).
 
 // Package doctor diagnostica se o ambiente e o projeto estão prontos para o
 // toolkit: ferramentas no PATH, configuração, registro do hook e do fmt-hook,
-// arquivos gerenciados (sync), sensores pedidos pelos subagentes e binário.
+// arquivos gerenciados (sync), sensores pedidos pelos subagentes, ferramentas
+// dos subagentes e binário.
 package doctor
 
 import (
@@ -64,6 +66,7 @@ const (
 	checkFmtHook  = "fmt-hook"
 	checkSync     = "sync"
 	checkSensors  = "sensores"
+	checkAgents   = "subagentes"
 	checkBinary   = "binário"
 	checkCaseFS   = "filesystem"
 )
@@ -173,6 +176,7 @@ func collect(start string, e env) []Check {
 		fmtHookCheck(st),
 		syncCheck(root, cfg, cfgErr),
 		sensorsCheck(cfg, cfgErr),
+		agentsCheck(root, cfg, cfgErr),
 		binaryCheck(root, e),
 		caseFSCheck(root),
 	}
