@@ -3,7 +3,8 @@
 // api + postgres, git_provider github|gitlab (TD-07); casamento de padrão sobre
 // caminho relativo e sem diferenciar caixa, IsNoAgent (TD-09, TD-10); auto_flags e
 // FlagsTriggeredBy (TD-13); report_schema (TD-12); sensors; validação de caminhos
-// e nomes; erro de acesso no Find não vira "não encontrado" (TD-08).
+// e nomes; erro de acesso no Find não vira "não encontrado" (TD-08); módulo
+// repetido em enabled_modules recusado (TD-28).
 
 // Package config carrega a configuração do toolkit a partir do arquivo
 // .pipeline-claude.json na raiz do projeto.
@@ -373,6 +374,7 @@ func (c *Config) normalize() error {
 			return fmt.Errorf("editor_agents[%d] %q inválido (formato ^[a-z][a-z0-9-]*$)", i, a)
 		}
 	}
+	seenModule := map[string]bool{}
 	for i, m := range c.EnabledModules {
 		if !nameRe.MatchString(m) {
 			return fmt.Errorf("enabled_modules[%d] %q inválido (formato ^[a-z][a-z0-9-]*$)", i, m)
@@ -380,6 +382,10 @@ func (c *Config) normalize() error {
 		if !Modules[m] {
 			return fmt.Errorf("enabled_modules[%d] %q não está no catálogo de módulos", i, m)
 		}
+		if seenModule[m] {
+			return fmt.Errorf("enabled_modules[%d] %q repetido; deixe uma ocorrência só (TD-28)", i, m)
+		}
+		seenModule[m] = true
 	}
 
 	if c.ReportSchema == nil {

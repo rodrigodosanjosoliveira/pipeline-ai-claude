@@ -245,6 +245,17 @@ Checagem `sync`: lock ausente → aviso (projeto anterior ao `init` ou ainda sem
 aviso listando os caminhos; atualização pendente → aviso com `pipeline-claude
 sync`. Nunca grava.
 
+## Depois da Fase 3
+
+### TD-28 — `enabled_modules` sem repetição
+A config recusa módulo repetido em `enabled_modules`, com o índice e o nome na
+mensagem. O `init` já recusava e os templates não renderizam lista repetida; o
+`sync` deixa de tirar a repetição em silêncio e também reprova. Config inválida
+faz o hook bloquear toda edição (TD-08): o `doctor` mostra o motivo.
+**Motivo:** o mesmo arquivo era válido para a config e inválido para os
+templates; cada consumidor novo (o `adopt`, na Fase 4) teria de lembrar de tirar
+a repetição. Sem projeto em versão publicada, recusar agora não quebra ninguém.
+
 ## Pontos em aberto
 
 1. Distribuição da camada Claude também como plugin do Claude Code.

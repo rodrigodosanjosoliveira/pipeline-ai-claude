@@ -1,7 +1,7 @@
 // Portado de github.com/rodrigodosanjosoliveira/pipeline-ai/internal/config/config_test.go @ 0eac73a (MIT).
 // Alterações: casos originais mantidos, adaptados ao novo formato (TD-07, TD-09,
 // TD-14) com comentário onde o comportamento mudou; novos casos para os campos e
-// validações do .pipeline-claude.json; alvo de fuzz FuzzDecode.
+// validações do .pipeline-claude.json (módulo repetido, TD-28); alvo de fuzz FuzzDecode.
 
 package config
 
@@ -202,6 +202,12 @@ func TestLoadValidacao(t *testing.T) {
 			name:    "enabled_modules com item vazio",
 			body:    bodyWith(t, map[string]any{"enabled_modules": []any{""}}),
 			wantErr: "enabled_modules",
+		},
+		{
+			// Repetição não tem significado e os templates a recusam (TD-28).
+			name:    "enabled_modules com módulo repetido",
+			body:    bodyWith(t, map[string]any{"enabled_modules": []any{"data-model", "release-ops", "data-model"}}),
+			wantErr: `enabled_modules[2] "data-model" repetido`,
 		},
 		{
 			name:    "project_type ausente",

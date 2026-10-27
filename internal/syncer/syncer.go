@@ -104,10 +104,15 @@ func Plan(root string, cfg *config.Config, lock *manifest.Lock) ([]Item, error) 
 		return nil, err
 	}
 
-	// A config aceita módulo repetido; a renderização não.
+	// A config já recusa módulo repetido (TD-28); uma config montada sem
+	// config.Load também reprova aqui, antes da renderização.
 	modules := slices.Clone(cfg.EnabledModules)
 	slices.Sort(modules)
-	modules = slices.Compact(modules)
+	for i := 1; i < len(modules); i++ {
+		if modules[i] == modules[i-1] {
+			return nil, fmt.Errorf("sync: enabled_modules: módulo %q repetido", modules[i])
+		}
+	}
 
 	expected := map[string]Item{}
 	for _, f := range templates.Expected(templates.Managed, modules) {

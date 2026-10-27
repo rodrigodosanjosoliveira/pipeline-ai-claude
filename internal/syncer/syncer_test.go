@@ -539,14 +539,16 @@ func TestPlanSortedAndUnique(t *testing.T) {
 }
 
 func TestPlanDuplicateModulesInConfig(t *testing.T) {
-	// A config não reprova módulo repetido; o plano não pode falhar nem
-	// duplicar item por isso.
+	// A config reprova módulo repetido (TD-28); config montada à mão com
+	// repetição também reprova o plano, com mensagem que aponta o módulo.
 	p := newProject(t, "data-model")
-	p.cfg = &config.Config{EnabledModules: []string{"data-model", "data-model"}}
-	for _, it := range p.plan(t) {
-		if it.Action != Nada {
-			t.Errorf("%s = %q, quer nada", it.Path, it.Action)
-		}
+	p.cfg = &config.Config{EnabledModules: []string{"data-model", "release-ops", "data-model"}}
+	items, err := Plan(p.root, p.cfg, p.lock)
+	if err == nil || !strings.Contains(err.Error(), `enabled_modules: módulo "data-model" repetido`) {
+		t.Fatalf("Plan = %d item(ns), %v; quero erro de módulo repetido", len(items), err)
+	}
+	if items != nil {
+		t.Errorf("%d item(ns) em erro", len(items))
 	}
 }
 
