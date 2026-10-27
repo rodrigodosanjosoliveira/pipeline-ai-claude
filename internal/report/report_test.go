@@ -3,7 +3,7 @@
 // campos "- Nome: valor") e validado por Check(r, config.ReportSchema) (TD-12); casos de
 // flag permissiva, marcadores fixos e seções fixas ajustados (TD-12, ver
 // comentários em cada caso); casos novos da Fase 1 (CRLF, blocos de código,
-// campo multilinha, esquema inválido, fuzz).
+// campo multilinha, esquema inválido, fuzz); flag_front (TD-30).
 
 package report
 
@@ -396,6 +396,12 @@ func TestCheckErros(t *testing.T) {
 		{"flag_sections campo vazio", func(s *config.ReportSchema) {
 			s.FlagSections["require_x"] = config.FlagSection{Section: "X", Fields: []string{" "}}
 		}},
+		{"flag_front chave inválida", func(s *config.ReportSchema) { s.FlagFront = map[string][]string{"Arq Change": {"aprovacao"}} }},
+		{"flag_front sem campos", func(s *config.ReportSchema) { s.FlagFront = map[string][]string{"arquitetura_change": {}} }},
+		{"flag_front campo vazio", func(s *config.ReportSchema) { s.FlagFront = map[string][]string{"arquitetura_change": {" "}} }},
+		{"flag_front campo inválido", func(s *config.ReportSchema) {
+			s.FlagFront = map[string][]string{"arquitetura_change": {"Aprovação PM"}}
+		}},
 		{"forbid_markers vazio", func(s *config.ReportSchema) { s.ForbidMarkers = append(s.ForbidMarkers, "") }},
 		{"forbid_markers com espaço nas pontas", func(s *config.ReportSchema) { s.ForbidMarkers = append(s.ForbidMarkers, " TODO") }},
 	}
@@ -602,6 +608,47 @@ func TestFlagsCondicionais(t *testing.T) {
 			}
 			if !hasError(fs, tt.querErro) {
 				t.Errorf("esperava erro contendo %q, obteve: %v", tt.querErro, fs)
+			}
+		})
+	}
+}
+
+// TestFlagFront: flag do front matter que exige outros campos do front matter
+// quando true (TD-30).
+func TestFlagFront(t *testing.T) {
+	schema := config.DefaultReportSchema()
+	schema.FlagFront = map[string][]string{"arquitetura_change": {"aprovacao", "aprovado_em"}}
+	tests := []struct {
+		name  string
+		front string
+		want  []string // trechos de erro; vazio = aprovado
+	}{
+		{"flag ausente", "", nil},
+		{"flag false sem aprovação", "arquitetura_change: false", nil},
+		{"flag true sem aprovação", "arquitetura_change: true", []string{`"aprovacao" obrigatório com arquitetura_change=true`, `"aprovado_em"`}},
+		{"flag true com placeholder", "arquitetura_change: true\naprovacao: pendente\naprovado_em: 2026-01-02", []string{`"aprovacao"`}},
+		{"flag true com <...>", "arquitetura_change: true\naprovacao: <nome>\naprovado_em: 2026-01-02", []string{`"aprovacao"`}},
+		{"flag true preenchida", "arquitetura_change: true\naprovacao: aprovado pela PM\naprovado_em: 2026-01-02", nil},
+		{"flag com valor não estrito", "arquitetura_change: sim\naprovacao: aprovado pela PM\naprovado_em: 2026-01-02", []string{"use true ou false"}},
+		{"flag em caixa alta na chave", "Arquitetura_Change: true", []string{`"aprovacao"`}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			content := relatorioOK
+			if tt.front != "" {
+				content = replaceOnce(t, relatorioOK, "require_security: false", "require_security: false\n"+tt.front)
+			}
+			fs, err := Check(mustParse(t, content), schema)
+			if err != nil {
+				t.Fatalf("Check: %v", err)
+			}
+			if len(tt.want) == 0 && len(fs) != 0 {
+				t.Errorf("esperava zero findings, obteve: %v", fs)
+			}
+			for _, w := range tt.want {
+				if !hasError(fs, w) {
+					t.Errorf("esperava erro contendo %q, obteve: %v", w, fs)
+				}
 			}
 		})
 	}

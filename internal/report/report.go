@@ -4,7 +4,8 @@
 // de título configurável, títulos em bloco de código ignorados e campos
 // "- Nome: valor" com sub-itens; booleano estrito true/false (TD-12); front
 // matter, bloco de código não fechado e esquema inválido viram erro em vez de
-// serem ignorados (TD-08); marcadores por palavra inteira com fronteira Unicode.
+// serem ignorados (TD-08); marcadores por palavra inteira com fronteira Unicode;
+// flag_front: flag que exige campos do front matter (TD-30).
 
 // Package report faz o parsing e a checagem do report de delivery: um arquivo
 // Markdown com front matter.
@@ -109,7 +110,10 @@ type line struct {
 
 // flagRe é o formato de chave de flag, o mesmo de auto_flags e flag_sections
 // na configuração.
-var flagRe = regexp.MustCompile(`^require_[a-z_]+$`)
+var (
+	flagRe     = regexp.MustCompile(`^require_[a-z_]+$`)
+	frontKeyRe = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
+)
 
 // Parse lê um report. level é o nível de título que abre seção (1 a 6; o
 // section_level do esquema). Erros: nível fora do intervalo, front matter
@@ -480,6 +484,19 @@ func validateSchema(s config.ReportSchema) error {
 			}
 		}
 	}
+	for flag, keys := range s.FlagFront {
+		if !frontKeyRe.MatchString(flag) {
+			return fmt.Errorf("flag_front: chave %q inválida (formato ^[a-z][a-z0-9_]*$)", flag)
+		}
+		if len(keys) == 0 {
+			return fmt.Errorf("flag_front[%q] sem campos", flag)
+		}
+		for i, k := range keys {
+			if !frontKeyRe.MatchString(k) {
+				return fmt.Errorf("flag_front[%q][%d] %q inválido", flag, i, k)
+			}
+		}
+	}
 	if strings.TrimSpace(s.ChecklistSection) != "" && NormalizeTitle(s.ChecklistSection) == "" {
 		return errors.New("checklist_section inválida")
 	}
@@ -499,7 +516,8 @@ func validateSchema(s config.ReportSchema) error {
 // Checagens: front matter obrigatório presente e preenchido; flags com valor
 // estrito; seções obrigatórias presentes, únicas e não vazias; campos
 // obrigatórios com valor fora de placeholder_values e sem "<...>"; para cada
-// flag true de flag_sections, a seção e os campos dela; checklist sem "- [ ]"
+// flag true de flag_sections, a seção e os campos dela; para cada flag true de
+// flag_front, os campos do front matter ligados a ela; checklist sem "- [ ]"
 // e com ao menos um item; forbid_markers como palavra inteira fora de bloco de
 // código, no front matter e no corpo.
 func Check(r *Report, s config.ReportSchema) ([]Finding, error) {
@@ -515,6 +533,7 @@ func Check(r *Report, s config.ReportSchema) ([]Finding, error) {
 	c := &checker{r: r, s: s, reported: map[string]bool{}}
 	c.front()
 	c.flags()
+	c.flagFront()
 	for _, title := range s.SectionsRequired {
 		c.requireSection(title, "obrigatória")
 	}
@@ -563,12 +582,35 @@ func (c *checker) front() {
 	}
 }
 
+// flagFront exige, para cada flag true de flag_front, os campos do front
+// matter ligados a ela, preenchidos (TD-30).
+func (c *checker) flagFront() {
+	for _, flag := range sortedKeys(c.s.FlagFront) {
+		if on, err := c.r.Flag(flag); err != nil || !on {
+			continue // valor inválido já reprovado em flags
+		}
+		for _, k := range c.s.FlagFront[flag] {
+			v, ok := c.r.Front[k]
+			switch {
+			case !ok:
+				c.errorf("front matter: campo %q obrigatório com %s=true ausente", k, flag)
+			case c.isPlaceholder(v):
+				c.errorf("front matter: campo %q obrigatório com %s=true vazio ou com placeholder (%q)", k, flag, v)
+			case hasAnglePlaceholder(v):
+				c.errorf("front matter: campo %q obrigatório com %s=true com placeholder no formato <...> (%q)", k, flag, v)
+			}
+		}
+	}
+}
+
 // flags reprova valor não estrito em toda chave de flag do front matter
-// (formato require_*) e em toda chave de flag_sections presente.
+// (formato require_*) e em toda chave de flag_sections e flag_front presente.
 func (c *checker) flags() {
 	keys := sortedKeys(c.r.Front)
 	for _, k := range keys {
-		if _, inSchema := c.s.FlagSections[k]; !inSchema && !flagRe.MatchString(k) {
+		_, inSections := c.s.FlagSections[k]
+		_, inFront := c.s.FlagFront[k]
+		if !inSections && !inFront && !flagRe.MatchString(k) {
 			continue
 		}
 		if _, err := c.r.Flag(k); err != nil {
