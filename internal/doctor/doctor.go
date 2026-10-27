@@ -426,6 +426,18 @@ func isHookCommand(cmd string) bool { return isToolkitCommand(cmd, "hook") }
 // isFmtHookCommand reconhece "pipeline-claude fmt-hook", nas mesmas regras.
 func isFmtHookCommand(cmd string) bool { return isToolkitCommand(cmd, "fmt-hook") }
 
+// SettingsHooks roda as checagens hook e fmt-hook sobre o
+// .claude/settings.json de root: o adopt usa a mesma regra para decidir se
+// instrui o registro.
+func SettingsHooks(root string) (hook, fmtHook Check) {
+	st := readSettings(root)
+	return hookCheck(st), fmtHookCheck(st)
+}
+
+// IsToolkitCommand reconhece "pipeline-claude <sub>" como o doctor reconhece
+// o hook e o fmt-hook.
+func IsToolkitCommand(cmd, sub string) bool { return isToolkitCommand(cmd, sub) }
+
 // isToolkitCommand reconhece "pipeline-claude <sub>" exatamente: subcomando
 // por igualdade, sem argumento extra, então hook e fmt-hook não se confundem.
 func isToolkitCommand(cmd, sub string) bool {

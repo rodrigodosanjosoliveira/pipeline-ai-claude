@@ -69,6 +69,7 @@ internal/manifest       lock dos arquivos gerenciados (.pipeline-claude.lock)
 internal/templates      catálogo e templates embutidos da camada gerada (init e sync)
 internal/scaffold       init: projeto novo por staging, sem sobrescrever, com lock
 internal/syncer         sync dos arquivos gerenciados (plano TD-25, lock, release)
+internal/adopt          adoção de projeto Go existente: só cria, lock TD-32, instruções
 internal/fixtures       sanitização e checagem de payloads de hook
 tools/fixture-sanitize  converte capturas brutas em fixtures publicáveis
 scripts/capture-hook.sh grava payload bruto de hook (Fase 0, nunca bloqueia)
@@ -76,7 +77,8 @@ testdata/hooks/claude   fixtures sanitizadas por versão do Claude Code
 docs/                   decisões, guias e prompts de execução por fatia
 ```
 
-Pacote previsto: `adopt` (Fase 4, prompt em `docs/prompts/fase-4-adopt.md`).
+Pacotes previstos: nenhum. Fase 4 em execução (prompt em
+`docs/prompts/fase-4-adopt.md`): o comando `adopt` entra na CLI numa PR seguinte.
 
 ## Convenções
 
