@@ -276,6 +276,17 @@ injeção de prompt; a lista de ferramentas é garantida pelo Claude Code, a
 instrução "não contorne com o Bash" não. Complementa o TD-21 (ferramentas MCP) e
 o TD-26 (ferramentas dos subagentes).
 
+### TD-30 — `flag_front`: flag que exige campo do front matter
+`report_schema.flag_front` liga uma flag do front matter (qualquer chave
+`^[a-z][a-z0-9_]*$`, não só `require_*`) aos campos do front matter que ela
+exige quando é `true`; por exemplo, `{"arquitetura_change": ["aprovacao"]}`. A
+flag passa a ter valor estrito (`true`/`false`) e o campo exigido segue as
+regras de preenchimento do `front_required` (placeholder e `<...>` reprovam).
+Sem `flag_front`, nada muda.
+**Motivo:** projeto existente com regra "mudança de arquitetura exige
+aprovação registrada" não tinha como expressá-la no esquema; o `adopt` (Fase
+4) perderia a regra.
+
 ## Pontos em aberto
 
 1. Distribuição da camada Claude também como plugin do Claude Code.

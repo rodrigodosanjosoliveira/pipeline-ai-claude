@@ -562,6 +562,30 @@ func TestLoadValidacao(t *testing.T) {
 			wantErr: "report_schema",
 		},
 		{
+			name: "report_schema com flag_front de chave inválida",
+			body: bodyWith(t, map[string]any{"report_schema": map[string]any{
+				"section_level": 2,
+				"flag_front":    map[string]any{"Arquitetura Change": []any{"aprovacao"}},
+			}}),
+			wantErr: "flag_front",
+		},
+		{
+			name: "report_schema com flag_front de campo inválido",
+			body: bodyWith(t, map[string]any{"report_schema": map[string]any{
+				"section_level": 2,
+				"flag_front":    map[string]any{"arquitetura_change": []any{"Aprovação PM"}},
+			}}),
+			wantErr: "flag_front",
+		},
+		{
+			name: "report_schema com flag_front sem campos",
+			body: bodyWith(t, map[string]any{"report_schema": map[string]any{
+				"section_level": 2,
+				"flag_front":    map[string]any{"arquitetura_change": []any{}},
+			}}),
+			wantErr: "flag_front",
+		},
+		{
 			name: "report_schema com flag sem seção",
 			body: bodyWith(t, map[string]any{"report_schema": map[string]any{
 				"section_level": 2,
@@ -749,6 +773,20 @@ func TestReportSchemaInformadoSubstituiPadrao(t *testing.T) {
 	}
 	if len(c.ReportSchema.FrontRequired) != 0 {
 		t.Errorf("FrontRequired = %v, quer vazio (sem mistura com o padrão)", c.ReportSchema.FrontRequired)
+	}
+}
+
+func TestReportSchemaFlagFront(t *testing.T) {
+	// flag_front: flag do front matter que exige outros campos dele (TD-30).
+	c := loadBody(t, bodyWith(t, map[string]any{"report_schema": map[string]any{
+		"section_level": 2,
+		"flag_front":    map[string]any{"arquitetura_change": []any{"aprovacao"}},
+	}}))
+	if got := c.ReportSchema.FlagFront; !reflect.DeepEqual(got, map[string][]string{"arquitetura_change": {"aprovacao"}}) {
+		t.Errorf("FlagFront = %v", got)
+	}
+	if DefaultReportSchema().FlagFront != nil {
+		t.Error("esquema padrão com flag_front")
 	}
 }
 

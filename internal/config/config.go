@@ -4,7 +4,7 @@
 // caminho relativo e sem diferenciar caixa, IsNoAgent (TD-09, TD-10); auto_flags e
 // FlagsTriggeredBy (TD-13); report_schema (TD-12); sensors; validação de caminhos
 // e nomes; erro de acesso no Find não vira "não encontrado" (TD-08); módulo
-// repetido em enabled_modules recusado (TD-28).
+// repetido em enabled_modules recusado (TD-28); report_schema.flag_front (TD-30).
 
 // Package config carrega a configuração do toolkit a partir do arquivo
 // .pipeline-claude.json na raiz do projeto.
@@ -152,6 +152,11 @@ type ReportSchema struct {
 	// quando ela é true. Chaves ^require_[a-z_]+$.
 	FlagSections map[string]FlagSection `json:"flag_sections"`
 
+	// FlagFront liga uma flag do front matter aos campos do front matter
+	// exigidos quando ela é true (ex.: arquitetura_change → aprovação),
+	// TD-30. Chaves e campos ^[a-z][a-z0-9_]*$; a flag tem valor estrito.
+	FlagFront map[string][]string `json:"flag_front"`
+
 	// ChecklistSection é a seção em que item "- [ ]" reprova o report.
 	ChecklistSection string `json:"checklist_section"`
 
@@ -272,6 +277,7 @@ func decode(data []byte) (*Config, error) {
 var (
 	nameRe         = regexp.MustCompile(`^[a-z][a-z0-9-]*$`)
 	flagRe         = regexp.MustCompile(`^require_[a-z_]+$`)
+	frontKeyRe     = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
 	sensorRe       = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
 	driveRe        = regexp.MustCompile(`^[A-Za-z]:`)
 	errVersion     = errors.New("version é obrigatória e precisa ser 1")
@@ -449,6 +455,19 @@ func (s *ReportSchema) validate() error {
 		for i, f := range fs.Fields {
 			if blankTitle(f) {
 				return fmt.Errorf("flag_sections[%q].fields[%d] %q vazio", flag, i, f)
+			}
+		}
+	}
+	for flag, keys := range s.FlagFront {
+		if !frontKeyRe.MatchString(flag) {
+			return fmt.Errorf("flag_front: chave %q inválida (formato ^[a-z][a-z0-9_]*$)", flag)
+		}
+		if len(keys) == 0 {
+			return fmt.Errorf("flag_front[%q] sem campos", flag)
+		}
+		for i, k := range keys {
+			if !frontKeyRe.MatchString(k) {
+				return fmt.Errorf("flag_front[%q][%d] %q inválido (formato ^[a-z][a-z0-9_]*$)", flag, i, k)
 			}
 		}
 	}
