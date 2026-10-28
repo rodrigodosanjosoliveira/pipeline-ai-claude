@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -563,6 +564,9 @@ func TestNewNeverOverwrites(t *testing.T) {
 // TestNewRollbackWhenIndexFails: o diretório do índice é somente leitura, o
 // rename falha e o diretório criado para a delivery é removido.
 func TestNewRollbackWhenIndexFails(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows não tem permissão Unix de arquivo nem de diretório (TD-39)")
+	}
 	if os.Geteuid() == 0 {
 		t.Skip("root ignora permissão de diretório")
 	}
@@ -614,6 +618,9 @@ func TestNewIndexChangedDuringCreation(t *testing.T) {
 }
 
 func TestNewPreservesIndexMode(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows não tem permissão Unix de arquivo nem de diretório (TD-39)")
+	}
 	cfg := project(t, defaultIDs, map[string]string{indexRel: indexHead})
 	indexPath := filepath.Join(cfg.Root(), filepath.FromSlash(indexRel))
 	if err := os.Chmod(indexPath, 0o640); err != nil {

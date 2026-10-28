@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -158,7 +159,8 @@ func checkProject(t *testing.T, root string, o Options, res Result) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if info.Mode().Perm() != f.Mode.Perm() {
+			// Windows não tem permissão Unix (TD-39).
+			if runtime.GOOS != "windows" && info.Mode().Perm() != f.Mode.Perm() {
 				t.Errorf("%s: permissão %o, quero %o", dest, info.Mode().Perm(), f.Mode.Perm())
 			}
 			if class == templates.Managed {
@@ -278,7 +280,8 @@ func TestInitPrePushExecutable(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if info.Mode().Perm() != 0o755 {
+	// No Windows o git ignora o bit de execução e o Go não o grava (TD-39).
+	if runtime.GOOS != "windows" && info.Mode().Perm() != 0o755 {
 		t.Errorf("pre-push com permissão %o, quero 755", info.Mode().Perm())
 	}
 }
@@ -512,6 +515,9 @@ func TestInitParentMissing(t *testing.T) {
 }
 
 func TestInitReadOnlyParent(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows não tem permissão Unix de arquivo nem de diretório (TD-39)")
+	}
 	if os.Geteuid() == 0 {
 		t.Skip("root ignora permissão de diretório")
 	}
