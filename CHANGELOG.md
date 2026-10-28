@@ -22,6 +22,9 @@ go install github.com/rodrigodosanjosoliveira/pipeline-ai-claude/cmd/pipeline-cl
   Go do `go.mod`.
 - `.gitignore` gerado ignora `/<nome>`, o binário que o sensor `build`
   (`go build ./...`) grava na raiz do projeto.
+- `pre-push` gerenciado aceita o primeiro push que cria a `main` num remoto
+  onde ela ainda não existe (repositório vazio), sem `--no-verify`; push para
+  uma `main` que já existe continua bloqueado. Chega aos projetos pelo `sync`.
 
 ## [v1.0.0-rc.1] - 2026-10-28
 

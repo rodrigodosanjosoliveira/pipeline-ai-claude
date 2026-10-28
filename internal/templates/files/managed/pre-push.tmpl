@@ -1,5 +1,6 @@
 #!/bin/sh
-# pre-push: bloqueia push direto para a branch main.
+# pre-push: bloqueia push direto para a branch main (criá-la no remoto vazio é
+# permitido).
 # Gerenciado pelo pipeline-claude (atualizado por `pipeline-claude sync`).
 # Ative com: git config core.hooksPath .githooks
 # Emergência absoluta: git push --no-verify
@@ -9,6 +10,13 @@ zero="0000000000000000000000000000000000000000"
 while read -r local_ref local_sha remote_ref remote_sha; do
     # Apagar branch remota não envia commit.
     if [ "$local_sha" = "$zero" ]; then
+        continue
+    fi
+
+    # Criar a main num remoto onde ela ainda não existe (repositório vazio,
+    # primeiro push) não passa por PR: não há base. Só a própria main local.
+    if [ "$remote_ref" = "refs/heads/main" ] && [ "$remote_sha" = "$zero" ] &&
+        [ "$local_ref" = "refs/heads/main" ]; then
         continue
     fi
 

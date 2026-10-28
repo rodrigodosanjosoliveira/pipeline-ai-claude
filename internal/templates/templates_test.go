@@ -1070,15 +1070,23 @@ func TestPrePushBlocksMain(t *testing.T) {
 	}
 	sha := strings.Repeat("a", 40)
 	zero := strings.Repeat("0", 40)
+	other := strings.Repeat("b", 40)
 	tests := []struct {
 		name  string
 		stdin string
 		want  int
 	}{
-		{"push na main", "refs/heads/main " + sha + " refs/heads/main " + zero + "\n", 1},
-		{"branch de trabalho para main", "refs/heads/task/x " + sha + " refs/heads/main " + zero + "\n", 1},
+		{"push na main", "refs/heads/main " + sha + " refs/heads/main " + other + "\n", 1},
+		{"branch de trabalho para main", "refs/heads/task/x " + sha + " refs/heads/main " + other + "\n", 1},
+		// A main ainda não existe no remoto (repositório vazio): o primeiro push
+		// a cria, sem PR possível. Antes do TASK-046 isto exigia --no-verify.
+		{"criar a main no remoto vazio", "refs/heads/main " + sha + " refs/heads/main " + zero + "\n", 0},
+		{"criar a main a partir de outra branch", "refs/heads/task/x " + sha + " refs/heads/main " + zero + "\n", 1},
+		{"criar a main junto com outra branch", "refs/heads/task/x " + sha + " refs/heads/task/x " + zero + "\nrefs/heads/main " + sha + " refs/heads/main " + zero + "\n", 0},
+		{"criar a main e empurrar outra para ela", "refs/heads/main " + sha + " refs/heads/main " + zero + "\nrefs/heads/task/x " + sha + " refs/heads/main " + other + "\n", 1},
 		{"push de branch de trabalho", "refs/heads/task/x " + sha + " refs/heads/task/x " + zero + "\n", 0},
 		{"apagar branch remota", "(delete) " + zero + " refs/heads/task/x " + sha + "\n", 0},
+		{"apagar a main remota", "(delete) " + zero + " refs/heads/main " + sha + "\n", 0},
 		{"nada a enviar", "", 0},
 	}
 	for _, tt := range tests {
