@@ -167,6 +167,9 @@ func TestCheckGo(t *testing.T) {
 		{"versão menor", "module x\n\ngo 1.25\n", "go version go1.24.9 linux/amd64", StatusError},
 		{"patch menor", "module x\n\ngo 1.24.5\n", "go version go1.24.3 linux/amd64", StatusError},
 		{"patch maior", "module x\n\ngo 1.24.2\n", "go version go1.24.3 linux/amd64", StatusOK},
+		// go.mod com CRLF (checkout no Windows, TD-39).
+		{"go.mod com CRLF", "module x\r\n\r\ngo 1.24\r\n", "go version go1.24.0 linux/amd64", StatusOK},
+		{"go.mod com CRLF e versão menor", "module x\r\n\r\ngo 1.25\r\n", "go version go1.24.9 linux/amd64", StatusError},
 		{"go ausente", "module x\n\ngo 1.24\n", "", StatusError},
 		{"saída irreconhecível", "module x\n\ngo 1.24\n", "versão desconhecida", StatusError},
 		{"go.mod sem diretiva go", "module x\n", "go version go1.24.0 linux/amd64", StatusWarn},
@@ -473,6 +476,9 @@ func TestCheckBinary(t *testing.T) {
 	}{
 		{"versão igual", "PIPELINE_CLAUDE_VERSION := v0.2.0\n", false, "pipeline-claude v0.2.0\n", StatusOK},
 		{"versão diferente", "PIPELINE_CLAUDE_VERSION := v0.3.0\n", false, "pipeline-claude v0.2.0\n", StatusError},
+		// Makefile com CRLF (checkout no Windows, TD-39): a versão é lida igual.
+		{"versão igual com CRLF", "PIPELINE_CLAUDE_VERSION := v0.2.0\r\n\r\ntools:\r\n", false, "pipeline-claude v0.2.0\n", StatusOK},
+		{"versão diferente com CRLF", "PIPELINE_CLAUDE_VERSION := v0.3.0\r\n", false, "pipeline-claude v0.2.0\n", StatusError},
 		{"versão no go install", "tools:\n\tgo install github.com/rodrigodosanjosoliveira/pipeline-ai-claude/cmd/pipeline-claude@v0.2.0\n", false, "pipeline-claude v0.2.0\n", StatusOK},
 		{"versão no go install diferente", "tools:\n\tgo install github.com/rodrigodosanjosoliveira/pipeline-ai-claude/cmd/pipeline-claude@v0.1.0\n", false, "pipeline-claude v0.2.0\n", StatusError},
 		{"sem versão declarada", "build:\n\tgo build ./...\n", false, "pipeline-claude dev\n", StatusOK},

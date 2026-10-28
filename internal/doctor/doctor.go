@@ -16,6 +16,7 @@
 package doctor
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -249,6 +250,8 @@ func goCheck(root string, e env) Check {
 	if err != nil {
 		return bad(checkGo, StatusError, fmt.Sprintf("falha ao ler go.mod: %v", err), "confira as permissões do go.mod")
 	}
+	// go.mod com CRLF (checkout no Windows) tem a mesma diretiva (TD-39).
+	data = bytes.ReplaceAll(data, []byte("\r\n"), []byte("\n"))
 	m := goModRe.FindSubmatch(data)
 	if m == nil {
 		return bad(checkGo, StatusWarn, raw+"; go.mod sem diretiva go, versão mínima não verificada", "declare a versão com `go mod edit -go=<versão>`")
@@ -486,6 +489,8 @@ func DeclaredVersion(root string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("falha ao ler Makefile: %w", err)
 	}
+	// Makefile com CRLF (checkout no Windows) fixa a mesma versão (TD-39).
+	data = bytes.ReplaceAll(data, []byte("\r\n"), []byte("\n"))
 	if m := makeVarRe.FindSubmatch(data); m != nil {
 		return string(m[1]), nil
 	}
