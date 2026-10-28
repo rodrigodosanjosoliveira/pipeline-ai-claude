@@ -161,6 +161,12 @@ func TestCheckAgents(t *testing.T) {
 		{
 			name: "report_writers sem diferenciar caixa no nome do agente",
 			mutate: func(t *testing.T, root string) {
+				// Remove o code-reviewer.md gerado antes: em filesystem que não
+				// diferencia caixa (macOS, Windows) ele e o Code-Reviewer.md são o
+				// mesmo arquivo, que manteria o nome antigo (TD-39).
+				if err := os.Remove(filepath.Join(root, ".claude", "agents", "code-reviewer.md")); err != nil {
+					t.Fatal(err)
+				}
 				writeAgent(t, root, "Code-Reviewer", agentDoc("name: Code-Reviewer\n"+reviewerDesc+"\ntools: Read, Edit"))
 				setReportWriters(t, root, "code-reviewer")
 			},

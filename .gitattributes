@@ -1,0 +1,3 @@
+# Fim de linha LF em qualquer sistema (TD-39): os templates são embutidos no
+# binário e os arquivos de referência dos testes são comparados byte a byte.
+* text=auto eol=lf
