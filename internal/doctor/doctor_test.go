@@ -62,7 +62,8 @@ func (f *fakeEnv) env() env {
 			return "", exec.ErrNotFound
 		},
 		output: func(_ context.Context, name string, args ...string) ([]byte, error) {
-			key := strings.TrimSpace(filepath.Base(name) + " " + strings.Join(args, " "))
+			// No Windows o binário é pipeline-claude.exe; a chave é a mesma (TD-39).
+			key := strings.TrimSpace(strings.TrimSuffix(filepath.Base(name), ".exe") + " " + strings.Join(args, " "))
 			if f.fails[key] {
 				return nil, errors.New("saída com erro")
 			}
