@@ -4,7 +4,8 @@
 // caminho relativo e sem diferenciar caixa, IsNoAgent (TD-09, TD-10); auto_flags e
 // FlagsTriggeredBy (TD-13); report_schema (TD-12); sensors; validação de caminhos
 // e nomes; erro de acesso no Find não vira "não encontrado" (TD-08); módulo
-// repetido em enabled_modules recusado (TD-28); report_schema.flag_front (TD-30).
+// repetido em enabled_modules recusado (TD-28); report_schema.flag_front (TD-30);
+// report_writers (TD-35).
 
 // Package config carrega a configuração do toolkit a partir do arquivo
 // .pipeline-claude.json na raiz do projeto.
@@ -108,6 +109,12 @@ type Config struct {
 	// EditorAgents são os subagentes (agent_type) autorizados a alterar
 	// ProtectedPaths. Nomes no formato ^[a-z][a-z0-9-]*$.
 	EditorAgents []string `json:"editor_agents"`
+
+	// ReportWriters são os subagentes (agent_type) fora de EditorAgents que
+	// escrevem a própria seção do report: o hook os limita a DeliveriesDir
+	// (TD-35). Nomes no formato ^[a-z][a-z0-9-]*$; exige DeliveriesDir fora de
+	// ProtectedPaths.
+	ReportWriters []string `json:"report_writers"`
 
 	// EnabledModules são os módulos opcionais ativos no projeto, do catálogo
 	// Modules.
@@ -391,6 +398,21 @@ func (c *Config) normalize() error {
 			return fmt.Errorf("editor_agents[%d] %q inválido (formato ^[a-z][a-z0-9-]*$)", i, a)
 		}
 	}
+	seenWriter := map[string]bool{}
+	for i, a := range c.ReportWriters {
+		switch {
+		case !nameRe.MatchString(a):
+			return fmt.Errorf("report_writers[%d] %q inválido (formato ^[a-z][a-z0-9-]*$)", i, a)
+		case seenWriter[a]:
+			return fmt.Errorf("report_writers[%d] %q repetido", i, a)
+		case c.IsEditorAgent(a):
+			return fmt.Errorf("report_writers[%d] %q está em editor_agents: editor já escreve em todo caminho (TD-35)", i, a)
+		}
+		seenWriter[a] = true
+	}
+	if len(c.ReportWriters) > 0 && c.IsProtected(path.Join(c.DeliveriesDir, "report.md")) {
+		return fmt.Errorf("report_writers exige deliveries_dir %q fora de protected_paths: senão o hook bloqueia a escrita do report (TD-35)", c.DeliveriesDir)
+	}
 	seenModule := map[string]bool{}
 	for i, m := range c.EnabledModules {
 		if !nameRe.MatchString(m) {
@@ -619,6 +641,30 @@ func (c *Config) IsEditorAgent(agentType string) bool {
 		}
 	}
 	return false
+}
+
+// IsReportWriter informa se agentType está em report_writers (TD-35). Um
+// agentType vazio (sessão principal) nunca está.
+func (c *Config) IsReportWriter(agentType string) bool {
+	agentType = strings.TrimSpace(agentType)
+	if agentType == "" {
+		return false
+	}
+	for _, a := range c.ReportWriters {
+		if strings.EqualFold(a, agentType) {
+			return true
+		}
+	}
+	return false
+}
+
+// InDeliveries informa se rel, relativo à raiz do projeto, é um caminho dentro
+// de deliveries_dir (o próprio diretório não conta).
+// Compara sem diferenciar caixa, como matchesAny (TD-09).
+func (c *Config) InDeliveries(rel string) bool {
+	dir := strings.ToLower(c.DeliveriesDir)
+	rel = strings.ToLower(path.Clean(filepath.ToSlash(rel)))
+	return dir != "" && strings.HasPrefix(rel, dir+"/")
 }
 
 // IsProtected informa se rel, relativo à raiz do projeto, cai em protected_paths.

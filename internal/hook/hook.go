@@ -3,8 +3,9 @@
 // falha fechada em payload ilegível, evento errado, caminho ausente e config
 // ausente (TD-08); notebook_path no NotebookEdit, relativo resolvido contra a raiz
 // e symlinks seguidos (TD-09); no_agent_paths (TD-10); chaves do payload lidas
-// sem casamento por caixa. Leitura do payload e resolução de caminho em
-// internal/hookio, compartilhadas com o fmt-hook.
+// sem casamento por caixa; report_writers só escrevem em deliveries_dir (TD-35).
+// Leitura do payload e resolução de caminho em internal/hookio, compartilhadas
+// com o fmt-hook.
 
 // Package hook implementa o hook PreToolUse do Claude Code que impede edição de
 // caminho protegido fora dos agentes editores.
@@ -105,6 +106,9 @@ func Run(stdin io.Reader, stderr io.Writer, getwd func() (string, error)) int {
 	case cfg.IsProtected(rel) && !cfg.IsEditorAgent(agent):
 		fmt.Fprint(stderr, blockMessage(rel, agent, "agente sem permissão", cfg))
 		return ExitBlock
+	case cfg.IsReportWriter(agent) && !cfg.InDeliveries(rel):
+		fmt.Fprint(stderr, blockMessage(rel, agent, "agente de report fora de deliveries_dir", cfg))
+		return ExitBlock
 	}
 	return ExitAllow
 }
@@ -127,10 +131,14 @@ func blockMessage(rel, agent, reason string, cfg *config.Config) string {
 		fmt.Fprintf(&b, "  - %s\n", a)
 	}
 
-	if cfg.IsNoAgent(rel) {
+	switch {
+	case cfg.IsNoAgent(rel):
 		b.WriteString("\nPróximo passo: este caminho está em no_agent_paths e não é editado por nenhum agente;\n")
 		b.WriteString("a alteração é feita por uma pessoa, fora da sessão.\n")
-	} else {
+	case !cfg.IsProtected(rel) && cfg.IsReportWriter(agent):
+		fmt.Fprintf(&b, "\nPróximo passo: agente de report_writers só escreve em deliveries_dir (%s/);\n", cfg.DeliveriesDir)
+		b.WriteString("registre o achado no report e devolva a alteração a um dos editores autorizados.\n")
+	default:
 		b.WriteString("\nPróximo passo: delegue a alteração a um dos editores autorizados.\n")
 		b.WriteString("Para mudar o escopo protegido, edite protected_paths em " + config.FileName + ".\n")
 	}

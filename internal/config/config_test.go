@@ -1,7 +1,8 @@
 // Portado de github.com/rodrigodosanjosoliveira/pipeline-ai/internal/config/config_test.go @ 0eac73a (MIT).
 // Alterações: casos originais mantidos, adaptados ao novo formato (TD-07, TD-09,
 // TD-14) com comentário onde o comportamento mudou; novos casos para os campos e
-// validações do .pipeline-claude.json (módulo repetido, TD-28); alvo de fuzz FuzzDecode.
+// validações do .pipeline-claude.json (módulo repetido, TD-28; report_writers,
+// TD-35); alvo de fuzz FuzzDecode.
 
 package config
 
@@ -423,6 +424,37 @@ func TestLoadValidacao(t *testing.T) {
 			name:    "editor_agents começando com dígito",
 			body:    bodyWith(t, map[string]any{"editor_agents": []any{"1dev"}}),
 			wantErr: "editor_agents",
+		},
+		// report_writers (TD-35).
+		{
+			name: "report_writers válido",
+			body: bodyWith(t, map[string]any{"protected_paths": []any{"internal/"}, "no_agent_paths": []any{},
+				"report_writers": []any{"code-reviewer", "qa-validation"}}),
+		},
+		{
+			name:    "report_writers com maiúscula",
+			body:    bodyWith(t, map[string]any{"report_writers": []any{"Code-Reviewer"}}),
+			wantErr: "report_writers",
+		},
+		{
+			name:    "report_writers repetido",
+			body:    bodyWith(t, map[string]any{"report_writers": []any{"code-reviewer", "code-reviewer"}}),
+			wantErr: `report_writers[1] "code-reviewer" repetido`,
+		},
+		{
+			name:    "report_writers também em editor_agents",
+			body:    bodyWith(t, map[string]any{"editor_agents": []any{"dev-implementation"}, "report_writers": []any{"dev-implementation"}}),
+			wantErr: `"dev-implementation" está em editor_agents`,
+		},
+		{
+			name: "report_writers com deliveries_dir protegido",
+			body: bodyWith(t, map[string]any{"protected_paths": []any{"internal/", "docs-ai/"},
+				"report_writers": []any{"code-reviewer"}}),
+			wantErr: "deliveries_dir",
+		},
+		{
+			name: "deliveries_dir protegido sem report_writers continua válido",
+			body: bodyWith(t, map[string]any{"protected_paths": []any{"internal/", "docs-ai/"}}),
 		},
 		{
 			name: "tenant-isolation no catálogo",
@@ -1092,5 +1124,29 @@ func TestParse(t *testing.T) {
 				t.Errorf("Parse = %+v, Load = %+v", c, want)
 			}
 		})
+	}
+}
+
+func TestReportWriters(t *testing.T) {
+	c := loadBody(t, bodyWith(t, map[string]any{"protected_paths": []any{"internal/"}, "no_agent_paths": []any{},
+		"report_writers": []any{"code-reviewer"}}))
+	for agent, want := range map[string]bool{"code-reviewer": true, "Code-Reviewer": true, " code-reviewer ": true, "": false, "qa-validation": false} {
+		if got := c.IsReportWriter(agent); got != want {
+			t.Errorf("IsReportWriter(%q) = %v, quero %v", agent, got, want)
+		}
+	}
+	for rel, want := range map[string]bool{
+		"docs-ai/deliveries/FEAT-001/report.md": true,
+		"docs-ai/deliveries/INDEX.md":           true,
+		"Docs-AI/Deliveries/x.md":               true,
+		"docs-ai/deliveries":                    false,
+		"docs-ai/deliveries-extra/x.md":         false,
+		"docs-ai/deliveries/../README.md":       false,
+		"README.md":                             false,
+		"":                                      false,
+	} {
+		if got := c.InDeliveries(rel); got != want {
+			t.Errorf("InDeliveries(%q) = %v, quero %v", rel, got, want)
+		}
 	}
 }
