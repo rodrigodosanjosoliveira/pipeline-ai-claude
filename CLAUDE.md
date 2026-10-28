@@ -78,7 +78,7 @@ docs/                   decisões, guias e prompts de execução por fatia
 ```
 
 Pacotes previstos: nenhum. Guia de adoção de projeto existente em
-`docs/ADOCAO.md`.
+`docs/ADOCAO.md`. Fase 5 (v1.0) em `docs/prompts/fase-5-v1.md`.
 
 ## Convenções
 
