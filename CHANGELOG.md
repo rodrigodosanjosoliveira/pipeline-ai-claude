@@ -13,6 +13,16 @@ go install github.com/rodrigodosanjosoliveira/pipeline-ai-claude/cmd/pipeline-cl
 
 ## [Não lançado]
 
+### Corrigido
+
+- CI gerado pelo `init`: o job de gates roda no Go estável (`go-version:
+  stable` no GitHub, `golang:1` no GitLab), não no Go do `go.mod`. Com a linha
+  do `go.mod` sem correção de segurança, o sensor `vuln` reprovava o primeiro
+  push pela biblioteca padrão do toolchain. A validação da delivery continua no
+  Go do `go.mod`.
+- `.gitignore` gerado ignora `/<nome>`, o binário que o sensor `build`
+  (`go build ./...`) grava na raiz do projeto.
+
 ## [v1.0.0-rc.1] - 2026-10-28
 
 Primeiro candidato da v1.0, usado pelo projeto de demonstração (TD-36, TD-38).
