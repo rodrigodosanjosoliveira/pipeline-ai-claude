@@ -41,6 +41,28 @@ jobs:
       - name: Build
         run: make build
 
+  # Testes em macOS e Windows (TD-39); Linux já roda no job gates. Teste que
+  # depende de sh, de permissão Unix ou de symlink pula com motivo explícito.
+  tests-os:
+    name: Testes (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: Testes
+        shell: bash
+        run: go test -count=1 ./...
+
   gates-stable:
     name: Testes (Go estável)
     runs-on: ubuntu-latest

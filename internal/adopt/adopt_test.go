@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -334,7 +335,8 @@ func TestAdoptEmptyProject(t *testing.T) {
 			t.Errorf("%s gravado diferente do template (%v)", f.Path, err)
 		}
 		info, err := os.Lstat(filepath.Join(root, filepath.FromSlash(f.Path)))
-		if err != nil || info.Mode().Perm() != f.Mode.Perm() {
+		// Windows não tem permissão Unix (TD-39): lá só o conteúdo é conferido.
+		if err != nil || (runtime.GOOS != "windows" && info.Mode().Perm() != f.Mode.Perm()) {
 			t.Errorf("%s: modo %v, quer %v (%v)", f.Path, info.Mode().Perm(), f.Mode.Perm(), err)
 		}
 	}
@@ -1125,7 +1127,8 @@ func TestCreateFileExclusive(t *testing.T) {
 		t.Fatalf("createFile: %v", err)
 	}
 	info, err := os.Stat(name)
-	if err != nil || info.Mode().Perm() != 0o755 {
+	// Windows não tem permissão Unix (TD-39): lá só a exclusividade é conferida.
+	if err != nil || (runtime.GOOS != "windows" && info.Mode().Perm() != 0o755) {
 		t.Errorf("modo = %v (%v), quer 0755", info.Mode().Perm(), err)
 	}
 	if err := createFile(name, []byte("outro"), 0o644); !errors.Is(err, fs.ErrExist) {
