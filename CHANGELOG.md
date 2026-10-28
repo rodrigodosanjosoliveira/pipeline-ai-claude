@@ -13,6 +13,11 @@ go install github.com/rodrigodosanjosoliveira/pipeline-ai-claude/cmd/pipeline-cl
 
 ## [Não lançado]
 
+## [v1.0.0-rc.2] - 2026-10-28
+
+Segundo candidato da v1.0, usado pelo projeto de demonstração (TD-36): corrige
+os atritos do ensaio com a `v1.0.0-rc.1`.
+
 ### Corrigido
 
 - CI gerado pelo `init`: o job de gates roda no Go estável (`go-version:
@@ -28,7 +33,8 @@ go install github.com/rodrigodosanjosoliveira/pipeline-ai-claude/cmd/pipeline-cl
 
 ## [v1.0.0-rc.1] - 2026-10-28
 
-Primeiro candidato da v1.0, usado pelo projeto de demonstração (TD-36, TD-38).
+Primeiro candidato da v1.0 (TD-38). O ensaio do projeto de demonstração com
+ela levou à `v1.0.0-rc.2`.
 
 ### Adicionado
 
@@ -110,7 +116,8 @@ Primeira versão instalável (Fases 0 a 3).
 - Revisores gerados só leitura: diff e sensores chegam pelo MCP (TD-29).
 - `enabled_modules` recusa módulo repetido (TD-28).
 
-[Não lançado]: https://github.com/rodrigodosanjosoliveira/pipeline-ai-claude/compare/v1.0.0-rc.1...HEAD
+[Não lançado]: https://github.com/rodrigodosanjosoliveira/pipeline-ai-claude/compare/v1.0.0-rc.2...HEAD
+[v1.0.0-rc.2]: https://github.com/rodrigodosanjosoliveira/pipeline-ai-claude/compare/v1.0.0-rc.1...v1.0.0-rc.2
 [v1.0.0-rc.1]: https://github.com/rodrigodosanjosoliveira/pipeline-ai-claude/compare/v0.3.0...v1.0.0-rc.1
 [v0.3.0]: https://github.com/rodrigodosanjosoliveira/pipeline-ai-claude/compare/v0.2.0...v0.3.0
 [v0.2.0]: https://github.com/rodrigodosanjosoliveira/pipeline-ai-claude/compare/v0.1.0...v0.2.0
