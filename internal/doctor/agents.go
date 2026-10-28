@@ -218,10 +218,14 @@ func agentsCheck(root string, cfg *config.Config, cfgErr error) Check {
 		if cfg.IsEditorAgent(name) {
 			continue
 		}
+		// report_writers podem ter ferramenta de escrita: o hook os limita a
+		// deliveries_dir (TD-35). Bash continua fora, porque não passa pelo hook.
+		writer := cfg.IsReportWriter(name)
 		var found []string
 		for _, tool := range meta.Tools {
 			base, restricted := restrictedTool(tool)
-			if restricted && !(name == shellAgent && strings.EqualFold(base, "Bash")) {
+			isBash := strings.EqualFold(base, "Bash")
+			if restricted && !(name == shellAgent && isBash) && !(writer && !isBash) {
 				found = append(found, base)
 			}
 		}
@@ -242,7 +246,7 @@ func agentsCheck(root string, cfg *config.Config, cfgErr error) Check {
 			"corrija o front matter de cada arquivo (bloco --- no início e no fim, name igual ao nome do arquivo) e troque symlink por arquivo real")
 	case len(warns) > 0:
 		return bad(checkAgents, StatusWarn, warnMsg,
-			"declare tools explícito; fora de editor_agents, tire Edit, Write, MultiEdit, NotebookEdit e Bash (só o "+shellAgent+" mantém Bash) ou inclua o subagente em editor_agents no "+config.FileName)
+			"declare tools explícito; fora de editor_agents, tire Edit, Write, MultiEdit, NotebookEdit e Bash (só o "+shellAgent+" mantém Bash), inclua o subagente em editor_agents ou, se ele só escreve a própria seção do report, em report_writers (limitado a deliveries_dir, sem Bash) no "+config.FileName)
 	case n == 0:
 		return bad(checkAgents, StatusWarn, "nenhum subagente em "+agentsRel, syncAction)
 	}
