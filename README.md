@@ -12,13 +12,13 @@ relatório de delivery validado e proteção de caminhos sensíveis.
 Os dois são projetos independentes; código do pipeline-ai é portado com
 atribuição (ver [`NOTICE`](NOTICE)).
 
-> **Estado:** em construção (Fase 4). A CLI expõe `init`, `adopt`, `sync`, `hook`, `fmt-hook`, `validate`, `sensors`, `delivery new`, `doctor`, `mcp`, `version` e `help`. Versão publicada: `v0.1.0`.
+> **Estado:** v1.0 em preparação (Fase 5). A CLI expõe `init`, `adopt`, `sync`, `hook`, `fmt-hook`, `validate`, `sensors`, `delivery new`, `doctor`, `mcp`, `version` e `help`. Última versão publicada: `v0.3.0`; mudanças no [`CHANGELOG.md`](CHANGELOG.md). O que fica estável a partir da v1.0 está em [`docs/CONTRATO.md`](docs/CONTRATO.md).
 
 ## Comandos
 
 | Comando | Função |
 |---|---|
-| `pipeline-claude init <nome>` | Cria um projeto novo (`api` Go + PostgreSQL) num diretório vazio: subagentes, skills, hooks, MCP, pre-push, gates, documentação de delivery e o lock dos arquivos gerenciados; `--git` inicia o repositório |
+| `pipeline-claude init <nome>` | Cria um projeto novo (`api` Go + PostgreSQL) num diretório vazio: subagentes, skills, hooks, MCP, pre-push, gates, CI do provedor (`--provider github` ou `gitlab`), documentação de delivery e o lock dos arquivos gerenciados; `--git` inicia o repositório |
 | `pipeline-claude adopt` | Instala a pipeline num projeto Go existente: só cria o que falta e o lock, nunca altera arquivo existente e imprime o trecho a acrescentar em cada um; `--dry-run` mostra o plano |
 | `pipeline-claude sync` | Atualiza os arquivos gerenciados pelo lock sem sobrescrever edição local; `--dry-run` mostra o plano, `--release <caminho>` passa o arquivo para o projeto |
 | `pipeline-claude hook` | `PreToolUse`: bloqueia edição de caminho protegido fora dos agentes autorizados (falha fechada) |
@@ -54,7 +54,14 @@ bin/pipeline-claude adopt
 
 Passo a passo, configuração e paridade do validador em
 [`docs/ADOCAO.md`](docs/ADOCAO.md); validação da delivery no CI (GitLab e GitHub)
-em [`docs/CI.md`](docs/CI.md).
+em [`docs/CI.md`](docs/CI.md). Projeto criado pelo `init` já nasce com esse CI.
+
+### Versões
+
+Instalação só por `go install` com a versão fixada no `Makefile` do projeto
+(`PIPELINE_CLAUDE_VERSION`). Histórico em [`CHANGELOG.md`](CHANGELOG.md);
+contrato estável (config, lock, CLI, `--json`, MCP e área gerenciada) e
+política de versão em [`docs/CONTRATO.md`](docs/CONTRATO.md).
 
 ## Roteiro
 
@@ -65,7 +72,7 @@ em [`docs/CI.md`](docs/CI.md).
 | 2 | `fmt-hook`, `sensors`, `delivery new`, `mcp` |
 | 3 | Templates, `init`, `sync` |
 | 4 | `adopt` e primeiro projeto existente |
-| 5 | Projeto novo piloto e v1.0 |
+| 5 | Contrato, CI em Linux, macOS e Windows, projeto de demonstração e v1.0 |
 
 ## Desenvolvimento
 
