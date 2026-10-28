@@ -53,7 +53,8 @@ bin/pipeline-claude adopt
 ```
 
 Passo a passo, configuração e paridade do validador em
-[`docs/ADOCAO.md`](docs/ADOCAO.md).
+[`docs/ADOCAO.md`](docs/ADOCAO.md); validação da delivery no CI (GitLab e GitHub)
+em [`docs/CI.md`](docs/CI.md).
 
 ## Roteiro
 
