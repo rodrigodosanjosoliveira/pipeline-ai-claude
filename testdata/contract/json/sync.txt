@@ -1,0 +1,11 @@
+# Contrato de `pipeline-claude sync --json` (TD-37): caminho das chaves e tipo
+# de cada valor no cenário fictício do teste, não os valores. Chave nova é
+# compatível; chave removida ou com tipo diferente, não.
+# Gerado por TestContractJSON; regrave com `go test ./cmd/pipeline-claude -run Contract -update`.
+saída 1
+items: array
+items[].action: string
+items[].path: string
+items[].reason: string
+items[]: object
+ok: bool

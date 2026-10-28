@@ -18,3 +18,4 @@
 - [ ] Falha fechada preservada (hook bloqueia, validador reprova em erro)
 - [ ] Código portado com cabeçalho de origem e linha no `NOTICE`
 - [ ] Nada de projeto real (nomes, caminhos, reports, IDs) em código, testes ou fixtures
+- [ ] Mudança em `testdata/contract/` intencional e com entrada em "Não lançado" no `CHANGELOG.md` (TD-37)

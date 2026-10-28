@@ -1,0 +1,110 @@
+{
+  "tools": [
+    {
+      "name": "pipeline_delivery_new",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "prefix": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "title"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "pipeline_diff",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "base": {
+            "type": "string"
+          },
+          "name_only": {
+            "type": "boolean"
+          },
+          "paths": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      }
+    },
+    {
+      "name": "pipeline_doctor",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "json": {
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      }
+    },
+    {
+      "name": "pipeline_sensors",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "names": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "timeout_seconds": {
+            "maximum": 86400,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      }
+    },
+    {
+      "name": "pipeline_validate",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "base": {
+            "type": "string"
+          },
+          "no_git": {
+            "type": "boolean"
+          },
+          "target": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "target"
+        ],
+        "type": "object"
+      }
+    }
+  ],
+  "resources": [
+    {
+      "uri": "pipeline://config",
+      "name": "Configuração efetiva"
+    },
+    {
+      "uri": "pipeline://deliveries/index",
+      "name": "Índice de deliveries"
+    },
+    {
+      "uri": "pipeline://invariants",
+      "name": "Invariantes do projeto"
+    }
+  ]
+}

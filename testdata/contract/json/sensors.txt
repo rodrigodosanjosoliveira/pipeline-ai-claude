@@ -1,0 +1,15 @@
+# Contrato de `pipeline-claude sensors --json` (TD-37): caminho das chaves e tipo
+# de cada valor no cenário fictício do teste, não os valores. Chave nova é
+# compatível; chave removida ou com tipo diferente, não.
+# Gerado por TestContractJSON; regrave com `go test ./cmd/pipeline-claude -run Contract -update`.
+saída 1
+ok: bool
+sensors: array
+sensors[].duration_ms: number
+sensors[].error: string
+sensors[].exit_code: number
+sensors[].name: string
+sensors[].ok: bool
+sensors[].output: string
+sensors[].truncated: bool
+sensors[]: object

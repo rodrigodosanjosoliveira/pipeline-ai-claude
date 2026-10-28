@@ -1,0 +1,27 @@
+# Contrato da área gerenciada (TD-15, TD-23, TD-37): prefixos e destinos dos
+# arquivos gerenciados do catálogo (o conteúdo não é contrato).
+# Gerado por TestContractManaged; regrave com `go test ./cmd/pipeline-claude -run Contract -update`.
+prefixo .claude/agents/
+prefixo .claude/skills/
+prefixo .githooks/
+arquivo .claude/agents/agent-auditor.md módulo=agent-auditor
+arquivo .claude/agents/architecture-guardrails.md
+arquivo .claude/agents/code-reviewer.md
+arquivo .claude/agents/context-loader.md módulo=context-loader
+arquivo .claude/agents/data-model.md módulo=data-model
+arquivo .claude/agents/dev-implementation.md
+arquivo .claude/agents/docs-update.md
+arquivo .claude/agents/git-delivery.md
+arquivo .claude/agents/migration-reviewer.md módulo=migration-reviewer
+arquivo .claude/agents/pm-triage.md
+arquivo .claude/agents/qa-validation.md
+arquivo .claude/agents/query-performance.md módulo=query-performance
+arquivo .claude/agents/release-ops.md módulo=release-ops
+arquivo .claude/agents/security-review.md
+arquivo .claude/agents/supply-chain-review.md
+arquivo .claude/agents/tenant-isolation.md módulo=tenant-isolation
+arquivo .claude/agents/test-writer.md
+arquivo .claude/skills/fluxo/SKILL.md
+arquivo .claude/skills/nova-delivery/SKILL.md
+arquivo .claude/skills/validar/SKILL.md
+arquivo .githooks/pre-push
