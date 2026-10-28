@@ -485,6 +485,24 @@ func TestManagedArea(t *testing.T) {
 	}
 }
 
+func TestManagedPrefixes(t *testing.T) {
+	got := ManagedPrefixes()
+	want := []string{".claude/agents/", ".claude/skills/", ".githooks/"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("ManagedPrefixes() = %q, esperado %q", got, want)
+	}
+	for _, p := range got {
+		if ManagedArea(p) || !ManagedArea(p+"x") {
+			t.Errorf("prefixo %q não bate com ManagedArea", p)
+		}
+	}
+	// Devolve cópia: alterar o resultado não muda a área gerenciada.
+	got[0] = "docs-ai/"
+	if ManagedArea("docs-ai/x.md") || ManagedPrefixes()[0] != ".claude/agents/" {
+		t.Error("ManagedPrefixes expôs o slice interno")
+	}
+}
+
 func FuzzRead(f *testing.F) {
 	f.Add([]byte(sampleBytes))
 	f.Add([]byte(`{"version":1,"toolkit_version":"dev"}`))

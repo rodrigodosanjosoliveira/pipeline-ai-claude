@@ -1,0 +1,69 @@
+# Contrato da CLI (TD-37): comandos da ajuda, código de saída de -h e de opção
+# desconhecida, opções lidas do -h de cada comando (nome, tipo, padrão) e a
+# tabela de códigos de saída.
+# Gerado por TestContractCLI; regrave com `go test ./cmd/pipeline-claude -run Contract -update`.
+comando adopt
+  -h: saída 0
+  opção desconhecida: saída 2
+  --dir string padrão=""
+  --dry-run bool padrão=false
+  --json bool padrão=false
+  --modules string padrão=""
+  --provider string padrão=""
+  --toolkit-version string padrão=""
+comando delivery new
+  -h: saída 0
+  opção desconhecida: saída 2
+  --json bool padrão=false
+  --prefix string padrão=""
+  --title string padrão=""
+comando doctor
+  -h: saída 0
+  opção desconhecida: saída 2
+  --json bool padrão=false
+comando fmt-hook
+  -h: saída 2
+  sem opções
+comando help
+  -h: saída 0
+  sem opções
+comando hook
+  -h: saída 2
+  sem opções
+comando init
+  -h: saída 0
+  opção desconhecida: saída 2
+  --dir string padrão=""
+  --git bool padrão=false
+  --json bool padrão=false
+  --module string padrão=""
+  --modules string padrão=""
+  --provider string padrão=""
+  --summary string padrão=""
+  --toolkit-version string padrão=""
+comando mcp
+  -h: saída 2
+  sem opções
+comando sensors
+  -h: saída 0
+  opção desconhecida: saída 2
+  --json bool padrão=false
+  --timeout duration padrão=10m0s
+comando sync
+  -h: saída 0
+  opção desconhecida: saída 2
+  --dry-run bool padrão=false
+  --json bool padrão=false
+  --release value padrão=""
+comando validate
+  -h: saída 0
+  opção desconhecida: saída 2
+  --base string padrão=""
+  --json bool padrão=false
+  --no-git bool padrão=false
+comando version
+  -h: saída 0
+  sem opções
+saída 0 ok
+saída 1 reprovado
+saída 2 bloqueio do hook ou uso inválido

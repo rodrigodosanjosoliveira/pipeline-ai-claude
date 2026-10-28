@@ -1,0 +1,7 @@
+# Contrato de .pipeline-claude.lock version 1 (TD-23, TD-37): caminho JSON,
+# tipo e obrigatório/opcional.
+# Gerado por TestContractLock; regrave com `go test ./cmd/pipeline-claude -run Contract -update`.
+version int obrigatório
+toolkit_version string obrigatório
+files map[string]string opcional
+released []string opcional

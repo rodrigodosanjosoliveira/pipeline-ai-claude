@@ -1,0 +1,36 @@
+# Contrato de .pipeline-claude.json version 1 (TD-37): caminho JSON, tipo,
+# obrigatório/opcional e padrão de campo escalar de primeiro nível.
+# Gerado por TestContractConfig; regrave com `go test ./cmd/pipeline-claude -run Contract -update`.
+version int obrigatório
+project_type string obrigatório
+database string obrigatório
+git_provider string obrigatório
+base_ref string opcional padrão="origin/main"
+deliveries_dir string opcional padrão="docs-ai/deliveries"
+index_file string opcional padrão="docs-ai/deliveries/INDEX.md"
+report_template string opcional
+delivery_id_pattern string opcional
+delivery_prefixes []string opcional
+invariants_files []string opcional
+protected_paths []string obrigatório
+no_agent_paths []string opcional
+editor_agents []string opcional
+report_writers []string opcional
+enabled_modules []string opcional
+security_surface_paths []string opcional
+auto_flags map[string][]string opcional
+report_schema object opcional
+report_schema.section_level int obrigatório
+report_schema.front_required []string opcional
+report_schema.sections_required []string opcional
+report_schema.fields_required map[string][]string opcional
+report_schema.flag_sections map[string]object opcional
+report_schema.flag_sections.*.section string obrigatório
+report_schema.flag_sections.*.fields []string opcional
+report_schema.flag_front map[string][]string opcional
+report_schema.checklist_section string opcional
+report_schema.placeholder_values []string opcional
+report_schema.forbid_markers []string opcional
+sensors []object opcional
+sensors[].name string obrigatório
+sensors[].cmd []string obrigatório

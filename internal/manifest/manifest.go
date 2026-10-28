@@ -178,6 +178,13 @@ func Hash(content []byte) string {
 	return hex.EncodeToString(sum[:])
 }
 
+// ManagedPrefixes devolve, em cópia, os prefixos da área gerenciada (TD-15,
+// TD-23), na ordem em que ManagedArea os confere. Fazem parte do contrato
+// (TD-37).
+func ManagedPrefixes() []string {
+	return slices.Clone(managedPrefixes)
+}
+
 // ManagedArea diz se rel (relativo à raiz, com "/") é um arquivo dentro da
 // área gerenciada: .claude/agents/, .claude/skills/ ou .githooks/. O prefixo
 // sozinho não conta, e a comparação diferencia caixa.
