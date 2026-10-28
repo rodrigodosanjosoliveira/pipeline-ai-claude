@@ -4,6 +4,12 @@ O hook protege a sessão do Claude Code; o CI é a última linha: confere o repo
 da delivery contra o diff real da MR/PR, mesmo quando alguém trabalhou fora da
 sessão (ou com um agente que não passa pelo hook, como o GitLab Duo).
 
+Projeto criado com `pipeline-claude init` já nasce com este CI, conforme o
+`--provider`: `.github/workflows/delivery.yml` (GitHub) ou `.gitlab-ci.yml`
+(GitLab), com o job de validação abaixo e um job de gates (`make tools` e
+`bin/pipeline-claude sensors`). O arquivo é do projeto: o `sync` não o toca e
+o `adopt` não o cria (projeto existente já tem o seu CI; use as receitas).
+
 O job abaixo:
 
 1. instala o `pipeline-claude` na versão fixada no `Makefile` (`make tools`);

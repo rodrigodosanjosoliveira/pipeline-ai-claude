@@ -131,7 +131,7 @@ func render(t *testing.T, p string, d Data) string {
 // projeto e os gerenciados dos módulos de d.
 func renderProject(t *testing.T, dir string, d Data) {
 	t.Helper()
-	files := append(Expected(Project, d.Modules), Expected(Managed, d.Modules)...)
+	files := append(ExpectedFor(Project, d.Modules, d.Provider), Expected(Managed, d.Modules)...)
 	if len(files) == 0 {
 		t.Fatal("Expected não devolveu nenhum arquivo")
 	}
@@ -427,6 +427,9 @@ func TestCatalogEntries(t *testing.T) {
 			}
 		default:
 			t.Errorf("%s: classe inválida %d", f.Path, f.Class)
+		}
+		if f.Provider != "" && (f.Class != Project || (f.Provider != "github" && f.Provider != "gitlab")) {
+			t.Errorf("%s: provedor %q em arquivo %v (só do projeto, github ou gitlab)", f.Path, f.Provider, f.Class)
 		}
 		if f.Module != "" && !config.Modules[f.Module] {
 			t.Errorf("%s: módulo %q fora de config.Modules", f.Path, f.Module)

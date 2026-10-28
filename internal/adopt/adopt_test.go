@@ -1235,3 +1235,32 @@ func FuzzPlan(f *testing.F) {
 		}
 	})
 }
+
+// TestAdoptNoCI: o adopt não cria CI em projeto existente, em nenhum provedor;
+// o CI só nasce com o init (o projeto adotado já tem o seu).
+func TestAdoptNoCI(t *testing.T) {
+	for _, provider := range []string{"github", "gitlab"} {
+		t.Run(provider, func(t *testing.T) {
+			root := newProject(t, nil, githubURL)
+			o := opts(root)
+			o.Provider = provider
+			a := mustPlan(t, o)
+			for _, it := range a.Items {
+				if strings.HasPrefix(it.Path, ".github/") || strings.HasPrefix(it.Path, ".gitlab") {
+					t.Errorf("plano com CI %s (%s)", it.Path, it.Action)
+				}
+			}
+			res := mustApply(t, a)
+			for _, rel := range res.Created {
+				if strings.HasPrefix(rel, ".github/") || strings.HasPrefix(rel, ".gitlab") {
+					t.Errorf("adopt criou %s", rel)
+				}
+			}
+			for _, rel := range []string{".github", ".gitlab-ci.yml"} {
+				if _, err := os.Lstat(filepath.Join(root, rel)); !errors.Is(err, os.ErrNotExist) {
+					t.Errorf("%s existe depois do adopt: %v", rel, err)
+				}
+			}
+		})
+	}
+}

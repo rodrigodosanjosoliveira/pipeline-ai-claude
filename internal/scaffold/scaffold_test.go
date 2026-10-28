@@ -135,7 +135,7 @@ func checkProject(t *testing.T, root string, o Options, res Result) {
 	want := []string{manifest.FileName}
 	managed := map[string]string{}
 	for _, class := range []templates.Class{templates.Project, templates.Managed} {
-		for _, f := range templates.Expected(class, d.Modules) {
+		for _, f := range templates.ExpectedFor(class, d.Modules, d.Provider) {
 			dest, err := templates.DestPath(f, d)
 			if err != nil {
 				t.Fatalf("DestPath(%s): %v", f.Path, err)
@@ -532,7 +532,7 @@ func TestInitReadOnlyParent(t *testing.T) {
 }
 
 func TestInitFailureLeavesNoResidue(t *testing.T) {
-	nFiles := len(templates.Expected(templates.Project, nil)) + len(templates.Expected(templates.Managed, nil))
+	nFiles := len(templates.ExpectedFor(templates.Project, nil, "github")) + len(templates.Expected(templates.Managed, nil))
 	errInjected := errors.New("falha injetada")
 
 	type tc struct {
@@ -583,7 +583,7 @@ func TestInitFailureLeavesNoResidue(t *testing.T) {
 			if failMove == -1 {
 				entries := map[string]bool{}
 				for _, class := range []templates.Class{templates.Project, templates.Managed} {
-					for _, f := range templates.Expected(class, nil) {
+					for _, f := range templates.ExpectedFor(class, nil, dataFor(o).Provider) {
 						dest, err := templates.DestPath(f, dataFor(o))
 						if err != nil {
 							t.Fatal(err)
@@ -783,5 +783,48 @@ func TestValidVersion(t *testing.T) {
 		if got := ValidVersion(tt.v); got != tt.want {
 			t.Errorf("ValidVersion(%q) = %v, quero %v", tt.v, got, tt.want)
 		}
+	}
+}
+
+// TestInitCIByProvider: o init grava o CI do provedor e só ele (TD-22: do
+// projeto, fora do lock).
+func TestInitCIByProvider(t *testing.T) {
+	const gh, gl = ".github/workflows/delivery.yml", ".gitlab-ci.yml"
+	tests := []struct {
+		provider    string
+		want, other string
+	}{
+		{"", gh, gl},
+		{"github", gh, gl},
+		{"gitlab", gl, gh},
+	}
+	for _, tt := range tests {
+		t.Run("provedor "+tt.provider, func(t *testing.T) {
+			o := validOpts(t.TempDir())
+			o.Provider = tt.provider
+			res, err := Init(o)
+			if err != nil {
+				t.Fatalf("Init: %v", err)
+			}
+			if !slices.Contains(res.Files, tt.want) {
+				t.Errorf("Files sem %s: %v", tt.want, res.Files)
+			}
+			if _, err := os.Stat(filepath.Join(o.Dir, filepath.FromSlash(tt.want))); err != nil {
+				t.Errorf("%s: %v", tt.want, err)
+			}
+			if slices.Contains(res.Files, tt.other) {
+				t.Errorf("Files com %s do outro provedor", tt.other)
+			}
+			if _, err := os.Lstat(filepath.Join(o.Dir, filepath.FromSlash(tt.other))); !errors.Is(err, os.ErrNotExist) {
+				t.Errorf("%s do outro provedor gravado: %v", tt.other, err)
+			}
+			lock, err := manifest.Read(o.Dir)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, ok := lock.Files[tt.want]; ok {
+				t.Errorf("%s no lock: CI é do projeto, não gerenciado", tt.want)
+			}
+		})
 	}
 }

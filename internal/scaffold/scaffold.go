@@ -202,7 +202,7 @@ func prepare(opts Options) (*plan, error) {
 	}
 	seen := map[string]bool{manifest.FileName: true}
 	for _, class := range []templates.Class{templates.Project, templates.Managed} {
-		for _, f := range templates.Expected(class, data.Modules) {
+		for _, f := range templates.ExpectedFor(class, data.Modules, data.Provider) {
 			rel, err := templates.DestPath(f, data)
 			if err != nil {
 				return nil, fmt.Errorf("scaffold: %w", err)

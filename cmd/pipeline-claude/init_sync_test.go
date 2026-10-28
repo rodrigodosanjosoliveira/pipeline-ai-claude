@@ -163,6 +163,50 @@ func TestE2EInit(t *testing.T) {
 	})
 }
 
+// TestE2EInitCI: o init grava o CI do provedor (e só ele) e o .gitignore com a
+// config local do Claude Code; o sync não toca no CI (TD-22).
+func TestE2EInitCI(t *testing.T) {
+	const gh, gl = ".github/workflows/delivery.yml", ".gitlab-ci.yml"
+	tests := []struct {
+		provider    string
+		want, other string
+		marker      string
+	}{
+		{"github", gh, gl, "bin/pipeline-claude sensors"},
+		{"gitlab", gl, gh, `GIT_DEPTH: "0"`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.provider, func(t *testing.T) {
+			root := initProject(t, "--provider", tt.provider)
+			if !exists(root, tt.want) {
+				t.Fatalf("%s não criado", tt.want)
+			}
+			if exists(root, tt.other) {
+				t.Errorf("%s do outro provedor criado", tt.other)
+			}
+			ci := readFile(t, root, tt.want)
+			if !strings.Contains(ci, tt.marker) || !strings.Contains(ci, "make tools") {
+				t.Errorf("%s sem %q ou make tools:\n%s", tt.want, tt.marker, ci)
+			}
+			if !slices.Contains(strings.Split(readFile(t, root, ".gitignore"), "\n"), ".claude/settings.local.json") {
+				t.Error(".gitignore sem .claude/settings.local.json")
+			}
+			if lock := readFile(t, root, e2eLock); strings.Contains(lock, tt.want) {
+				t.Errorf("CI no lock (é do projeto):\n%s", lock)
+			}
+			// O CI é do projeto: editado, o sync não o menciona nem o reverte.
+			writeFile(t, root, tt.want, ci+"# ajuste do projeto\n")
+			code, out := runSyncJSON(t, root)
+			if code != exitOK || out.action(tt.want) != "" {
+				t.Errorf("sync: código %d, ação em %s = %q", code, tt.want, out.action(tt.want))
+			}
+			if got := readFile(t, root, tt.want); !strings.HasSuffix(got, "# ajuste do projeto\n") {
+				t.Error("sync alterou o CI do projeto")
+			}
+		})
+	}
+}
+
 func TestE2EInitGit(t *testing.T) {
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("git indisponível")
