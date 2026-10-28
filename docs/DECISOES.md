@@ -349,6 +349,60 @@ Exige `deliveries_dir` fora de `protected_paths` e nome fora de
 restrita que antes (o revisor deixa de poder editar qualquer arquivo não
 protegido).
 
+## Fase 5
+
+### TD-36 — Projeto de demonstração público, criado pelo `init`
+O piloto do `init` é um projeto fictício, `biblioteca-bairro` (API de
+empréstimos de uma biblioteca de bairro), num repositório público próprio,
+separado deste: projeto dentro do repositório do toolkit herdaria a config, o
+git e o CI do toolkit e não provaria nada. É criado com `pipeline-claude init
+--git` numa versão candidata, recebe o CI de validação de delivery e pelo menos
+uma delivery feita pelo fluxo completo numa sessão do Claude Code aberta nele, e
+é atualizado pelo `sync` a cada versão do toolkit. Serve de referência pública:
+README do toolkit aponta para ele.
+**Motivo:** o `adopt` foi provado num projeto real (Fase 4); o `init` só tinha
+testes de ponta a ponta. Um projeto vivo, público e fictício mostra o fluxo
+inteiro sem expor nada de empresa (TD-05).
+
+### TD-37 — Contrato estável da v1.0
+A partir da `v1.0.0`, mudança incompatível só numa versão maior (com caminho de
+módulo `/v2`, regra do Go). Fazem parte do contrato:
+- `.pipeline-claude.json` `version: 1`: campos, padrões e validação (campo
+  novo opcional é compatível; campo removido, renomeado ou com validação mais
+  restrita que reprove config válida não é);
+- `.pipeline-claude.lock` `version: 1`;
+- comandos, opções e códigos de saída da CLI (0 ok, 1 reprovado, 2 bloqueio ou
+  uso inválido);
+- saídas `--json` (chave nova é compatível; chave removida ou com tipo
+  diferente não é); a saída humana não é contrato;
+- hook e fmt-hook: protocolo do Claude Code, decisão (exit 0/2) e falha fechada;
+- ferramentas e recursos MCP: nomes, argumentos e URIs;
+- área gerenciada (`.claude/agents/`, `.claude/skills/`, `.githooks/`) e o
+  significado de `files` e `released`.
+O conteúdo dos templates não é contrato: muda em qualquer versão e chega pelo
+`sync`. Testes de contrato com arquivos-referência em `testdata/contract/`
+congelam o que dá para congelar; mudar um arquivo-referência exige entrada no
+`CHANGELOG.md`.
+**Motivo:** projetos fixam a versão no `Makefile` e atualizam pelo `sync`;
+sem contrato escrito, cada versão nova é uma aposta.
+
+### TD-38 — Distribuição e release da v1.0
+Só `go install` com a versão fixada no `Makefile` (TD-06); nenhum binário
+anexado. Release = tag anotada na `main` + GitHub Release com as notas do
+`CHANGELOG.md` (formato "Keep a Changelog", seções por versão desde a
+`v0.1.0`). Antes da `v1.0.0`, uma `v1.0.0-rc.N` usada pelo projeto de
+demonstração. O plugin do Claude Code (ponto em aberto 1) fica para depois da
+v1.0.
+**Motivo:** os projetos-alvo são Go (TD-07), então o Go já está no ambiente;
+binário extra seria artefato a assinar e manter sem ganho.
+
+### TD-39 — CI em Linux, macOS e Windows
+O CI do toolkit roda `go test` também em macOS e Windows. Teste que depende de
+`sh`, de permissão Unix ou de symlink pula com motivo explícito nessas
+plataformas, nunca em silêncio; o resto passa nas três.
+**Motivo:** o hook, o fmt-hook e a comparação de caminho sem caixa (TD-09)
+foram escritos para Windows e macOS, mas só eram testados em Linux.
+
 ## Pontos em aberto
 
 1. Distribuição da camada Claude também como plugin do Claude Code.
