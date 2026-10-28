@@ -13,6 +13,10 @@ go install github.com/rodrigodosanjosoliveira/pipeline-ai-claude/cmd/pipeline-cl
 
 ## [Não lançado]
 
+## [v1.0.0-rc.1] - 2026-10-28
+
+Primeiro candidato da v1.0, usado pelo projeto de demonstração (TD-36, TD-38).
+
 ### Adicionado
 
 - Contrato estável da v1.0 congelado por testes (TD-37): campos do
@@ -93,7 +97,8 @@ Primeira versão instalável (Fases 0 a 3).
 - Revisores gerados só leitura: diff e sensores chegam pelo MCP (TD-29).
 - `enabled_modules` recusa módulo repetido (TD-28).
 
-[Não lançado]: https://github.com/rodrigodosanjosoliveira/pipeline-ai-claude/compare/v0.3.0...HEAD
+[Não lançado]: https://github.com/rodrigodosanjosoliveira/pipeline-ai-claude/compare/v1.0.0-rc.1...HEAD
+[v1.0.0-rc.1]: https://github.com/rodrigodosanjosoliveira/pipeline-ai-claude/compare/v0.3.0...v1.0.0-rc.1
 [v0.3.0]: https://github.com/rodrigodosanjosoliveira/pipeline-ai-claude/compare/v0.2.0...v0.3.0
 [v0.2.0]: https://github.com/rodrigodosanjosoliveira/pipeline-ai-claude/compare/v0.1.0...v0.2.0
 [v0.1.0]: https://github.com/rodrigodosanjosoliveira/pipeline-ai-claude/releases/tag/v0.1.0
