@@ -105,7 +105,12 @@ PIPELINE_CLAUDE_PARITY_CORPUS=/caminho/do/corpus go test -run TestParityCorpus .
 Zero divergências: o `pipeline-claude validate` pode substituir o validador
 antigo.
 
-## 7. Commit
+## 7. CI
+
+Depois da adoção, valide o report de cada MR/PR no CI: receitas para GitLab e
+GitHub em [`CI.md`](CI.md).
+
+## 8. Commit
 
 Revise o diff (só arquivos novos, mais as instruções que você aplicou) e faça o
 commit da adoção. Daqui em diante, `bin/pipeline-claude sync` atualiza os
