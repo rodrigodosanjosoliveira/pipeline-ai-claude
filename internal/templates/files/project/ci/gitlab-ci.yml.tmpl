@@ -13,6 +13,10 @@ default:
 
 gates:
   stage: test
+  # Go 1 mais recente, não o do go.mod: o sensor vuln (govulncheck) reprova
+  # pela biblioteca padrão do toolchain quando a linha do go.mod já não recebe
+  # correção de segurança.
+  image: golang:1
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH

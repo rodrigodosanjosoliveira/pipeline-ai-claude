@@ -292,6 +292,23 @@ func TestGitHubWorkflow(t *testing.T) {
 	if !gates || !validate {
 		t.Errorf("jobs %v: gates = %v, validate = %v", jobs, gates, validate)
 	}
+	// Os gates rodam govulncheck: com o Go do go.mod (linha que pode já estar
+	// sem correção de segurança) o sensor vuln reprova pela biblioteca padrão
+	// do toolchain, não pelo código. Gates no Go estável; validate no go.mod.
+	for _, j := range jobs {
+		r := strings.Join(runBlocks(j.lines), "\n")
+		body := strings.Join(j.lines, "\n")
+		switch {
+		case strings.Contains(r, "bin/pipeline-claude sensors"):
+			if !strings.Contains(body, "go-version: stable") || strings.Contains(body, "go-version-file") {
+				t.Errorf("job %s (gates) precisa de go-version: stable, sem go-version-file", j.name)
+			}
+		case strings.Contains(r, "bin/pipeline-claude validate"):
+			if !strings.Contains(body, "go-version-file: go.mod") {
+				t.Errorf("job %s (validate) precisa de go-version-file: go.mod", j.name)
+			}
+		}
+	}
 	if !strings.Contains(text, "\non:\n  pull_request:\n") {
 		t.Error("workflow não roda em pull_request")
 	}
@@ -313,15 +330,6 @@ func TestGitLabCI(t *testing.T) {
 	if goVersion == "" {
 		t.Fatal("go.mod gerado sem diretiva go")
 	}
-	images := regexp.MustCompile(`(?m)^\s*image: (\S+)`).FindAllStringSubmatch(text, -1)
-	if len(images) == 0 {
-		t.Fatal("sem image")
-	}
-	for _, m := range images {
-		if m[1] != "golang:"+goVersion {
-			t.Errorf("image %s, quero golang:%s (o go.mod)", m[1], goVersion)
-		}
-	}
 
 	jobs := map[string]string{}
 	var cur string
@@ -333,6 +341,18 @@ func TestGitLabCI(t *testing.T) {
 		}
 		if cur != "" {
 			jobs[cur] += line + "\n"
+		}
+	}
+	// Imagem padrão: o Go do go.mod. Os gates (govulncheck) usam o Go 1 mais
+	// recente, pelo mesmo motivo do job gates do GitHub.
+	image := regexp.MustCompile(`(?m)^\s*image: (\S+)`)
+	for job, want := range map[string]string{"default": "golang:" + goVersion, "gates": "golang:1", "delivery-validate": ""} {
+		m := image.FindStringSubmatch(jobs[job])
+		switch {
+		case want == "" && m != nil:
+			t.Errorf("%s com image %s; quero a padrão", job, m[1])
+		case want != "" && (m == nil || m[1] != want):
+			t.Errorf("%s com image %v; quero %s", job, m, want)
 		}
 	}
 	all := jobs["default"]
@@ -364,8 +384,11 @@ func TestGitLabCI(t *testing.T) {
 }
 
 func TestGitignoreLocalSettings(t *testing.T) {
-	lines := strings.Split(render(t, ".gitignore", sampleData()), "\n")
-	for _, want := range []string{".claude/settings.local.json", "bin/"} {
+	d := sampleData()
+	lines := strings.Split(render(t, ".gitignore", d), "\n")
+	// "/<nome>": binário que `go build ./...` (sensor build) grava na raiz
+	// quando o único pacote main é cmd/<nome>.
+	for _, want := range []string{".claude/settings.local.json", "bin/", "/" + d.Name} {
 		if !slices.Contains(lines, want) {
 			t.Errorf(".gitignore sem a linha %q", want)
 		}
