@@ -74,6 +74,7 @@ internal/fixtures       sanitização e checagem de payloads de hook
 tools/fixture-sanitize  converte capturas brutas em fixtures publicáveis
 scripts/capture-hook.sh grava payload bruto de hook (Fase 0, nunca bloqueia)
 testdata/hooks/claude   fixtures sanitizadas por versão do Claude Code
+testdata/contract       arquivos-referência dos testes de contrato (TD-37)
 docs/                   decisões, guias e prompts de execução por fatia
 ```
 

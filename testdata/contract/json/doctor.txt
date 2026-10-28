@@ -1,0 +1,13 @@
+# Contrato de `pipeline-claude doctor --json` (TD-37): caminho das chaves e tipo
+# de cada valor no cenário fictício do teste, não os valores. Chave nova é
+# compatível; chave removida ou com tipo diferente, não.
+# Gerado por TestContractJSON; regrave com `go test ./cmd/pipeline-claude -run Contract -update`.
+saída 1
+checks: array
+checks[].action: string
+checks[].message: string
+checks[].name: string
+checks[].status: string
+checks[]: object
+ok: bool
+checks[].name, em ordem: go, git, provedor git, configuração, hook, fmt-hook, sync, sensores, subagentes, binário, filesystem
