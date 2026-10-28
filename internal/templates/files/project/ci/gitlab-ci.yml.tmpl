@@ -1,0 +1,31 @@
+# CI do projeto: gates (os sensores do .pipeline-claude.json) em toda MR e na
+# branch padrão; validação da delivery em MR de branch task/<ID>. Arquivo do
+# projeto: gerado pelo init, nunca tocado pelo sync.
+stages:
+  - test
+
+default:
+  image: golang:1.24 # a versão do go.mod
+  before_script:
+    # O runner clona com outro dono; sem isto o git recusa o repositório.
+    - git config --global --add safe.directory "$CI_PROJECT_DIR"
+    - make tools
+
+gates:
+  stage: test
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  script:
+    - bin/pipeline-claude sensors
+
+delivery-validate:
+  stage: test
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_SOURCE_BRANCH_NAME =~ /^task\//
+  variables:
+    GIT_DEPTH: "0" # o diff é contra o merge-base com a branch alvo
+  script:
+    - git fetch --no-tags origin "$CI_MERGE_REQUEST_TARGET_BRANCH_NAME"
+    - ID="${CI_MERGE_REQUEST_SOURCE_BRANCH_NAME#task/}"
+    - bin/pipeline-claude validate --base "origin/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME" "$ID"

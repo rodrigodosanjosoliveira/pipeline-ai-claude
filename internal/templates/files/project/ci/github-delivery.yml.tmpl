@@ -1,0 +1,54 @@
+# CI do projeto: gates (os sensores do .pipeline-claude.json) em toda PR e na
+# main; validação da delivery em PR de branch task/<ID>. Arquivo do projeto:
+# gerado pelo init, nunca tocado pelo sync.
+name: delivery
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  gates:
+    name: Gates (sensores do projeto)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: Instalar o pipeline-claude (versão do Makefile)
+        run: make tools
+      - name: Sensores
+        run: bin/pipeline-claude sensors
+
+  validate:
+    name: Validação da delivery
+    # Só PR de branch task/<ID>; head_ref e base_ref entram por env, nunca
+    # interpolados no run: o nome da branch vem de quem abre a PR.
+    if: startsWith(github.head_ref, 'task/')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: Instalar o pipeline-claude (versão do Makefile)
+        run: make tools
+      - name: Validar a delivery
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+          BASE_REF: ${{ github.base_ref }}
+        run: bin/pipeline-claude validate --base "origin/$BASE_REF" "${HEAD_REF#task/}"

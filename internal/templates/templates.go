@@ -1,19 +1,21 @@
 // Portado de github.com/rodrigodosanjosoliveira/pipeline-ai/internal/scaffold/scaffold.go @ 0eac73a (MIT).
 // Alterações: só o embed e a renderização; catálogo explícito com destino,
-// classe gerenciado/projeto e condição por módulo (TD-22, TD-15); text/template
-// com delimitadores [[ ]] e missingkey=error no lugar de substituição de texto
-// (TD-22); campo vazio não vira chave, então template que usa campo ausente
+// classe gerenciado/projeto e condição por módulo ou provedor (TD-22, TD-15);
+// text/template com delimitadores [[ ]] e missingkey=error no lugar de
+// substituição de texto (TD-22); campo vazio não vira chave, então template que usa campo ausente
 // falha; valores validados antes de renderizar (TD-17); destino com o nome do
 // projeto renderizado e conferido como caminho relativo limpo (TD-17); camada
 // do Claude Code no lugar de .agents/ (TD-26).
 
 // Package templates embute os arquivos que o toolkit gera num projeto e
 // declara cada um num catálogo: destino, classe (gerenciado ou do projeto,
-// TD-15) e condição (sempre, ou com um módulo de enabled_modules) (TD-22).
+// TD-15) e condição (sempre, com um módulo de enabled_modules ou, no CI, com o
+// provedor) (TD-22).
 //
 // O catálogo é a fonte única do que o toolkit gera e do que é dono: init grava
-// Expected(Project) e Expected(Managed, módulos); sync só re-renderiza
-// Expected(Managed, módulos). Arquivo gerenciado não depende de nome, módulo
+// ExpectedFor(Project, módulos, provedor) e Expected(Managed, módulos); sync só
+// re-renderiza Expected(Managed, módulos). O CI do projeto é o único arquivo
+// condicionado ao provedor (TD-07). Arquivo gerenciado não depende de nome, módulo
 // Go, resumo, provedor nem versão do projeto, só de enabled_modules, para o
 // sync conseguir re-renderizá-lo só com a configuração.
 package templates
@@ -88,6 +90,9 @@ type File struct {
 	Class Class
 	// Module vazio: gerado sempre; senão, só com o módulo em enabled_modules.
 	Module string
+	// Provider vazio: gerado com qualquer provedor; senão, só com esse
+	// git_provider. Só arquivo do projeto tem provedor (o CI).
+	Provider string
 	// Mode é a permissão do arquivo gravado.
 	Mode fs.FileMode
 }
@@ -147,6 +152,12 @@ var projectFiles = [][2]string{
 	{"go.mod", "project/go.mod.tmpl"},
 }
 
+// ciFiles são os CIs do projeto, um por provedor: destino → origem, provedor.
+var ciFiles = [][3]string{
+	{".github/workflows/delivery.yml", "project/ci/github-delivery.yml.tmpl", "github"},
+	{".gitlab-ci.yml", "project/ci/gitlab-ci.yml.tmpl", "gitlab"},
+}
+
 // catalog é montado uma vez, ordenado por destino.
 var catalog = buildCatalog()
 
@@ -165,6 +176,9 @@ func buildCatalog() []entry {
 	for _, p := range projectFiles {
 		c = append(c, entry{File{Path: p[0], Class: Project, Mode: modeFile}, p[1]})
 	}
+	for _, p := range ciFiles {
+		c = append(c, entry{File{Path: p[0], Class: Project, Provider: p[2], Mode: modeFile}, p[1]})
+	}
 	slices.SortFunc(c, func(a, b entry) int { return strings.Compare(a.Path, b.Path) })
 	return c
 }
@@ -179,15 +193,26 @@ func Catalog() []File {
 }
 
 // Expected devolve, ordenados por Path, os arquivos da classe que o projeto
-// tem com os módulos dados: os sem módulo e os de módulo presente em modules.
-// Módulo fora de config.Modules não traz arquivo (a config já o reprova).
+// tem com os módulos dados e que não dependem do provedor: os sem módulo e os
+// de módulo presente em modules. Módulo fora de config.Modules não traz
+// arquivo (a config já o reprova). O CI, que depende do provedor, só sai por
+// ExpectedFor: quem não sabe o provedor (sync, adopt) nunca o recebe.
 func Expected(class Class, modules []string) []File {
+	return ExpectedFor(class, modules, "")
+}
+
+// ExpectedFor é Expected mais os arquivos do provedor dado (o CI do projeto,
+// TD-07). Provedor vazio ou desconhecido não traz arquivo de provedor.
+func ExpectedFor(class Class, modules []string, provider string) []File {
 	var out []File
 	for _, e := range catalog {
 		if e.Class != class {
 			continue
 		}
 		if e.Module != "" && !slices.Contains(modules, e.Module) {
+			continue
+		}
+		if e.Provider != "" && e.Provider != provider {
 			continue
 		}
 		out = append(out, e.File)
