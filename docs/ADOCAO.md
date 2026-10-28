@@ -62,6 +62,10 @@ commit:
 - **`protected_paths`:** os caminhos que só os editores alteram. Inclua os que
   o projeto já protegia.
 - **`editor_agents`:** os subagentes que editam caminho protegido.
+- **`report_writers`:** revisores que escrevem a própria seção do report
+  (TD-35). Com eles listados, o hook os limita a `deliveries_dir` e o `doctor`
+  aceita o Edit/Write deles; Bash continua fora. Exige `deliveries_dir` fora de
+  `protected_paths`.
 - **`delivery_prefixes` e `delivery_id_pattern`:** os prefixos que o índice
   já usa (por exemplo `^(ACV|EMP)-[0-9]{3}$`). Índice com mais de uma tabela
   funciona: a linha nova vai para a primeira tabela com coluna de ID.

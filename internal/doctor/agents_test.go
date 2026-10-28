@@ -49,6 +49,28 @@ func setEditors(t *testing.T, root string, editors ...string) {
 	}
 }
 
+// setReportWriters troca report_writers na configuração gerada (TD-35).
+func setReportWriters(t *testing.T, root string, writers ...string) {
+	t.Helper()
+	p := filepath.Join(root, config.FileName)
+	data, err := os.ReadFile(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var m map[string]any
+	if err := json.Unmarshal(data, &m); err != nil {
+		t.Fatal(err)
+	}
+	m["report_writers"] = writers
+	out, err := json.MarshalIndent(m, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(p, out, 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
 // releaseRel tira rel de files e o põe em released no lock.
 func releaseRel(t *testing.T, root, rel string) {
 	t.Helper()
@@ -114,6 +136,36 @@ func TestCheckAgents(t *testing.T) {
 			msg:    []string{"code-reviewer: Edit"},
 			noMsg:  []string{"Read", "Grep"},
 			action: "editor_agents",
+		},
+		{
+			// report_writers escrevem só em deliveries_dir, pelo hook (TD-35).
+			name: "revisor com Edit em report_writers",
+			mutate: func(t *testing.T, root string) {
+				reviewer("name: code-reviewer\n"+reviewerDesc+"\ntools: Read, Grep, Edit, Write, MultiEdit")(t, root)
+				setReportWriters(t, root, "code-reviewer")
+			},
+			status: StatusOK,
+			count:  true,
+		},
+		{
+			name: "revisor em report_writers continua sem Bash",
+			mutate: func(t *testing.T, root string) {
+				reviewer("name: code-reviewer\n"+reviewerDesc+"\ntools: Read, Edit, Bash")(t, root)
+				setReportWriters(t, root, "code-reviewer")
+			},
+			status: StatusWarn,
+			msg:    []string{"code-reviewer: Bash"},
+			noMsg:  []string{"code-reviewer: Edit"},
+			action: "report_writers",
+		},
+		{
+			name: "report_writers sem diferenciar caixa no nome do agente",
+			mutate: func(t *testing.T, root string) {
+				writeAgent(t, root, "Code-Reviewer", agentDoc("name: Code-Reviewer\n"+reviewerDesc+"\ntools: Read, Edit"))
+				setReportWriters(t, root, "code-reviewer")
+			},
+			status: StatusOK,
+			count:  true,
 		},
 		{
 			name:   "revisor com Bash",

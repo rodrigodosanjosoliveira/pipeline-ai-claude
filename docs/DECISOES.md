@@ -334,6 +334,21 @@ subagente em `released`.
 **Motivo:** depois do `adopt`, os subagentes do projeto ficam fora do `sync`; a
 regra do TD-29 precisa de uma checagem que não dependa do template.
 
+## Depois da Fase 4
+
+### TD-35 — `report_writers`: revisor que escreve o report fica em `deliveries_dir`
+`report_writers` na config lista subagentes fora de `editor_agents` que
+escrevem a própria seção do report. O hook os limita a `deliveries_dir`:
+qualquer edição deles fora dali é bloqueada, mesmo em caminho não protegido;
+`protected_paths` e `no_agent_paths` continuam valendo antes. O `doctor` aceita
+ferramenta de escrita nesses subagentes, mas não Bash, que não passa pelo hook.
+Exige `deliveries_dir` fora de `protected_paths` e nome fora de
+`editor_agents`. Sem `report_writers`, nada muda.
+**Motivo:** projeto adotado em que cada revisor preenche sua seção do report
+(TD-34 avisava para sempre); o aviso vira regra aplicada pelo hook, mais
+restrita que antes (o revisor deixa de poder editar qualquer arquivo não
+protegido).
+
 ## Pontos em aberto
 
 1. Distribuição da camada Claude também como plugin do Claude Code.
