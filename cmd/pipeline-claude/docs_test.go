@@ -275,7 +275,7 @@ func TestDocLinks(t *testing.T) {
 		}
 	}
 	readme := readRepoDoc(t, "README.md")
-	for _, want := range []string{"](CHANGELOG.md)", "](docs/CONTRATO.md)", "v1.0 em preparação"} {
+	for _, want := range []string{"](CHANGELOG.md)", "](docs/CONTRATO.md)", "v1.0 em preparação", "](https://github.com/rodrigodosanjosoliveira/biblioteca-bairro)"} {
 		if !strings.Contains(readme, want) {
 			t.Errorf("README.md não traz %q", want)
 		}

@@ -38,6 +38,10 @@ pipeline-claude init biblioteca-bairro --module example.com/biblioteca-bairro --
 cd biblioteca-bairro && make tools && bin/pipeline-claude doctor
 ```
 
+O [biblioteca-bairro](https://github.com/rodrigodosanjosoliveira/biblioteca-bairro)
+é o projeto público de demonstração (fictício), criado assim pelo `init` e com as
+deliveries feitas pelo fluxo de subagentes.
+
 Com um binário de desenvolvimento, informe a versão a fixar no `Makefile`
 (`--toolkit-version vX.Y.Z`). Depois de atualizar `PIPELINE_CLAUDE_VERSION` e
 rodar `make tools`, `bin/pipeline-claude sync` traz os templates novos; arquivo
