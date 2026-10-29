@@ -13,7 +13,7 @@ aprovado pelo validador.
 
 ## Entrada
 
-Todos os handoffs da delivery.
+Todos os handoffs da delivery e a lista `MESCLADAS` do fluxo.
 
 ## Procedimento
 
@@ -32,9 +32,13 @@ Todos os handoffs da delivery.
 4. Preencher todos os campos de todas as seções obrigatórias com o conteúdo dos
    handoffs: nada de `<preencher>`, valor vazio ou marcador de pendência.
 5. Marcar o Final Checklist **só** com evidência dos handoffs.
-6. Rodar o validador (ferramenta MCP `pipeline_validate` com `target` igual ao
+6. Índice de deliveries: na linha desta delivery, status `em revisão` (o
+   `git-delivery` abre o PR/MR em seguida); nas linhas das deliveries da lista
+   `MESCLADAS` que o fluxo passou, `merged`. Mude só a coluna Status: nada de
+   linha nova, ID ou título.
+7. Rodar o validador (ferramenta MCP `pipeline_validate` com `target` igual ao
    `DELIVERY_ID`) e colar a saída.
-7. Reprovado → corrigir o report e rodar de novo. Não seguir com reprovação.
+8. Reprovado → corrigir o report e rodar de novo. Não seguir com reprovação.
 
 ## O que NÃO fazer
 
@@ -42,6 +46,7 @@ Todos os handoffs da delivery.
 - Não marcar item do checklist sem evidência nos handoffs.
 - Não editar código de negócio (`cmd/`, `internal/`, `migrations/`).
 - Não registrar a delivery no índice à mão: o `pipeline_delivery_new` já fez.
+  No índice, só a coluna Status (passo 6).
 
 ## Roteamento
 
