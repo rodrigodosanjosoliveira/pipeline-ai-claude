@@ -13,6 +13,11 @@ go install github.com/rodrigodosanjosoliveira/pipeline-ai-claude/cmd/pipeline-cl
 
 ## [Não lançado]
 
+## [v1.0.0-rc.3] - 2026-10-29
+
+Terceiro candidato da v1.0: corrige os atritos da revisão das primeiras
+deliveries do projeto de demonstração (TD-36), feitas com a `v1.0.0-rc.2`.
+
 ### Adicionado
 
 - `init` avisa (em stderr, sem mudar o código de saída) quando o último
@@ -29,7 +34,8 @@ go install github.com/rodrigodosanjosoliveira/pipeline-ai-claude/cmd/pipeline-cl
 ## [v1.0.0-rc.2] - 2026-10-28
 
 Segundo candidato da v1.0, usado pelo projeto de demonstração (TD-36): corrige
-os atritos do ensaio com a `v1.0.0-rc.1`.
+os atritos do ensaio com a `v1.0.0-rc.1`. A revisão das primeiras deliveries da
+demo levou à `v1.0.0-rc.3`.
 
 ### Corrigido
 
@@ -129,7 +135,8 @@ Primeira versão instalável (Fases 0 a 3).
 - Revisores gerados só leitura: diff e sensores chegam pelo MCP (TD-29).
 - `enabled_modules` recusa módulo repetido (TD-28).
 
-[Não lançado]: https://github.com/rodrigodosanjosoliveira/pipeline-ai-claude/compare/v1.0.0-rc.2...HEAD
+[Não lançado]: https://github.com/rodrigodosanjosoliveira/pipeline-ai-claude/compare/v1.0.0-rc.3...HEAD
+[v1.0.0-rc.3]: https://github.com/rodrigodosanjosoliveira/pipeline-ai-claude/compare/v1.0.0-rc.2...v1.0.0-rc.3
 [v1.0.0-rc.2]: https://github.com/rodrigodosanjosoliveira/pipeline-ai-claude/compare/v1.0.0-rc.1...v1.0.0-rc.2
 [v1.0.0-rc.1]: https://github.com/rodrigodosanjosoliveira/pipeline-ai-claude/compare/v0.3.0...v1.0.0-rc.1
 [v0.3.0]: https://github.com/rodrigodosanjosoliveira/pipeline-ai-claude/compare/v0.2.0...v0.3.0

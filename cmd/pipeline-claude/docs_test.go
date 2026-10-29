@@ -134,7 +134,7 @@ func TestChangelog(t *testing.T) {
 			t.Errorf("versões fora de ordem decrescente: %s antes de %s", versions[i-1], versions[i])
 		}
 	}
-	for _, v := range []string{"v0.1.0", "v0.2.0", "v0.3.0", "v1.0.0-rc.1", "v1.0.0-rc.2"} {
+	for _, v := range []string{"v0.1.0", "v0.2.0", "v0.3.0", "v1.0.0-rc.1", "v1.0.0-rc.2", "v1.0.0-rc.3"} {
 		if !slices.Contains(versions, v) {
 			t.Errorf("versão publicada %s sem seção no CHANGELOG.md", v)
 		}
