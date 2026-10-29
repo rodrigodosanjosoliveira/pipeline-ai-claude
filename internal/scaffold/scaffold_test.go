@@ -834,3 +834,25 @@ func TestInitCIByProvider(t *testing.T) {
 		})
 	}
 }
+
+func TestModuleMismatch(t *testing.T) {
+	tests := []struct {
+		name, module string
+		want         bool
+	}{
+		{"biblioteca-bairro", "", false},
+		{"biblioteca-bairro", "biblioteca-bairro", false},
+		{"biblioteca-bairro", "github.com/exemplo/biblioteca-bairro", false},
+		{"biblioteca-bairro", "github.com/exemplo/biblioteca-bairro/v2", false},
+		{"biblioteca-bairro", "github.com/exemplo/biblioteca-bairo", true},
+		{"biblioteca-bairro", "github.com/exemplo/acervo", true},
+		{"biblioteca-bairro", "github.com/exemplo/biblioteca-bairo/v3", true},
+		{"biblioteca-bairro", "example.com/v2", true},
+		{"v2", "v2", false},
+	}
+	for _, tt := range tests {
+		if _, got := ModuleMismatch(tt.name, tt.module); got != tt.want {
+			t.Errorf("ModuleMismatch(%q, %q) = %v, quero %v", tt.name, tt.module, got, tt.want)
+		}
+	}
+}

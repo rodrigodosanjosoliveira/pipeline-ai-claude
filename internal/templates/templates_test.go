@@ -1306,3 +1306,61 @@ func TestRequiredSensors(t *testing.T) {
 		t.Errorf("DefaultSensors = %v, config gerada = %v", def, cfg.Sensors)
 	}
 }
+
+// TestReportTemplateCodeReview: o veredito do code-reviewer tem lugar no
+// report (atrito da demo: só aparecia no corpo da PR).
+func TestReportTemplateCodeReview(t *testing.T) {
+	out := render(t, "docs-ai/deliveries/_template/report.md", sampleData())
+	sec := regexp.MustCompile(`(?s)\n## Code Review\n(.*?)\n## `).FindStringSubmatch(out)
+	if sec == nil {
+		t.Fatalf("report.md sem a seção Code Review:\n%s", out)
+	}
+	for _, want := range []string{"- Resultado: <preencher>", "- Bloqueios e sugestoes: <preencher>"} {
+		if !strings.Contains(sec[1], want) {
+			t.Errorf("seção Code Review sem %q:\n%s", want, sec[1])
+		}
+	}
+	if dev, cr, qa := strings.Index(out, "\n## Dev\n"), strings.Index(out, "\n## Code Review\n"), strings.Index(out, "\n## QA\n"); !(dev < cr && cr < qa) {
+		t.Errorf("Code Review fora da ordem Dev → Code Review → QA")
+	}
+	agent := render(t, ".claude/agents/code-reviewer.md", sampleData())
+	if !strings.Contains(agent, "seção Code Review do report") {
+		t.Error("code-reviewer não diz que a saída alimenta a seção Code Review do report")
+	}
+}
+
+// TestReportTemplateSensorsChecklist: o item dos sensores no checklist não
+// lista um subconjunto dos sensores do projeto (atrito da demo: "vet, test,
+// build" com cinco sensores declarados).
+func TestReportTemplateSensorsChecklist(t *testing.T) {
+	d := sampleData()
+	out := render(t, "docs-ai/deliveries/_template/report.md", d)
+	var cfg struct {
+		Sensors []struct {
+			Name string `json:"name"`
+		} `json:"sensors"`
+	}
+	if err := json.Unmarshal([]byte(render(t, ".pipeline-claude.json", d)), &cfg); err != nil {
+		t.Fatal(err)
+	}
+	var line string
+	for _, l := range strings.Split(out, "\n") {
+		if strings.HasPrefix(l, "- [ ]") && strings.Contains(l, "pipeline-claude sensors") {
+			line = l
+		}
+	}
+	if line == "" {
+		t.Fatal("checklist sem o item dos sensores")
+	}
+	var named, missing []string
+	for _, s := range cfg.Sensors {
+		if regexp.MustCompile(`\b` + regexp.QuoteMeta(s.Name) + `\b`).MatchString(line) {
+			named = append(named, s.Name)
+		} else {
+			missing = append(missing, s.Name)
+		}
+	}
+	if len(named) > 0 && len(missing) > 0 {
+		t.Errorf("item %q cita %v e omite %v: cite todos ou nenhum", line, named, missing)
+	}
+}

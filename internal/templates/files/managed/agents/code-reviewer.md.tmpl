@@ -69,4 +69,5 @@ Havendo `BLOQUEIO`: `STATUS: bloqueado`, `PROXIMO: dev-implementation`.
 ## Saída obrigatória
 
 O bloco de `docs-ai/agents/08-HANDOFF-CONTRACT.md`, com `BLOQUEIOS` e
-`SUGESTOES` antes de `CONFIRMADO`.
+`SUGESTOES` antes de `CONFIRMADO`. A saída alimenta a seção Code Review do report
+(`Resultado` e `Bloqueios e sugestoes`).

@@ -118,6 +118,30 @@ func TestE2EInit(t *testing.T) {
 		t.Errorf("lock sem a versão %s:\n%s", e2eVersion, lock)
 	}
 
+	t.Run("módulo que não termina no nome avisa", func(t *testing.T) {
+		parent := t.TempDir()
+		code, stdout, stderr := runBin(t, parent, "", "init", "biblioteca-bairro", "--module", "github.com/exemplo/biblioteca-bairo", "--toolkit-version", "v0.3.0", "--json")
+		if code != exitOK {
+			t.Fatalf("código %d\nstderr:\n%s", code, stderr)
+		}
+		for _, want := range []string{"aviso", `"biblioteca-bairo"`, `"biblioteca-bairro"`} {
+			if !strings.Contains(stderr, want) {
+				t.Errorf("stderr sem %q:\n%s", want, stderr)
+			}
+		}
+		if strings.Contains(stdout, "aviso") {
+			t.Errorf("aviso no stdout (quebra o --json):\n%s", stdout)
+		}
+	})
+
+	t.Run("módulo que termina no nome não avisa", func(t *testing.T) {
+		parent := t.TempDir()
+		code, _, stderr := runBin(t, parent, "", "init", "biblioteca-bairro", "--module", "github.com/exemplo/biblioteca-bairro", "--toolkit-version", "v0.3.0")
+		if code != exitOK || strings.Contains(stderr, "aviso") {
+			t.Errorf("código %d, stderr:\n%s", code, stderr)
+		}
+	})
+
 	t.Run("saída humana com próximos passos", func(t *testing.T) {
 		parent := t.TempDir()
 		code, stdout, stderr := runBin(t, parent, "", "init", "loja-bairro", "--toolkit-version", "v0.3.0")
