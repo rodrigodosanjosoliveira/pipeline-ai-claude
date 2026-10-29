@@ -13,6 +13,15 @@ go install github.com/rodrigodosanjosoliveira/pipeline-ai-claude/cmd/pipeline-cl
 
 ## [Não lançado]
 
+### Corrigido
+
+- Status das deliveries no índice: a skill `fluxo` confere, antes do
+  `pm-triage`, quais deliveries em `draft` ou `em revisão` já têm commit na
+  `base_ref` (`git log --fixed-strings --grep "[<ID>]"`) e o `docs-update`
+  marca essas como `merged` e a delivery atual como `em revisão`, só na coluna
+  Status. Antes, nenhum passo do fluxo mudava o status. Chega aos projetos pelo
+  `sync`.
+
 ## [v1.0.0-rc.3] - 2026-10-29
 
 Terceiro candidato da v1.0: corrige os atritos da revisão das primeiras

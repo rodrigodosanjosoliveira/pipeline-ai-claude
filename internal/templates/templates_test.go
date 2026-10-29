@@ -1364,3 +1364,24 @@ func TestReportTemplateSensorsChecklist(t *testing.T) {
 		t.Errorf("item %q cita %v e omite %v: cite todos ou nenhum", line, named, missing)
 	}
 }
+
+// TestDeliveryIndexStatus: o fluxo leva a delivery a "em revisão" ao abrir o
+// PR/MR e a "merged" quando o commit dela chega à base (atrito da demo: o
+// índice ficava em draft e cada delivery corrigia as anteriores à mão).
+func TestDeliveryIndexStatus(t *testing.T) {
+	fluxo := render(t, ".claude/skills/fluxo/SKILL.md", sampleData())
+	for _, want := range []string{"base_ref", "git fetch", "git log --fixed-strings --grep", "MESCLADAS", "docs-update"} {
+		if !strings.Contains(fluxo, want) {
+			t.Errorf("fluxo sem %q", want)
+		}
+	}
+	if i, j := strings.Index(fluxo, "MESCLADAS"), strings.Index(fluxo, "Comece pelo `pm-triage`"); i < 0 || j < 0 || i > j {
+		t.Error("fluxo confere as deliveries mescladas depois de começar pelo pm-triage")
+	}
+	docs := render(t, ".claude/agents/docs-update.md", sampleData())
+	for _, want := range []string{"`em revisão`", "`merged`", "MESCLADAS", "só a coluna Status"} {
+		if !strings.Contains(docs, want) {
+			t.Errorf("docs-update sem %q", want)
+		}
+	}
+}

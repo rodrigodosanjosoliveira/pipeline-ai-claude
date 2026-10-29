@@ -36,17 +36,23 @@ demanda.
 
 ## Regras
 
-1. Comece pelo `pm-triage` com a demanda acima. Ele cria a delivery e devolve o
+1. Antes de tudo, confira quais deliveries do índice (`index_file` no
+   `.pipeline-claude.json`) com status `draft` ou `em revisão` já chegaram à
+   base: `git fetch`, e para cada ID
+   `git log --fixed-strings --grep "[<ID>]" --oneline <base_ref>`. Commit
+   encontrado é delivery mesclada. Guarde a lista como `MESCLADAS` para o
+   `docs-update`; não edite o índice.
+2. Comece pelo `pm-triage` com a demanda acima. Ele cria a delivery e devolve o
    `DELIVERY_ID`.
-2. Passe a cada subagente o handoff do anterior
+3. Passe a cada subagente o handoff do anterior
    (`docs-ai/agents/08-HANDOFF-CONTRACT.md`) e siga o `PROXIMO` dele, desde que
    respeite a ordem acima.
-3. `STATUS: bloqueado` interrompe: leve o `MOTIVO` ao subagente indicado em
+4. `STATUS: bloqueado` interrompe: leve o `MOTIVO` ao subagente indicado em
    `PROXIMO` ou ao usuário, se for decisão humana.
-4. `security-review` roda uma vez, depois do `code-reviewer`, quando o sinal ou
+5. `security-review` roda uma vez, depois do `code-reviewer`, quando o sinal ou
    o diff exigir. Achado de revisor volta para o `dev-implementation`; revisor
    não corrige.
-5. Não pule `qa-validation` nem `docs-update`. O `git-delivery` só roda com o
-   validador aprovado.
-6. Ao final, resuma para o usuário: `DELIVERY_ID`, o que mudou, a saída do
+6. Não pule `qa-validation` nem `docs-update`. O `git-delivery` só roda com o
+   validador aprovado. Passe `MESCLADAS` ao `docs-update`.
+7. Ao final, resuma para o usuário: `DELIVERY_ID`, o que mudou, a saída do
    validador e o link do PR/MR.
