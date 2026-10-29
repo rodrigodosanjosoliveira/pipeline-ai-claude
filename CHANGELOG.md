@@ -13,6 +13,19 @@ go install github.com/rodrigodosanjosoliveira/pipeline-ai-claude/cmd/pipeline-cl
 
 ## [Não lançado]
 
+### Adicionado
+
+- `init` avisa (em stderr, sem mudar o código de saída) quando o último
+  elemento do `--module`, sem o sufixo `/vN`, difere do nome do projeto:
+  costuma ser erro de digitação.
+- Template do report com a seção "Code Review" (`Resultado` e `Bloqueios e
+  sugestoes`); o `code-reviewer` diz que a saída dele alimenta essa seção.
+
+### Corrigido
+
+- Checklist do template do report: o item dos sensores cita todos os do
+  `.pipeline-claude.json`, não só `vet`, `test` e `build`.
+
 ## [v1.0.0-rc.2] - 2026-10-28
 
 Segundo candidato da v1.0, usado pelo projeto de demonstração (TD-36): corrige

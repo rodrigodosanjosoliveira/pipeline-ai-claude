@@ -74,6 +74,9 @@ func runInit(args []string, stdout, stderr io.Writer) int {
 	opts.Stdout, opts.Stderr = stderr, stderr
 
 	res, err := scaffold.Init(opts)
+	if last, differs := scaffold.ModuleMismatch(opts.Name, opts.Module); err == nil && differs {
+		fmt.Fprintf(stderr, "pipeline-claude init: aviso: o módulo %s termina em %q, não no nome do projeto %q; confira se não é erro de digitação (o go.mod já foi gerado com ele).\n", opts.Module, last, opts.Name)
+	}
 	if err != nil {
 		fmt.Fprintf(stderr, "pipeline-claude init: %v\n", err)
 		if errors.Is(err, scaffold.ErrInvalid) {

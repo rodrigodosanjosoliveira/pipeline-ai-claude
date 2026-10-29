@@ -224,6 +224,24 @@ func prepare(opts Options) (*plan, error) {
 	return p, nil
 }
 
+// ModuleMismatch devolve o último elemento do caminho do módulo, sem o sufixo
+// de versão maior (/vN), e se ele difere do nome do projeto. Não é erro (o
+// módulo pode ter outro nome de propósito), mas costuma ser digitação: o init
+// avisa.
+func ModuleMismatch(name, module string) (string, bool) {
+	if module == "" {
+		return name, false
+	}
+	elems := strings.Split(module, "/")
+	last := elems[len(elems)-1]
+	if len(elems) > 1 && majorSuffix.MatchString(last) {
+		last = elems[len(elems)-2]
+	}
+	return last, last != name
+}
+
+var majorSuffix = regexp.MustCompile(`^v[0-9]+$`)
+
 // normalize valida opts e devolve os valores de renderização, com os padrões
 // preenchidos.
 func normalize(o Options) (templates.Data, error) {
