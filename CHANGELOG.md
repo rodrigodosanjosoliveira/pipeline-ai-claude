@@ -13,6 +13,11 @@ go install github.com/rodrigodosanjosoliveira/pipeline-ai-claude/cmd/pipeline-cl
 
 ## [Não lançado]
 
+## [v1.0.0-rc.4] - 2026-10-29
+
+Quarto candidato da v1.0: o fluxo de delivery passa a manter o status das
+deliveries no índice, atrito da demo (TD-36) com a `v1.0.0-rc.3`.
+
 ### Corrigido
 
 - Status das deliveries no índice: a skill `fluxo` confere, antes do
@@ -144,7 +149,8 @@ Primeira versão instalável (Fases 0 a 3).
 - Revisores gerados só leitura: diff e sensores chegam pelo MCP (TD-29).
 - `enabled_modules` recusa módulo repetido (TD-28).
 
-[Não lançado]: https://github.com/rodrigodosanjosoliveira/pipeline-ai-claude/compare/v1.0.0-rc.3...HEAD
+[Não lançado]: https://github.com/rodrigodosanjosoliveira/pipeline-ai-claude/compare/v1.0.0-rc.4...HEAD
+[v1.0.0-rc.4]: https://github.com/rodrigodosanjosoliveira/pipeline-ai-claude/compare/v1.0.0-rc.3...v1.0.0-rc.4
 [v1.0.0-rc.3]: https://github.com/rodrigodosanjosoliveira/pipeline-ai-claude/compare/v1.0.0-rc.2...v1.0.0-rc.3
 [v1.0.0-rc.2]: https://github.com/rodrigodosanjosoliveira/pipeline-ai-claude/compare/v1.0.0-rc.1...v1.0.0-rc.2
 [v1.0.0-rc.1]: https://github.com/rodrigodosanjosoliveira/pipeline-ai-claude/compare/v0.3.0...v1.0.0-rc.1

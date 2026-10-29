@@ -12,7 +12,7 @@ relatório de delivery validado e proteção de caminhos sensíveis.
 Os dois são projetos independentes; código do pipeline-ai é portado com
 atribuição (ver [`NOTICE`](NOTICE)).
 
-> **Estado:** v1.0 em preparação (Fase 5). A CLI expõe `init`, `adopt`, `sync`, `hook`, `fmt-hook`, `validate`, `sensors`, `delivery new`, `doctor`, `mcp`, `version` e `help`. Última versão publicada: `v1.0.0-rc.3`; mudanças no [`CHANGELOG.md`](CHANGELOG.md). O que fica estável a partir da v1.0 está em [`docs/CONTRATO.md`](docs/CONTRATO.md).
+> **Estado:** v1.0 em preparação (Fase 5). A CLI expõe `init`, `adopt`, `sync`, `hook`, `fmt-hook`, `validate`, `sensors`, `delivery new`, `doctor`, `mcp`, `version` e `help`. Última versão publicada: `v1.0.0-rc.4`; mudanças no [`CHANGELOG.md`](CHANGELOG.md). O que fica estável a partir da v1.0 está em [`docs/CONTRATO.md`](docs/CONTRATO.md).
 
 ## Comandos
 
