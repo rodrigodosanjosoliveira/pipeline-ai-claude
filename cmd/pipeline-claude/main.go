@@ -243,16 +243,18 @@ func runDelivery(args []string, stdout, stderr io.Writer) int {
 		if len(args) > 0 {
 			fmt.Fprintf(stderr, "pipeline-claude delivery: subcomando desconhecido %q.\n", args[0])
 		}
-		fmt.Fprintln(stderr, "Uso: pipeline-claude delivery new --title <título> [--prefix <p>] [--json]")
+		fmt.Fprintln(stderr, "Uso: pipeline-claude delivery new --title <título> [--prefix <p>] [--scope <escopo>] [--flags <f1,f2>] [--json]")
 		return exitBlocked
 	}
 	fs := flag.NewFlagSet("delivery new", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	title := fs.String("title", "", "título da delivery (obrigatório, uma linha)")
 	prefix := fs.String("prefix", "", "prefixo do ID, um de delivery_prefixes")
+	scope := fs.String("scope", "", "escopo fechado da triagem, gravado no lugar de <escopo> do report_template")
+	flags := fs.String("flags", "", "flags do report a ligar, separadas por vírgula (ex.: require_security)")
 	asJSON := fs.Bool("json", false, `saída em JSON ({"id", "report", "index"})`)
 	fs.Usage = func() {
-		fmt.Fprintln(stderr, "Uso: pipeline-claude delivery new --title <título> [--prefix <p>] [--json]")
+		fmt.Fprintln(stderr, "Uso: pipeline-claude delivery new --title <título> [--prefix <p>] [--scope <escopo>] [--flags <f1,f2>] [--json]")
 		fs.PrintDefaults()
 	}
 	rest, code, ok := parseInterspersed(fs, args[1:])
@@ -267,11 +269,21 @@ func runDelivery(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "pipeline-claude delivery new: informe --title.")
 		return exitBlocked
 	}
+	var flagList []string
+	if *flags != "" {
+		for _, f := range strings.Split(*flags, ",") {
+			if strings.TrimSpace(f) == "" {
+				fmt.Fprintln(stderr, "pipeline-claude delivery new: --flags com item vazio; use nomes separados por vírgula (ex.: require_security,require_release_ops).")
+				return exitBlocked
+			}
+			flagList = append(flagList, f)
+		}
+	}
 	cfg, ok := loadConfig("delivery new", stderr)
 	if !ok {
 		return exitBlocked
 	}
-	created, err := delivery.New(cfg, delivery.NewOptions{Title: *title, Prefix: *prefix}, time.Now())
+	created, err := delivery.New(cfg, delivery.NewOptions{Title: *title, Prefix: *prefix, Scope: *scope, Flags: flagList}, time.Now())
 	if err != nil {
 		fmt.Fprintf(stderr, "pipeline-claude delivery new: %v\n", err)
 		return exitFail

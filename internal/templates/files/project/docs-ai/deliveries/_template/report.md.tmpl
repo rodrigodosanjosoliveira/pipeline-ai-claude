@@ -10,7 +10,9 @@ require_release_ops: false
 
 <!--
 Preencha cada campo no lugar de <preencher> e marque o checklist só com
-evidência dos handoffs. Com require_security: true, acrescente a seção
+evidência dos handoffs. <escopo> é trocado pelo escopo da triagem na criação
+(delivery new --scope); sem escopo, vira <preencher>. A triagem também liga as
+flags aqui (delivery new --flags). Com require_security: true, acrescente a seção
 Security (título de nível 2) com o campo "- Resultado:". Com
 require_release_ops: true, acrescente a seção Release/Ops com o campo
 "- Plano de rollback:". O validador reprova placeholder, item de checklist
@@ -18,7 +20,7 @@ aberto e marcadores de pendência em caixa alta.
 -->
 
 ## PM/Triage
-- Escopo fechado: <preencher>
+- Escopo fechado: <escopo>
 - Criterios de aceite: <preencher>
 - Riscos: <preencher>
 

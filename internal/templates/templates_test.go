@@ -912,7 +912,7 @@ func TestIndexTemplate(t *testing.T) {
 
 func TestReportTemplateMarkers(t *testing.T) {
 	out := render(t, "docs-ai/deliveries/_template/report.md", sampleData())
-	for _, m := range []string{"<delivery_id>", "<titulo>", "<data>"} {
+	for _, m := range []string{"<delivery_id>", "<titulo>", "<data>", "- Escopo fechado: <escopo>\n"} {
 		if !strings.Contains(out, m) {
 			t.Errorf("report.md sem o marcador %s", m)
 		}
@@ -1362,6 +1362,21 @@ func TestReportTemplateSensorsChecklist(t *testing.T) {
 	}
 	if len(named) > 0 && len(missing) > 0 {
 		t.Errorf("item %q cita %v e omite %v: cite todos ou nenhum", line, named, missing)
+	}
+}
+
+// TestTriageGravaEscopoEFlags: o pm-triage não escreve no report, então passa
+// o escopo e as flags à ferramenta de criação (TASK-053), depois de avaliar os
+// sinais; sem isso o report nascia com <preencher> e require_security: false.
+func TestTriageGravaEscopoEFlags(t *testing.T) {
+	triage := render(t, ".claude/agents/pm-triage.md", sampleData())
+	for _, want := range []string{"`scope`", "`flags`", "`require_security`", "`require_release_ops`", "`<escopo>`"} {
+		if !strings.Contains(triage, want) {
+			t.Errorf("pm-triage sem %s", want)
+		}
+	}
+	if i, j := strings.Index(triage, "Avaliar os quatro sinais"), strings.Index(triage, "Criar a delivery"); i < 0 || j < 0 || i > j {
+		t.Error("pm-triage cria a delivery antes de avaliar os sinais: as flags dependem deles")
 	}
 }
 
