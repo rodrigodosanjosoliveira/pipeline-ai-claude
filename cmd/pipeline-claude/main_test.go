@@ -631,3 +631,60 @@ func TestE2EMCP(t *testing.T) {
 		t.Errorf("pipeline_validate: %s", lines[2])
 	}
 }
+
+// TASK-053: --scope e --flags gravam a decisão da triagem no report criado.
+func TestE2EDeliveryNewScopeFlags(t *testing.T) {
+	t.Run("flags ligam a flag e acrescentam a seção", func(t *testing.T) {
+		root := e2eProject(t)
+		code, stdout, stderr := runBin(t, root, "", "delivery", "new", "--title", "Login", "--flags", "require_security, require_release_ops")
+		if code != exitOK {
+			t.Fatalf("código %d\nstdout:\n%s\nstderr:\n%s", code, stdout, stderr)
+		}
+		report := readFile(t, root, "docs-ai/deliveries/DEL-004/report.md")
+		for _, want := range []string{"require_security: true\n", "require_release_ops: true\n", "\n## Security\n- Resultado: <preencher>\n", "\n## Release/Ops\n- Plano de rollback: <preencher>\n"} {
+			if !strings.Contains(report, want) {
+				t.Errorf("report sem %q:\n%s", want, report)
+			}
+		}
+	})
+	t.Run("flag desconhecida não cria nada", func(t *testing.T) {
+		root := e2eProject(t)
+		before := readFile(t, root, "docs-ai/deliveries/INDEX.md")
+		code, _, stderr := runBin(t, root, "", "delivery", "new", "--title", "Login", "--flags", "require_magia")
+		if code != exitFail || !strings.Contains(stderr, "require_magia") || !strings.Contains(stderr, "require_security") {
+			t.Errorf("código = %d, stderr = %q", code, stderr)
+		}
+		if readFile(t, root, "docs-ai/deliveries/INDEX.md") != before {
+			t.Error("índice alterado")
+		}
+	})
+	t.Run("--flags vazio é uso inválido", func(t *testing.T) {
+		root := e2eProject(t)
+		code, _, stderr := runBin(t, root, "", "delivery", "new", "--title", "Login", "--flags", "require_security,,require_release_ops")
+		if code != exitBlocked || !strings.Contains(stderr, "--flags") {
+			t.Errorf("código = %d, stderr = %q", code, stderr)
+		}
+	})
+	t.Run("escopo sem report_template reprova", func(t *testing.T) {
+		root := e2eProject(t)
+		code, _, stderr := runBin(t, root, "", "delivery", "new", "--title", "Login", "--scope", "Login por senha")
+		if code != exitFail || !strings.Contains(stderr, "report_template") {
+			t.Errorf("código = %d, stderr = %q", code, stderr)
+		}
+	})
+	t.Run("escopo com <escopo> no template", func(t *testing.T) {
+		root := e2eProject(t)
+		writeFile(t, root, ".pipeline-claude.json", strings.Replace(e2eConfig, `"editor_agents"`, `"report_template": "docs-ai/modelo.md", "editor_agents"`, 1))
+		writeFile(t, root, "docs-ai/modelo.md", "---\ndelivery_id: <delivery_id>\nstatus: draft\nrequire_security: false\n---\n\n## PM/Triage\n- Escopo fechado: <escopo>\n")
+		code, stdout, stderr := runBin(t, root, "", "delivery", "new", "--json", "--title", "Login", "--scope", "Login por senha", "--flags", "require_security")
+		if code != exitOK {
+			t.Fatalf("código %d\nstdout:\n%s\nstderr:\n%s", code, stdout, stderr)
+		}
+		report := readFile(t, root, "docs-ai/deliveries/DEL-004/report.md")
+		for _, want := range []string{"- Escopo fechado: Login por senha\n", "require_security: true\n", "## Security\n"} {
+			if !strings.Contains(report, want) {
+				t.Errorf("report sem %q:\n%s", want, report)
+			}
+		}
+	})
+}

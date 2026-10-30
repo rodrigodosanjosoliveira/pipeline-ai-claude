@@ -302,6 +302,8 @@ var tools = []toolSpec{
 		args: []argSpec{
 			{name: "title", kind: kindString, required: true, description: "Título da delivery, uma linha."},
 			{name: "prefix", kind: kindString, description: "Prefixo do ID, um de delivery_prefixes."},
+			{name: "scope", kind: kindString, description: "Escopo fechado da triagem, uma linha; entra no lugar de <escopo> do report_template, que precisa ter o marcador."},
+			{name: "flags", kind: kindStrings, description: "Flags do report a ligar (chaves de report_schema.flag_sections, como require_security): vão a true no front matter e a seção exigida é acrescentada."},
 		},
 		run: (*server).toolDeliveryNew,
 	},
@@ -519,7 +521,7 @@ func (s *server) toolDeliveryNew(a args) ToolResult {
 	if err := checkDeliveryWritable(cfg); err != nil {
 		return text(err.Error(), true)
 	}
-	created, err := delivery.New(cfg, delivery.NewOptions{Title: a.str("title"), Prefix: a.str("prefix")}, time.Now())
+	created, err := delivery.New(cfg, delivery.NewOptions{Title: a.str("title"), Prefix: a.str("prefix"), Scope: a.str("scope"), Flags: a.strs("flags")}, time.Now())
 	if err != nil {
 		return text(fmt.Sprintf("delivery não criada: %v", err), true)
 	}

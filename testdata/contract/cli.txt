@@ -14,8 +14,10 @@ comando adopt
 comando delivery new
   -h: saída 0
   opção desconhecida: saída 2
+  --flags string padrão=""
   --json bool padrão=false
   --prefix string padrão=""
+  --scope string padrão=""
   --title string padrão=""
 comando doctor
   -h: saída 0

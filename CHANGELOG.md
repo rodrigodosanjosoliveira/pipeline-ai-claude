@@ -13,6 +13,29 @@ go install github.com/rodrigodosanjosoliveira/pipeline-ai-claude/cmd/pipeline-cl
 
 ## [Não lançado]
 
+### Adicionado
+
+- `delivery new --scope <escopo> --flags <f1,f2>` e os argumentos `scope` e
+  `flags` da ferramenta MCP `pipeline_delivery_new` (atrito da validação da
+  `v1.0.0-rc.4`): o `pm-triage` não tem ferramenta de escrita, então o report
+  nascia com `<preencher>` e `require_security: false` e só o `docs-update`, no
+  fim, o corrigia. O escopo (uma linha, até 500 caracteres) entra no lugar de
+  `<escopo>` do `report_template`; cada flag (chave de
+  `report_schema.flag_sections`, como `require_security`) vai a `true` no front
+  matter e a seção que ela exige é acrescentada, com os campos em
+  `<preencher>`. Entrada inválida, flag desconhecida, escopo sem `<escopo>` no
+  template e report que termina dentro de comentário sem fechar reprovam sem
+  criar nada.
+
+### Alterado
+
+- O `pm-triage` avalia os sinais antes de criar a delivery e passa `scope` e
+  `flags` à ferramenta. O template do report traz `- Escopo fechado: <escopo>`.
+  Projetos criados antes mantêm o template deles (não é arquivo gerenciado):
+  para gravar o escopo, troque o valor do campo por `<escopo>` em
+  `docs-ai/deliveries/_template/report.md`; sem o marcador, o `pm-triage` cria
+  a delivery sem escopo.
+
 ## [v1.0.0-rc.4] - 2026-10-29
 
 Quarto candidato da v1.0: o fluxo de delivery passa a manter o status das

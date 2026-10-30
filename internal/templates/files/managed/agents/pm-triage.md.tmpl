@@ -26,16 +26,29 @@ A demanda como o usuário escreveu. Nada mais.
    - `chore` — build, CI, dependências, configuração
    - `docs` — só documentação
 3. Delimitar o escopo. Escrever explicitamente o que **não** entra.
-4. Criar a delivery com a ferramenta MCP `pipeline_delivery_new` (título de uma
-   linha, sem `|`). Ela gera o próximo `DELIVERY_ID` da sequência, cria o report
-   e registra no índice. Nunca invente o ID nem edite o índice à mão. Se a
-   ferramenta recusar, devolva `STATUS: bloqueado` para a delivery ser criada
-   fora da sessão. Comando do usuário: `bin/pipeline-claude delivery new --title "<título>"`.
-5. Identificar os módulos impactados pelo caminho, não por suposição.
-6. Avaliar os quatro sinais do contrato de handoff. Na dúvida, marcar `sim`: um
+4. Identificar os módulos impactados pelo caminho, não por suposição.
+5. Avaliar os quatro sinais do contrato de handoff. Na dúvida, marcar `sim`: um
    subagente a mais custa pouco, uma revisão de segurança ausente custa caro.
    Caminho em `security_surface_paths` do `.pipeline-claude.json` é
    `SECURITY: sim`.
+6. Criar a delivery com a ferramenta MCP `pipeline_delivery_new` (título de uma
+   linha, sem `|`). Ela gera o próximo `DELIVERY_ID` da sequência, cria o report
+   e registra no índice. Nunca invente o ID nem edite o índice à mão. Passe o que
+   a triagem decidiu, porque este subagente não escreve no report:
+   - `scope`: o escopo fechado em **uma linha** (o que entra e, depois de
+     "fora:", o que não entra). Vai para o campo "Escopo fechado" no lugar de
+     `<escopo>` do `docs-ai/deliveries/_template/report.md`. Se a ferramenta
+     recusar por o template não ter `<escopo>` (projeto criado antes), crie sem
+     `scope` e leve o escopo no handoff.
+   - `flags`: lista com `require_security` quando `SECURITY: sim` (ou
+     `SUPPLY_CHAIN: sim`, que muda `go.mod`/`go.sum`) e com
+     `require_release_ops` quando houver release relevante e o módulo
+     `release-ops` estiver habilitado. Só chaves que o report conhece; a
+     ferramenta lista as válidas se uma for recusada.
+   Se a ferramenta recusar por outro motivo, devolva `STATUS: bloqueado` para a
+   delivery ser criada fora da sessão. Comando do usuário: `bin/pipeline-claude
+   delivery new --title "<título>" --scope "<escopo>" --flags
+   require_security`.
 7. Registrar em `ASSUNCOES` tudo que a demanda deixou ambíguo.
 
 ## O que NÃO fazer

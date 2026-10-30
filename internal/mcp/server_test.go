@@ -476,6 +476,57 @@ func TestDeliveryNewEValidate(t *testing.T) {
 	}
 }
 
+// TASK-053: scope e flags chegam ao report; erro de conteúdo é isError, não -32602.
+func TestDeliveryNewEscopoEFlags(t *testing.T) {
+	root := project(t, `["internal/"]`)
+	cfg, err := os.ReadFile(filepath.Join(root, ".pipeline-claude.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	write(t, root, ".pipeline-claude.json", strings.Replace(string(cfg), `"delivery_prefixes"`, `"report_template": "docs-ai/modelo.md", "delivery_prefixes"`, 1))
+	write(t, root, "docs-ai/modelo.md", "---\ndelivery_id: <delivery_id>\nstatus: draft\nrequire_security: false\n---\n\n## PM/Triage\n- Escopo fechado: <escopo>\n")
+	got := serve(t, root,
+		call(1, "pipeline_delivery_new", `{"title":"Login","scope":"Login por senha","flags":["require_security"]}`),
+		call(2, "pipeline_delivery_new", `{"title":"Outra","flags":["require_magia"]}`),
+		call(3, "pipeline_delivery_new", `{"title":"Outra","scope":"a\nb"}`),
+		call(4, "pipeline_delivery_new", `{"title":"Outra","scope":7}`),
+		call(5, "pipeline_delivery_new", `{"title":"Outra","flags":"require_security"}`),
+		call(6, "pipeline_delivery_new", `{"title":"Outra","flags":[null]}`),
+	)
+	want := []string{
+		`{"id":1,"result":{"isError":false,"content":[{"type":"text","text":"~DEL-001"}]}}`,
+		`{"id":2,"result":{"isError":true,"content":[{"type":"text","text":"~require_magia"}]}}`,
+		`{"id":3,"result":{"isError":true,"content":[{"type":"text","text":"~uma linha"}]}}`,
+		`{"id":4,"error":{"code":-32602}}`,
+		`{"id":5,"error":{"code":-32602}}`,
+		`{"id":6,"error":{"code":-32602}}`,
+	}
+	if len(got) != len(want) {
+		t.Fatalf("respostas = %d: %v", len(got), got)
+	}
+	for i, w := range want {
+		if err := match(obj(t, w), got[i]); err != nil {
+			t.Errorf("resposta %d: %v\n%v", i, err, got[i])
+		}
+	}
+	data, err := os.ReadFile(filepath.Join(root, "docs-ai", "deliveries", "DEL-001", "report.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, w := range []string{"- Escopo fechado: Login por senha\n", "require_security: true\n", "\n## Security\n- Resultado: <preencher>\n"} {
+		if !strings.Contains(string(data), w) {
+			t.Errorf("report sem %q:\n%s", w, data)
+		}
+	}
+	index, err := os.ReadFile(filepath.Join(root, "docs-ai", "deliveries", "INDEX.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(index), "DEL-002") {
+		t.Errorf("entrada recusada criou delivery:\n%s", index)
+	}
+}
+
 // TD-16: delivery_new nunca grava em caminho protegido.
 func TestDeliveryNewRecusadaEmCaminhoProtegido(t *testing.T) {
 	tests := []struct {

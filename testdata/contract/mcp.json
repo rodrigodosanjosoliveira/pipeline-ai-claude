@@ -5,7 +5,16 @@
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
+          "flags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "prefix": {
+            "type": "string"
+          },
+          "scope": {
             "type": "string"
           },
           "title": {

@@ -7,7 +7,9 @@
 // falhar (TD-20); escrita confinada à raiz, inclusive contra symlink (TD-17);
 // título validado; linha nova no fim da primeira tabela com coluna de ID
 // (tabela antes dela sem ID, como a de prefixos, é pulada), colunas pelo
-// cabeçalho; data injetada; células em comentário contam para o número.
+// cabeçalho; data injetada; células em comentário contam para o número;
+// escopo e flags da triagem gravados no report na criação, porque o pm-triage
+// não tem ferramenta de escrita (TASK-053).
 
 // Package delivery cria deliveries: o diretório, o report inicial e a linha no
 // índice, com o próximo ID da sequência do prefixo (TD-20).
@@ -45,6 +47,13 @@ const MaxTitleLen = 120
 // validador procura.
 const ReportFile = "report.md"
 
+// MaxScopeLen é o comprimento máximo do escopo, em caracteres.
+const MaxScopeLen = 500
+
+// scopeTag é o marcador do escopo no report_template, trocado pelo escopo
+// informado (ou por placeholder, se não houver).
+const scopeTag = "<escopo>"
+
 // placeholder é o valor deixado nos campos do report gerado do esquema. O
 // formato <...> reprova no validador até ser preenchido.
 const placeholder = "<preencher>"
@@ -57,6 +66,16 @@ type NewOptions struct {
 	// Prefix é o prefixo do ID, um de delivery_prefixes. Vazio vale o único
 	// prefixo configurado, se houver só um.
 	Prefix string
+	// Scope é o escopo fechado da triagem, gravado no lugar de <escopo> do
+	// report_template. Opcional; uma linha, até MaxScopeLen caracteres. Se
+	// informado, o report_template precisa ter <escopo>: nada é descartado em
+	// silêncio.
+	Scope string
+	// Flags são as flags de report_schema.flag_sections a ligar (por exemplo
+	// require_security): a chave vai a true no front matter e a seção que ela
+	// exige é acrescentada, com os campos em placeholder, se o report ainda
+	// não a tiver.
+	Flags []string
 }
 
 // Created descreve a delivery criada. Caminhos relativos à raiz do projeto,
@@ -114,6 +133,14 @@ func prepare(cfg *config.Config, opts NewOptions, now time.Time) (*plan, error) 
 		return nil, err
 	}
 	prefix, err := choosePrefix(cfg.DeliveryPrefixes, opts.Prefix)
+	if err != nil {
+		return nil, err
+	}
+	scope, err := checkScope(opts.Scope)
+	if err != nil {
+		return nil, err
+	}
+	flags, err := checkFlags(cfg.ReportSchema, opts.Flags)
 	if err != nil {
 		return nil, err
 	}
@@ -186,8 +213,11 @@ func prepare(cfg *config.Config, opts NewOptions, now time.Time) (*plan, error) 
 	}
 
 	date := now.Format("2006-01-02")
-	content, err := renderReport(cfg, root, id, title, date)
+	content, err := renderReport(cfg, root, id, title, date, scope)
 	if err != nil {
+		return nil, err
+	}
+	if content, err = applyFlags(content, cfg.ReportSchema, flags); err != nil {
 		return nil, err
 	}
 	row, err := idx.row(id, title, date)
@@ -421,9 +451,12 @@ func strictlyInside(root, p string) bool {
 }
 
 // renderReport monta o report: do report_template, se configurado, ou do
-// report_schema.
-func renderReport(cfg *config.Config, root, id, title, date string) (string, error) {
+// report_schema. scope, se não vazio, exige o template com <escopo>.
+func renderReport(cfg *config.Config, root, id, title, date, scope string) (string, error) {
 	if cfg.ReportTemplate == "" {
+		if scope != "" {
+			return "", errors.New("delivery: o escopo precisa de report_template com " + scopeTag + ": o report do esquema não tem onde gravá-lo")
+		}
 		return schemaReport(cfg.ReportSchema, id, title), nil
 	}
 	p, err := confine(root, cfg.ReportTemplate)
@@ -434,8 +467,156 @@ func renderReport(cfg *config.Config, root, id, title, date string) (string, err
 	if err != nil {
 		return "", fmt.Errorf("delivery: report_template %s: %w", cfg.ReportTemplate, err)
 	}
-	r := strings.NewReplacer("<delivery_id>", id, "<titulo>", title, "<data>", date)
+	if scope != "" && !strings.Contains(string(data), scopeTag) {
+		return "", fmt.Errorf("delivery: report_template %s não tem %s: acrescente o marcador onde o escopo deve entrar (por exemplo em \"- Escopo fechado: %s\") ou crie a delivery sem escopo", cfg.ReportTemplate, scopeTag, scopeTag)
+	}
+	if scope == "" {
+		scope = placeholder
+	}
+	r := strings.NewReplacer("<delivery_id>", id, "<titulo>", title, "<data>", date, scopeTag, scope)
 	return r.Replace(string(data)), nil
+}
+
+// checkScope valida o escopo e o devolve sem espaços nas pontas; vazio vale
+// "sem escopo".
+func checkScope(s string) (string, error) {
+	if !utf8.ValidString(s) {
+		return "", errors.New("delivery: escopo com UTF-8 inválido")
+	}
+	if strings.ContainsAny(s, "\r\n") {
+		return "", errors.New("delivery: o escopo precisa ter uma linha só")
+	}
+	t := strings.TrimSpace(s)
+	switch {
+	case strings.ContainsFunc(t, unicode.IsControl):
+		return "", errors.New("delivery: o escopo não pode ter caractere de controle")
+	case utf8.RuneCountInString(t) > MaxScopeLen:
+		return "", fmt.Errorf("delivery: escopo com %d caracteres; o máximo é %d", utf8.RuneCountInString(t), MaxScopeLen)
+	case strings.Contains(t, "<!--") || strings.Contains(t, "-->"):
+		return "", errors.New("delivery: o escopo não pode abrir nem fechar comentário HTML")
+	}
+	return t, nil
+}
+
+// checkFlags confere que cada flag é uma chave de flag_sections e devolve a
+// lista sem repetição, na ordem recebida.
+func checkFlags(s *config.ReportSchema, flags []string) ([]string, error) {
+	var out []string
+	for _, f := range flags {
+		f = strings.TrimSpace(f)
+		if f == "" {
+			return nil, errors.New("delivery: flag vazia")
+		}
+		if _, ok := s.FlagSections[f]; !ok {
+			valid := sortedKeys(s.FlagSections)
+			if len(valid) == 0 {
+				return nil, fmt.Errorf("delivery: flag %q desconhecida: report_schema.flag_sections está vazio", f)
+			}
+			return nil, fmt.Errorf("delivery: flag %q desconhecida; use uma de %s", f, strings.Join(valid, ", "))
+		}
+		if !slices.Contains(out, f) {
+			out = append(out, f)
+		}
+	}
+	return out, nil
+}
+
+// applyFlags liga cada flag no front matter do report e acrescenta ao fim a
+// seção que ela exige, se o report ainda não a tiver (comentário HTML e bloco
+// de código não contam como seção). Sem front matter, ou com a flag num valor
+// que não é true nem false, é erro.
+func applyFlags(content string, s *config.ReportSchema, flags []string) (string, error) {
+	if len(flags) == 0 {
+		return content, nil
+	}
+	lines := strings.SplitAfter(content, "\n")
+	if n := len(lines); lines[n-1] == "" {
+		lines = lines[:n-1]
+	}
+	eol := "\n"
+	if len(lines) > 0 && strings.HasSuffix(lines[0], "\r\n") {
+		eol = "\r\n"
+	}
+	if len(lines) == 0 || strings.TrimSpace(lines[0]) != "---" {
+		return "", errors.New("delivery: o report não tem front matter (--- na primeira linha) para ligar as flags")
+	}
+	closing := -1
+	for i := 1; i < len(lines); i++ {
+		if strings.TrimSpace(lines[i]) == "---" {
+			closing = i
+			break
+		}
+	}
+	if closing < 0 {
+		return "", errors.New("delivery: o front matter do report não fecha (--- ausente) para ligar as flags")
+	}
+	for _, f := range flags {
+		found := false
+		for i := 1; i < closing; i++ {
+			key, value, ok := strings.Cut(lines[i], ":")
+			if !ok || !strings.EqualFold(strings.TrimSpace(key), f) {
+				continue
+			}
+			found = true
+			switch strings.TrimSpace(value) {
+			case "false":
+				lines[i] = f + ": true" + eol
+			case "true":
+			default:
+				return "", fmt.Errorf("delivery: a flag %s do front matter vale %q; esperava true ou false", f, strings.TrimSpace(value))
+			}
+			break
+		}
+		if !found {
+			lines = slices.Insert(lines, closing, f+": true"+eol)
+			closing++
+		}
+	}
+
+	heading := strings.Repeat("#", s.SectionLevel) + " "
+	var b strings.Builder
+	b.WriteString(strings.Join(lines, ""))
+	if n := len(lines); n > 0 && !strings.HasSuffix(lines[n-1], "\n") {
+		b.WriteString(eol)
+	}
+	var added []string
+	for _, f := range flags {
+		fs := s.FlagSections[f]
+		if hasSection(strings.Join(lines, ""), heading, fs.Section) {
+			continue
+		}
+		b.WriteString(eol + heading + strings.TrimSpace(fs.Section) + eol)
+		for _, field := range fs.Fields {
+			b.WriteString("- " + strings.TrimSpace(field) + ": " + placeholder + eol)
+		}
+		added = append(added, fs.Section)
+	}
+	out := b.String()
+	// Comentário ou bloco de código sem fechar engole o que vem depois: a seção
+	// acrescentada não contaria para o validador.
+	for _, sec := range added {
+		if !hasSection(out, heading, sec) {
+			return "", fmt.Errorf("delivery: a seção %q não pôde ser acrescentada ao fim do report: ele termina dentro de um comentário HTML ou bloco de código sem fechar", sec)
+		}
+	}
+	return out, nil
+}
+
+// hasSection diz se content tem um título heading+title fora de comentário
+// HTML e de bloco de código.
+func hasSection(content, heading, title string) bool {
+	lines := strings.SplitAfter(content, "\n")
+	hidden := hiddenLines(lines)
+	want := report.NormalizeTitle(title)
+	for i, l := range lines {
+		if hidden[i] {
+			continue
+		}
+		if rest, ok := strings.CutPrefix(strings.TrimRight(l, "\r\n"), heading); ok && report.NormalizeTitle(rest) == want {
+			return true
+		}
+	}
+	return false
 }
 
 // schemaReport gera o report do esquema: front matter com delivery_id e
