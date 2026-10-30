@@ -205,8 +205,6 @@ func TestUsoInvalido(t *testing.T) {
 		want   string
 	}{
 		{name: "alvo vazio", target: "", want: "alvo"},
-		{name: "ID inexistente", target: "DEL-404", want: "DEL-404"},
-		{name: "caminho inexistente", target: "docs-ai/nada/report.md", want: "report.md"},
 		{name: "ID ..", target: "..", want: ".."},
 		{name: "ID .", target: ".", want: "."},
 		{
@@ -243,6 +241,79 @@ func TestUsoInvalido(t *testing.T) {
 				t.Errorf("stderr sem %q:\n%s", tt.want, r.stderr)
 			}
 		})
+	}
+}
+
+// Report inexistente é resultado, não uso inválido: reprova (1) no mesmo
+// formato dos demais erros, em texto e em JSON (TASK-055).
+func TestAlvoInexistente(t *testing.T) {
+	tests := []struct {
+		name    string
+		target  string
+		display string
+	}{
+		{name: "ID inexistente", target: "DEL-404", display: "docs-ai/deliveries/DEL-404/report.md"},
+		{name: "caminho inexistente", target: "docs-ai/nada/report.md", display: "docs-ai/nada/report.md"},
+		{name: "diretório da delivery sem report", target: "DEL-002", display: "docs-ai/deliveries/DEL-002/report.md"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			root := project(t, map[string]string{"DEL-001": reportFor("DEL-001", "", "")})
+			if err := os.MkdirAll(filepath.Join(root, "docs-ai", "deliveries", "DEL-002"), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			r := runAt(t, root, Options{Target: tt.target, NoGit: true})
+			if r.code != ExitFail {
+				t.Fatalf("quer %d; %s", ExitFail, r)
+			}
+			for _, want := range []string{"pipeline-claude validate: " + tt.display + "\n", "  ERRO: report", "não encontrado: o arquivo não existe", "1 erro(s), 0 aviso(s)", "REPROVADO"} {
+				if !strings.Contains(r.stdout, want) {
+					t.Errorf("stdout sem %q:\n%s", want, r.stdout)
+				}
+			}
+			if r.stderr != "" {
+				t.Errorf("stderr = %q, quer vazio", r.stderr)
+			}
+			if strings.Contains(r.stdout, root) {
+				t.Errorf("a saída vaza o caminho absoluto do projeto:\n%s", r.stdout)
+			}
+
+			j := runAt(t, root, Options{Target: tt.target, NoGit: true, JSON: true})
+			if j.code != ExitFail {
+				t.Fatalf("json: quer %d; %s", ExitFail, j)
+			}
+			var out struct {
+				Report   string `json:"report"`
+				OK       bool   `json:"ok"`
+				Findings []struct {
+					Level   string `json:"level"`
+					Message string `json:"message"`
+				} `json:"findings"`
+			}
+			if err := json.Unmarshal([]byte(j.stdout), &out); err != nil {
+				t.Fatalf("json inválido: %v\n%s", err, j.stdout)
+			}
+			if out.Report != tt.display || out.OK || len(out.Findings) != 1 || out.Findings[0].Level != "ERRO" || !strings.Contains(out.Findings[0].Message, "não encontrado") {
+				t.Errorf("json = %+v", out)
+			}
+		})
+	}
+}
+
+// stat que falha por outro motivo que não existir (aqui, "DEL-005" é um arquivo
+// e não um diretório) também reprova, sem vazar o caminho absoluto.
+func TestAlvoInacessivel(t *testing.T) {
+	root := project(t, map[string]string{"DEL-001": reportFor("DEL-001", "", "")})
+	write(t, root, "docs-ai/deliveries/DEL-005", "arquivo onde devia haver um diretório\n")
+	r := runAt(t, root, Options{Target: "DEL-005", NoGit: true})
+	if r.code != ExitFail {
+		t.Fatalf("quer %d; %s", ExitFail, r)
+	}
+	if !strings.Contains(r.stdout, "ERRO: report da delivery \"DEL-005\" não encontrado") || !strings.Contains(r.stdout, "REPROVADO") {
+		t.Errorf("stdout:\n%s", r.stdout)
+	}
+	if strings.Contains(r.stdout, root) || r.stderr != "" {
+		t.Errorf("a saída vaza o caminho absoluto ou usa stderr:\n%s\nstderr: %q", r.stdout, r.stderr)
 	}
 }
 
