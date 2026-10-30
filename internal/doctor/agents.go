@@ -149,13 +149,37 @@ func restrictedTool(tool string) (string, bool) {
 	return "", false
 }
 
+// missingAgents lista os nomes de editor_agents e de report_writers sem arquivo
+// em present, no formato "lista: nome", na ordem da configuração e sem repetir o
+// nome na mesma lista. A comparação não diferencia caixa, como o hook; present vem em minúsculas.
+func missingAgents(cfg *config.Config, present map[string]bool) []string {
+	var out []string
+	for _, l := range []struct {
+		key   string
+		names []string
+	}{{"editor_agents", cfg.EditorAgents}, {"report_writers", cfg.ReportWriters}} {
+		seen := map[string]bool{}
+		for _, name := range l.names {
+			k := strings.ToLower(name)
+			if present[k] || seen[k] {
+				continue
+			}
+			seen[k] = true
+			out = append(out, l.key+": "+name)
+		}
+	}
+	return out
+}
+
 // agentsCheck confere cada .claude/agents/*.md, gerenciado, liberado ou fora
 // do lock (TD-34): front matter legível, name igual ao nome do arquivo, tools
 // explícito e, fora de editor_agents, nenhuma ferramenta de escrita nem Bash,
 // exceto git-delivery com Bash (TD-29). Front matter ilegível, name diferente
 // ou symlink (não seguido: o runtime seguiria e o subagente ficaria sem
-// checagem) é erro; violação de ferramenta ou tools ausente é aviso. Config
-// ausente ou inválida é aviso "não verificado".
+// checagem) é erro; violação de ferramenta ou tools ausente é aviso. Nome em
+// editor_agents ou report_writers sem arquivo em .claude/agents também é aviso
+// (TASK-054): a configuração cita um subagente que não existe. Config ausente
+// ou inválida é aviso "não verificado".
 func agentsCheck(root string, cfg *config.Config, cfgErr error) Check {
 	if cfgErr != nil {
 		return bad(checkAgents, StatusWarn, "não verificado: configuração ausente ou inválida", "corrija a configuração (ver checagem configuração)")
@@ -181,11 +205,13 @@ func agentsCheck(root string, cfg *config.Config, cfgErr error) Check {
 
 	var errs, warns []string
 	n := 0
+	present := map[string]bool{} // nomes com arquivo .md, legível ou não, em minúsculas
 	for _, e := range entries {
 		file := e.Name()
 		if !strings.HasSuffix(file, ".md") {
 			continue
 		}
+		present[strings.ToLower(strings.TrimSuffix(file, ".md"))] = true
 		rel := agentsRel + "/" + file
 		switch {
 		case e.Type()&fs.ModeSymlink != 0:
@@ -235,7 +261,21 @@ func agentsCheck(root string, cfg *config.Config, cfgErr error) Check {
 		}
 	}
 
+	// Diretório sem nenhum .md cai no aviso "nenhum subagente", abaixo.
+	var missing []string
+	if len(present) > 0 {
+		missing = missingAgents(cfg, present)
+	}
 	warnMsg := "subagente(s) fora da regra de ferramentas (TD-29): " + strings.Join(warns, ", ")
+	if len(missing) > 0 {
+		missMsg := "configuração cita subagente sem arquivo em " + agentsRel + ": " + strings.Join(missing, ", ")
+		if len(warns) > 0 {
+			warnMsg += "; " + missMsg
+		} else {
+			warnMsg = missMsg
+		}
+		warns = append(warns, missing...)
+	}
 	switch {
 	case len(errs) > 0:
 		msg := "subagente(s) com front matter ilegível ou name errado: " + strings.Join(errs, "; ")
@@ -244,6 +284,9 @@ func agentsCheck(root string, cfg *config.Config, cfgErr error) Check {
 		}
 		return bad(checkAgents, StatusError, msg,
 			"corrija o front matter de cada arquivo (bloco --- no início e no fim, name igual ao nome do arquivo) e troque symlink por arquivo real")
+	case len(warns) > 0 && len(warns) == len(missing):
+		return bad(checkAgents, StatusWarn, warnMsg,
+			"crie o subagente em "+agentsRel+" (módulo: habilite em enabled_modules e rode `pipeline-claude sync`) ou tire o nome de editor_agents e de report_writers no "+config.FileName)
 	case len(warns) > 0:
 		return bad(checkAgents, StatusWarn, warnMsg,
 			"declare tools explícito; fora de editor_agents, tire Edit, Write, MultiEdit, NotebookEdit e Bash (só o "+shellAgent+" mantém Bash), inclua o subagente em editor_agents ou, se ele só escreve a própria seção do report, em report_writers (limitado a deliveries_dir, sem Bash) no "+config.FileName)

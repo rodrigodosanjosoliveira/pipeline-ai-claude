@@ -238,7 +238,7 @@ func TestCheckAgents(t *testing.T) {
 		{
 			name: "editor tirado de editor_agents avisa",
 			mutate: func(t *testing.T, root string) {
-				setEditors(t, root, "test-writer", "docs-update", "query-performance")
+				setEditors(t, root, "test-writer", "docs-update")
 			},
 			status: StatusWarn,
 			msg:    []string{"dev-implementation: Bash", "dev-implementation: Edit"},
@@ -249,9 +249,69 @@ func TestCheckAgents(t *testing.T) {
 			name: "subagente do projeto em editor_agents ok",
 			mutate: func(t *testing.T, root string) {
 				writeAgent(t, root, "catalogo-livros", agentDoc("name: catalogo-livros\ntools: Read, Edit, Bash"))
-				setEditors(t, root, "dev-implementation", "test-writer", "docs-update", "query-performance", "catalogo-livros")
+				setEditors(t, root, "dev-implementation", "test-writer", "docs-update", "catalogo-livros")
 			},
 			status: StatusOK,
+		},
+		// TASK-054: nome em editor_agents ou report_writers sem arquivo em
+		// .claude/agents é configuração que nenhum subagente cumpre (a demo
+		// listava query-performance sem o módulo).
+		{
+			name: "editor_agents cita subagente sem arquivo",
+			mutate: func(t *testing.T, root string) {
+				setEditors(t, root, "dev-implementation", "test-writer", "docs-update", "query-performance")
+			},
+			status: StatusWarn,
+			msg:    []string{"editor_agents: query-performance"},
+			noMsg:  []string{"dev-implementation", "test-writer", "report_writers"},
+			action: "enabled_modules",
+		},
+		{
+			name:    "módulo habilitado traz o arquivo do editor",
+			modules: []string{"query-performance"},
+			status:  StatusOK,
+			count:   true,
+		},
+		{
+			name: "report_writers cita subagente sem arquivo",
+			mutate: func(t *testing.T, root string) {
+				setReportWriters(t, root, "code-reviewer", "fantasma")
+			},
+			status: StatusWarn,
+			msg:    []string{"report_writers: fantasma"},
+			noMsg:  []string{"code-reviewer", "editor_agents"},
+			action: "report_writers",
+		},
+		{
+			name: "nome repetido em editor_agents aparece uma vez",
+			mutate: func(t *testing.T, root string) {
+				setEditors(t, root, "dev-implementation", "test-writer", "docs-update", "fantasma", "fantasma")
+			},
+			status: StatusWarn,
+			msg:    []string{"editor_agents: fantasma"},
+			noMsg:  []string{"fantasma, editor_agents: fantasma"},
+			action: "enabled_modules",
+		},
+		{
+			name: "arquivo com front matter ilegível não é tratado como ausente",
+			mutate: func(t *testing.T, root string) {
+				writeAgent(t, root, "catalogo-livros", "sem front matter\n")
+				setEditors(t, root, "dev-implementation", "test-writer", "docs-update", "catalogo-livros")
+			},
+			status: StatusError,
+			msg:    []string{"catalogo-livros.md"},
+			noMsg:  []string{"editor_agents:"},
+			action: "front matter",
+		},
+		{
+			name: "ausente e fora da regra de ferramentas na mesma mensagem",
+			mutate: func(t *testing.T, root string) {
+				writeAgent(t, root, "code-reviewer", agentDoc("name: code-reviewer\ntools: Read, Edit"))
+				setEditors(t, root, "dev-implementation", "test-writer", "docs-update", "fantasma")
+			},
+			status: StatusWarn,
+			msg:    []string{"code-reviewer: Edit", "editor_agents: fantasma"},
+			action: "declare tools",
 		},
 		{
 			name: "subagente do projeto fora do lock é checado",

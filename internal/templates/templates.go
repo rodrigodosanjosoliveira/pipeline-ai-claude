@@ -288,6 +288,8 @@ func execute(name, text string, vars map[string]any) ([]byte, error) {
 }
 
 var funcs = template.FuncMap{
+	// has diz se a lista contém o valor.
+	"has": func(list []string, v string) bool { return slices.Contains(list, v) },
 	// json devolve o valor em JSON; lista nil vira [].
 	"json": func(v any) (string, error) {
 		if s, ok := v.([]string); ok && s == nil {

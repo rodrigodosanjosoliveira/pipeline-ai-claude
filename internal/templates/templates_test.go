@@ -731,8 +731,14 @@ func TestGeneratedConfigLoads(t *testing.T) {
 				if cfg.IsProtected("docs-ai/deliveries/INDEX.md") || cfg.IsProtected("CLAUDE.md") {
 					t.Error("docs-ai/ e CLAUDE.md não podem ser protegidos (o fluxo de delivery grava lá)")
 				}
-				if !slices.Equal(cfg.EditorAgents, []string{"dev-implementation", "test-writer", "query-performance", "docs-update"}) {
-					t.Errorf("editor_agents = %v", cfg.EditorAgents)
+				// query-performance só edita se o módulo está habilitado: o
+				// doctor avisa editor sem arquivo de subagente (TASK-054).
+				wantEditors := []string{"dev-implementation", "test-writer", "docs-update"}
+				if slices.Contains(mods, "query-performance") {
+					wantEditors = []string{"dev-implementation", "test-writer", "query-performance", "docs-update"}
+				}
+				if !slices.Equal(cfg.EditorAgents, wantEditors) {
+					t.Errorf("editor_agents = %v, esperado %v", cfg.EditorAgents, wantEditors)
 				}
 				if cfg.DeliveryIDPattern != "^DEL-[0-9]{3,}$" || !slices.Equal(cfg.DeliveryPrefixes, []string{"DEL"}) {
 					t.Errorf("padrão/prefixos: %q %v", cfg.DeliveryIDPattern, cfg.DeliveryPrefixes)

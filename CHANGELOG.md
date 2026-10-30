@@ -26,6 +26,12 @@ go install github.com/rodrigodosanjosoliveira/pipeline-ai-claude/cmd/pipeline-cl
   `<preencher>`. Entrada inválida, flag desconhecida, escopo sem `<escopo>` no
   template e report que termina dentro de comentário sem fechar reprovam sem
   criar nada.
+- A checagem `subagentes` do `doctor` avisa quando `editor_agents` ou
+  `report_writers` citam um subagente sem arquivo em `.claude/agents/`
+  (atrito da validação da `v1.0.0-rc.4`: `query-performance` estava em
+  `editor_agents` sem o módulo habilitado e nada avisava). O aviso diz a lista e
+  o nome; arquivo com front matter ilegível conta como presente e continua
+  sendo erro pelo próprio front matter.
 
 ### Alterado
 
@@ -35,6 +41,14 @@ go install github.com/rodrigodosanjosoliveira/pipeline-ai-claude/cmd/pipeline-cl
   para gravar o escopo, troque o valor do campo por `<escopo>` em
   `docs-ai/deliveries/_template/report.md`; sem o marcador, o `pm-triage` cria
   a delivery sem escopo.
+
+### Corrigido
+
+- O `.pipeline-claude.json` gerado pelo `init` só lista `query-performance` em
+  `editor_agents` quando o módulo está em `--modules`. Antes listava sempre, e
+  o novo aviso do `doctor` dispararia em todo projeto sem o módulo. Projetos
+  existentes mantêm o arquivo deles: tire o nome da lista ou habilite o módulo
+  em `enabled_modules` e rode `sync`.
 
 ## [v1.0.0-rc.4] - 2026-10-29
 
