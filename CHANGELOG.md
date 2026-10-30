@@ -41,6 +41,13 @@ go install github.com/rodrigodosanjosoliveira/pipeline-ai-claude/cmd/pipeline-cl
   para gravar o escopo, troque o valor do campo por `<escopo>` em
   `docs-ai/deliveries/_template/report.md`; sem o marcador, o `pm-triage` cria
   a delivery sem escopo.
+- `validate` com ID ou caminho de report inexistente sai com **1** (antes 2) e
+  mostra `ERRO:` e `REPROVADO`, ou `findings` em `--json`, como os demais erros
+  (TD-40; atrito da validação da `v1.0.0-rc.4`: a saída era só o erro de
+  `stat`, sem prefixo, e o código não distinguia de chamada errada). Alvo vazio,
+  ID `.`/`..`, alvo que não é arquivo e configuração ausente seguem em 2. Muda o
+  código de saída desse caso antes da `v1.0.0`; quem testava `$? -eq 2` para
+  "delivery inexistente" passa a testar 1.
 
 ### Corrigido
 

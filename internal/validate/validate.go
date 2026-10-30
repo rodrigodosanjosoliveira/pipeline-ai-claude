@@ -1,5 +1,5 @@
 // Portado de github.com/rodrigodosanjosoliveira/pipeline-ai/internal/validate/validate.go @ 0eac73a (MIT).
-// Alterações: alvo por ID da delivery ou caminho; checagens do report pelo
+// Alterações: report inexistente reprova (1) em vez de uso inválido (TASK-055); alvo por ID da delivery ou caminho; checagens do report pelo
 // report_schema da config (TD-12); delivery_id contra delivery_id_pattern e o
 // diretório; ID procurado nas células da tabela do índice, não em qualquer
 // texto; diff completo via gitdiff com flags de auto_flags e
@@ -17,6 +17,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -55,8 +56,10 @@ type Options struct {
 }
 
 // Run valida o report indicado em opts e devolve o código de saída: 0
-// aprovado, 1 reprovado, 2 uso inválido (alvo inexistente, configuração
-// ausente ou inválida). Erros de uso vão para stderr; o resultado, para stdout.
+// aprovado, 1 reprovado (inclusive report inexistente ou inacessível, que vira
+// erro no mesmo formato dos demais), 2 uso inválido (alvo vazio ou inválido,
+// configuração ausente ou inválida). Erros de uso vão para stderr; o
+// resultado, para stdout.
 func Run(opts Options, stdout, stderr io.Writer) int {
 	usage := func(format string, args ...any) int {
 		fmt.Fprintf(stderr, "pipeline-claude validate: "+format+"\n", args...)
@@ -97,9 +100,20 @@ func Run(opts Options, stdout, stderr io.Writer) int {
 		reportPath = filepath.Join(cfg.Root(), filepath.FromSlash(cfg.DeliveriesDir), target, "report.md")
 		dirName = target
 	}
+	display := reportPath
+	if rel, err := filepath.Rel(cfg.Root(), reportPath); err == nil && !strings.HasPrefix(rel, "..") {
+		display = filepath.ToSlash(rel)
+	}
 	info, err := os.Stat(reportPath)
 	if err != nil {
-		return usage("report da delivery %q não encontrado: %v", opts.Target, err)
+		cause := err.Error()
+		if pe := (*fs.PathError)(nil); errors.As(err, &pe) {
+			cause = pe.Err.Error() // sem o caminho absoluto da máquina
+		}
+		if errors.Is(err, fs.ErrNotExist) {
+			cause = "o arquivo não existe" // igual em todos os sistemas
+		}
+		return output(stdout, display, []report.Finding{errorf("report da delivery %q não encontrado: %v", opts.Target, cause)}, opts.JSON)
 	}
 	if !info.Mode().IsRegular() {
 		return usage("%s não é um arquivo: informe o report de %q", reportPath, opts.Target)
@@ -107,11 +121,6 @@ func Run(opts Options, stdout, stderr io.Writer) int {
 	data, err := os.ReadFile(reportPath)
 	if err != nil {
 		return usage("falha ao ler %s: %v", reportPath, err)
-	}
-
-	display := reportPath
-	if rel, err := filepath.Rel(cfg.Root(), reportPath); err == nil && !strings.HasPrefix(rel, "..") {
-		display = filepath.ToSlash(rel)
 	}
 
 	findings, err := check(cfg, data, dirName, opts)

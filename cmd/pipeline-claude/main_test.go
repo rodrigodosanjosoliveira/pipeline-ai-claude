@@ -347,7 +347,9 @@ func TestE2EValidate(t *testing.T) {
 		{"report válido por caminho", []string{"validate", "docs-ai/deliveries/DEL-001/report.md", "--no-git"}, exitOK, "APROVADO", ""},
 		{"checklist aberto", []string{"validate", "--no-git", "DEL-002"}, exitFail, "REPROVADO", ""},
 		{"report ilegível", []string{"validate", "--no-git", "DEL-003"}, exitFail, "front matter", ""},
-		{"alvo inexistente", []string{"validate", "--no-git", "DEL-404"}, exitBlocked, "", "DEL-404"},
+		{"alvo inexistente reprova", []string{"validate", "--no-git", "DEL-404"}, exitFail, "REPROVADO", ""},
+		{"caminho inexistente reprova", []string{"validate", "--no-git", "docs-ai/nada/report.md"}, exitFail, "não encontrado", ""},
+		{"ID inválido segue sendo uso inválido", []string{"validate", "--no-git", ".."}, exitBlocked, "", "inválido"},
 		{"sem git reprova com dica", []string{"validate", "DEL-001"}, exitFail, "--no-git", ""},
 	}
 	for _, tt := range tests {
