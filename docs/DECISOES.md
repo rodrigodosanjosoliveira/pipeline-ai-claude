@@ -403,6 +403,17 @@ plataformas, nunca em silêncio; o resto passa nas três.
 **Motivo:** o hook, o fmt-hook e a comparação de caminho sem caixa (TD-09)
 foram escritos para Windows e macOS, mas só eram testados em Linux.
 
+### TD-40 — `validate` com report inexistente reprova (1)
+`pipeline-claude validate` com ID ou caminho cujo report não existe (ou não pode
+ser lido por `stat`) sai com 1 e mostra o erro no formato dos demais, em texto
+(`ERRO:` e `REPROVADO`) e em `--json` (`findings`). Continuam uso inválido (2):
+alvo vazio, ID `.` ou `..` ou com NUL, alvo que existe mas não é arquivo, e
+configuração ausente ou inválida. Mudança de código de saída antes da `v1.0.0`,
+com o rc.4 na validação da demo.
+**Motivo:** quem automatiza (CI, `pipeline_validate`) distingue "validador
+reprovou" de "chamada errada"; delivery que não existe é resultado da
+validação, não erro de quem chamou, e a falha fechada (regra 3) pede reprovar.
+
 ## Pontos em aberto
 
 1. Distribuição da camada Claude também como plugin do Claude Code.
