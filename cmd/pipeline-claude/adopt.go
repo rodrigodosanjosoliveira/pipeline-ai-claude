@@ -1,7 +1,6 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"io"
 	"os"
@@ -19,8 +18,7 @@ const adoptUsage = "Uso: pipeline-claude adopt [--dir <d>] [--provider github|gi
 // instruções do que o projeto acrescenta à mão. Pré-condição ou entrada
 // inválida sai com 2; falha de escrita, com 1.
 func runAdopt(args []string, stdout, stderr io.Writer) int {
-	fs := flag.NewFlagSet("adopt", flag.ContinueOnError)
-	fs.SetOutput(stderr)
+	fs := newFlagSet("adopt", stderr)
 	dir := fs.String("dir", "", "raiz do projeto (padrão: diretório atual)")
 	var opts adopt.Options
 	fs.StringVar(&opts.Provider, "provider", "", "provedor git: github ou gitlab (padrão: o do remote origin)")
@@ -76,14 +74,14 @@ func runAdopt(args []string, stdout, stderr io.Writer) int {
 
 	plan, err := adopt.Plan(opts)
 	if err != nil {
-		fmt.Fprintf(stderr, "pipeline-claude adopt: %v\n", err)
+		fmt.Fprintf(stderr, "pipeline-claude adopt: %s\n", strings.TrimPrefix(err.Error(), "adopt: "))
 		return exitBlocked
 	}
 	created := []string{}
 	if !*dryRun {
 		res, err := adopt.Apply(plan)
 		if err != nil {
-			fmt.Fprintf(stderr, "pipeline-claude adopt: %v\n", err)
+			fmt.Fprintf(stderr, "pipeline-claude adopt: %s\n", strings.TrimPrefix(err.Error(), "adopt: "))
 			return exitFail
 		}
 		created = res.Created

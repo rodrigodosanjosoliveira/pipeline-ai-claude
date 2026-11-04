@@ -49,6 +49,22 @@ go install github.com/rodrigodosanjosoliveira/pipeline-ai-claude/cmd/pipeline-cl
   o novo aviso do `doctor` dispararia em todo projeto sem o módulo. Projetos
   existentes mantêm o arquivo deles: tire o nome da lista ou habilite o módulo
   em `enabled_modules` e rode `sync`.
+- Erro de opção da CLI (opção desconhecida, sem valor, valor inválido) sai em
+  português e com o prefixo do comando, como as demais mensagens, seguido da
+  ajuda; antes vinha o texto em inglês do pacote `flag`. O código de saída
+  continua 2. O `adopt` deixa de repetir o nome do comando no erro
+  (`pipeline-claude adopt: adopt: ...`).
+- Skill `fluxo` descreve o ciclo de correção depois de um bloqueio de revisor
+  (`test-writer` com o teste que reproduz o achado, `dev-implementation`, o
+  mesmo revisor de novo) e quais revisores só leitura podem rodar em paralelo.
+- `docs-update` preenche o report com `Edit` e distingue a recusa do hook do
+  pipeline (começa por "BLOQUEADO pelo pipeline-claude") da recusa da camada
+  de ferramentas do Claude Code, vista na validação da `v1.0.0-rc.4` num
+  `Write` do report.
+- Template do report e `docs-update` dizem que títulos de seção e rótulos de
+  campo são fixos: o validador os procura exatamente como no template. O
+  template do report não é gerenciado; projetos existentes copiam o aviso à
+  mão se quiserem.
 
 ## [v1.0.0-rc.4] - 2026-10-29
 

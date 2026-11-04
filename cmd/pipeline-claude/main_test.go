@@ -92,6 +92,64 @@ func TestRun(t *testing.T) {
 	}
 }
 
+// TestFlagErrors: erro de opção sai em português e com o prefixo do comando,
+// como as demais mensagens da CLI (atrito da demo, item 11: o pacote flag
+// imprimia "flag provided but not defined" sem prefixo). A ajuda continua
+// depois da mensagem.
+func TestFlagErrors(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+		want string
+	}{
+		{"validate desconhecida", []string{"validate", "--xpto", "A"}, "pipeline-claude validate: opção desconhecida --xpto"},
+		{"doctor desconhecida", []string{"doctor", "--xpto"}, "pipeline-claude doctor: opção desconhecida --xpto"},
+		{"sensors desconhecida", []string{"sensors", "--xpto"}, "pipeline-claude sensors: opção desconhecida --xpto"},
+		{"delivery new desconhecida", []string{"delivery", "new", "--xpto"}, "pipeline-claude delivery new: opção desconhecida --xpto"},
+		{"init desconhecida", []string{"init", "a", "--xpto"}, "pipeline-claude init: opção desconhecida --xpto"},
+		{"sync desconhecida", []string{"sync", "--xpto"}, "pipeline-claude sync: opção desconhecida --xpto"},
+		{"adopt desconhecida", []string{"adopt", "--xpto"}, "pipeline-claude adopt: opção desconhecida --xpto"},
+		{"sem valor", []string{"validate", "A", "--base"}, "pipeline-claude validate: a opção --base precisa de um valor"},
+		{"valor inválido", []string{"sensors", "--timeout", "dez"}, `pipeline-claude sensors: valor "dez" inválido para --timeout`},
+		{"booleano inválido", []string{"doctor", "--json=talvez"}, `pipeline-claude doctor: valor "talvez" inválido para --json`},
+		{"sintaxe inválida", []string{"sync", "---x"}, "pipeline-claude sync: sintaxe de opção inválida: ---x"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var stdout, stderr bytes.Buffer
+			if code := run(tt.args, strings.NewReader(""), &stdout, &stderr); code != exitBlocked {
+				t.Fatalf("código = %d, quer %d", code, exitBlocked)
+			}
+			got := stderr.String()
+			if !strings.HasPrefix(got, tt.want) {
+				t.Errorf("stderr = %q, quer começar com %q", got, tt.want)
+			}
+			for _, en := range []string{"flag provided", "flag needs", "invalid value", "invalid boolean", "bad flag"} {
+				if strings.Contains(got, en) {
+					t.Errorf("stderr com mensagem em inglês %q: %q", en, got)
+				}
+			}
+			if !strings.Contains(got, "Uso: pipeline-claude ") {
+				t.Errorf("stderr sem a ajuda do comando: %q", got)
+			}
+		})
+	}
+}
+
+// TestAdoptErrorPrefix: o erro do pacote adopt não repete o nome do comando
+// ("pipeline-claude adopt: adopt: ...").
+func TestAdoptErrorPrefix(t *testing.T) {
+	dir := t.TempDir()
+	var stdout, stderr bytes.Buffer
+	code := run([]string{"adopt", "--toolkit-version", "v0.3.0", "--dir", dir}, strings.NewReader(""), &stdout, &stderr)
+	if code != exitBlocked {
+		t.Fatalf("código = %d, quer %d (stderr: %q)", code, exitBlocked, stderr.String())
+	}
+	if got := stderr.String(); !strings.HasPrefix(got, "pipeline-claude adopt: ") || strings.Contains(got, "adopt: adopt:") {
+		t.Errorf("stderr = %q, quer um prefixo só", got)
+	}
+}
+
 func TestPlannedCoversUsage(t *testing.T) {
 	var buf bytes.Buffer
 	usage(&buf)

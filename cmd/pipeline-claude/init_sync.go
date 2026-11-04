@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"errors"
-	"flag"
 	"fmt"
 	"io"
 	"slices"
@@ -22,8 +21,7 @@ const initUsage = "Uso: pipeline-claude init <nome> [--dir <d>] [--module <m>] [
 // runInit cria um projeto novo (TD-24). Entrada ou destino inválido sai com 2;
 // falha de escrita ou do git, com 1.
 func runInit(args []string, stdout, stderr io.Writer) int {
-	fs := flag.NewFlagSet("init", flag.ContinueOnError)
-	fs.SetOutput(stderr)
+	fs := newFlagSet("init", stderr)
 	var opts scaffold.Options
 	fs.StringVar(&opts.Dir, "dir", "", "destino, inexistente ou diretório vazio (padrão: ./<nome>)")
 	fs.StringVar(&opts.Module, "module", "", "caminho do módulo Go (padrão: <nome>)")
@@ -129,8 +127,7 @@ const syncUsage = "Uso: pipeline-claude sync [--dry-run] [--json] [--release <ca
 // Makefile ausente ou inválido, versão do binário diferente da do Makefile ou
 // uso inválido.
 func runSync(args []string, stdout, stderr io.Writer) int {
-	fs := flag.NewFlagSet("sync", flag.ContinueOnError)
-	fs.SetOutput(stderr)
+	fs := newFlagSet("sync", stderr)
 	dryRun := fs.Bool("dry-run", false, "mostra o plano sem gravar nada")
 	asJSON := fs.Bool("json", false, `saída em JSON ({"ok", "items"})`)
 	var release listFlag
