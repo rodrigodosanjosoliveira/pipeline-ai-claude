@@ -129,8 +129,7 @@ Códigos de saída: 0 ok · 1 reprovado · 2 bloqueio do hook ou uso inválido.
 // parseValidate lê as opções do validate, antes ou depois do alvo. ok=false
 // devolve o código de saída: 0 para -h, 2 para uso inválido.
 func parseValidate(args []string, stderr io.Writer) (opts validate.Options, code int, ok bool) {
-	fs := flag.NewFlagSet("validate", flag.ContinueOnError)
-	fs.SetOutput(stderr)
+	fs := newFlagSet("validate", stderr)
 	fs.StringVar(&opts.BaseRef, "base", "", "referência git do diff (padrão: base_ref da configuração)")
 	fs.BoolVar(&opts.NoGit, "no-git", false, "pula as checagens do diff, com aviso")
 	fs.BoolVar(&opts.JSON, "json", false, "saída em JSON")
@@ -171,8 +170,7 @@ func parseValidate(args []string, stderr io.Writer) (opts validate.Options, code
 }
 
 func runDoctor(args []string, stdout, stderr io.Writer) int {
-	fs := flag.NewFlagSet("doctor", flag.ContinueOnError)
-	fs.SetOutput(stderr)
+	fs := newFlagSet("doctor", stderr)
 	asJSON := fs.Bool("json", false, "saída em JSON")
 	fs.Usage = func() {
 		fmt.Fprintln(stderr, "Uso: pipeline-claude doctor [--json]")
@@ -213,8 +211,7 @@ func loadConfig(cmd string, stderr io.Writer) (*config.Config, bool) {
 }
 
 func runSensors(args []string, stdout, stderr io.Writer) int {
-	fs := flag.NewFlagSet("sensors", flag.ContinueOnError)
-	fs.SetOutput(stderr)
+	fs := newFlagSet("sensors", stderr)
 	asJSON := fs.Bool("json", false, "saída em JSON")
 	timeout := fs.Duration("timeout", sensors.DefaultTimeout, "prazo de cada sensor (ex.: 90s, 15m)")
 	fs.Usage = func() {
@@ -246,8 +243,7 @@ func runDelivery(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "Uso: pipeline-claude delivery new --title <título> [--prefix <p>] [--scope <escopo>] [--flags <f1,f2>] [--json]")
 		return exitBlocked
 	}
-	fs := flag.NewFlagSet("delivery new", flag.ContinueOnError)
-	fs.SetOutput(stderr)
+	fs := newFlagSet("delivery new", stderr)
 	title := fs.String("title", "", "título da delivery (obrigatório, uma linha)")
 	prefix := fs.String("prefix", "", "prefixo do ID, um de delivery_prefixes")
 	scope := fs.String("scope", "", "escopo fechado da triagem, gravado no lugar de <escopo> do report_template")

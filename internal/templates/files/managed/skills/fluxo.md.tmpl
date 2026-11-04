@@ -50,9 +50,31 @@ demanda.
 4. `STATUS: bloqueado` interrompe: leve o `MOTIVO` ao subagente indicado em
    `PROXIMO` ou ao usuário, se for decisão humana.
 5. `security-review` roda uma vez, depois do `code-reviewer`, quando o sinal ou
-   o diff exigir. Achado de revisor volta para o `dev-implementation`; revisor
+   o diff exigir. Achado de revisor segue o ciclo de correção abaixo; revisor
    não corrige.
 6. Não pule `qa-validation` nem `docs-update`. O `git-delivery` só roda com o
    validador aprovado. Passe `MESCLADAS` ao `docs-update`.
 7. Ao final, resuma para o usuário: `DELIVERY_ID`, o que mudou, a saída do
    validador e o link do PR/MR.
+
+## Ciclo de correção
+
+Quando um revisor devolve `STATUS: bloqueado` com achado no código:
+
+1. `test-writer` primeiro: um teste que falha e reproduz o achado, quando ele
+   for testável (defeito de comportamento). Achado só de estilo ou de nome pula
+   este passo.
+2. `dev-implementation` corrige até o teste novo e os sensores passarem.
+3. O mesmo revisor roda de novo sobre o diff atualizado, com o achado anterior
+   no handoff, e confirma que o bloqueio caiu. Só então o fluxo segue para o
+   próximo da ordem.
+
+Os revisores depois dele na ordem ainda não rodaram e veem o diff já
+corrigido.
+
+Em paralelo: depois do `code-reviewer` aprovar (e do `query-performance`, que
+edita código e roda antes, sozinho), os revisores só leitura que se aplicam
+(`migration-reviewer`, `tenant-isolation`, `security-review`,
+`supply-chain-review`) podem rodar ao mesmo tempo sobre o mesmo diff: nenhum
+grava nada. Bloqueio de qualquer um deles abre o ciclo acima, e todos rodam de
+novo sobre o diff corrigido. `qa-validation` espera todos.

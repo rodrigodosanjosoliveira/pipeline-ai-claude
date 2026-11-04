@@ -24,13 +24,21 @@ Todos os handoffs da delivery e a lista `MESCLADAS` do fluxo.
    - `docs-ai/DECISOES.md`: se a delivery tomou uma decisão nova
    - comentários de documentação dos símbolos exportados alterados
 2. Preencher `docs-ai/deliveries/{DELIVERY_ID}/report.md`, criado pelo
-   `pm-triage` a partir de `docs-ai/deliveries/_template/report.md`.
+   `pm-triage` a partir de `docs-ai/deliveries/_template/report.md`. O arquivo
+   já existe: preencha com `Edit`, campo a campo, em vez de regravar com
+   `Write`. Recusa do hook do pipeline começa por
+   "BLOQUEADO pelo pipeline-claude"; recusa com outro texto (por exemplo,
+   "Subagents should return findings as text") não vem do hook, e sim da
+   camada de ferramentas do Claude Code: siga com `Edit`.
 3. Front matter: `status` atualizado; `require_security` reflete o sinal real
    (se o `security-review` rodou, é `true`, com a seção Security e o campo
    `Resultado`); `require_release_ops` idem para `release-ops` (seção
    Release/Ops, campo `Plano de rollback`).
 4. Preencher todos os campos de todas as seções obrigatórias com o conteúdo dos
-   handoffs: nada de `<preencher>`, valor vazio ou marcador de pendência.
+   handoffs: nada de `<preencher>`, valor vazio ou marcador de pendência. Os
+   títulos das seções e os rótulos dos campos são fixos: o validador os procura
+   exatamente como no template (por exemplo, `Evidencias (codigo/teste)`, sem
+   acento). Escreva só depois dos dois-pontos.
 5. Marcar o Final Checklist **só** com evidência dos handoffs.
 6. Índice de deliveries: na linha desta delivery, status `em revisão` (o
    `git-delivery` abre o PR/MR em seguida); nas linhas das deliveries da lista

@@ -1406,3 +1406,51 @@ func TestDeliveryIndexStatus(t *testing.T) {
 		}
 	}
 }
+
+// TestFluxoCorrectionCycle: o /fluxo descreve o ciclo de correção depois de um
+// bloqueio de revisor e o que pode rodar em paralelo (atrito da demo, item 4).
+func TestFluxoCorrectionCycle(t *testing.T) {
+	fluxo := render(t, ".claude/skills/fluxo/SKILL.md", sampleData())
+	sec := regexp.MustCompile(`(?s)\n## Ciclo de correção\n(.*?)(\n## |\z)`).FindStringSubmatch(fluxo)
+	if sec == nil {
+		t.Fatalf("fluxo sem a seção Ciclo de correção:\n%s", fluxo)
+	}
+	body := sec[1]
+	tw, dev, rev := strings.Index(body, "`test-writer`"), strings.Index(body, "`dev-implementation`"), strings.Index(body, "mesmo revisor")
+	if tw < 0 || dev < 0 || rev < 0 || !(tw < dev && dev < rev) {
+		t.Errorf("ciclo fora da ordem test-writer → dev-implementation → mesmo revisor:\n%s", body)
+	}
+	for _, want := range []string{"Em paralelo", "`security-review`", "`supply-chain-review`", "só leitura", "`query-performance`"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("ciclo de correção sem %q:\n%s", want, body)
+		}
+	}
+}
+
+// TestReportFixedLabels: o template do report e o docs-update dizem que
+// títulos e rótulos são fixos (atrito da demo, item 10: o docs-update estendeu
+// "Evidencias (codigo/teste)" e o validador reprovou).
+func TestReportFixedLabels(t *testing.T) {
+	report := render(t, "docs-ai/deliveries/_template/report.md", sampleData())
+	if !strings.Contains(report, "rótulos dos campos") || !strings.Contains(report, "são fixos") {
+		t.Errorf("template do report não marca os rótulos como fixos:\n%s", report)
+	}
+	docs := render(t, ".claude/agents/docs-update.md", sampleData())
+	for _, want := range []string{"rótulos dos campos", "são fixos", "depois dos dois-pontos"} {
+		if !strings.Contains(docs, want) {
+			t.Errorf("docs-update sem %q", want)
+		}
+	}
+}
+
+// TestDocsUpdateEditsReport: o docs-update edita o report com Edit e sabe
+// distinguir a recusa do hook da recusa da camada de ferramentas (atrito da
+// demo, item 9: Write recusado com mensagem que não é do pipeline).
+func TestDocsUpdateEditsReport(t *testing.T) {
+	docs := render(t, ".claude/agents/docs-update.md", sampleData())
+	for _, want := range []string{"com `Edit`", "BLOQUEADO pelo pipeline-claude", "não vem do hook"} {
+		if !strings.Contains(docs, want) {
+			t.Errorf("docs-update sem %q", want)
+		}
+	}
+}
