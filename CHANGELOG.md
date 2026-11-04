@@ -13,6 +13,13 @@ go install github.com/rodrigodosanjosoliveira/pipeline-ai-claude/cmd/pipeline-cl
 
 ## [Não lançado]
 
+## [v1.0.0-rc.5] - 2026-11-04
+
+Quinto candidato da v1.0: corrige os atritos da validação da `v1.0.0-rc.4` na
+demo (TD-36, DEL-008) que quebram o fluxo ou deixam a configuração
+inconsistente sem aviso. Atenção: `validate` com report inexistente passa a sair
+com 1 em vez de 2 (TD-40, em "Alterado").
+
 ### Adicionado
 
 - `delivery new --scope <escopo> --flags <f1,f2>` e os argumentos `scope` e
@@ -212,7 +219,8 @@ Primeira versão instalável (Fases 0 a 3).
 - Revisores gerados só leitura: diff e sensores chegam pelo MCP (TD-29).
 - `enabled_modules` recusa módulo repetido (TD-28).
 
-[Não lançado]: https://github.com/rodrigodosanjosoliveira/pipeline-ai-claude/compare/v1.0.0-rc.4...HEAD
+[Não lançado]: https://github.com/rodrigodosanjosoliveira/pipeline-ai-claude/compare/v1.0.0-rc.5...HEAD
+[v1.0.0-rc.5]: https://github.com/rodrigodosanjosoliveira/pipeline-ai-claude/compare/v1.0.0-rc.4...v1.0.0-rc.5
 [v1.0.0-rc.4]: https://github.com/rodrigodosanjosoliveira/pipeline-ai-claude/compare/v1.0.0-rc.3...v1.0.0-rc.4
 [v1.0.0-rc.3]: https://github.com/rodrigodosanjosoliveira/pipeline-ai-claude/compare/v1.0.0-rc.2...v1.0.0-rc.3
 [v1.0.0-rc.2]: https://github.com/rodrigodosanjosoliveira/pipeline-ai-claude/compare/v1.0.0-rc.1...v1.0.0-rc.2
