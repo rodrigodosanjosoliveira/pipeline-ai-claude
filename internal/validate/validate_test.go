@@ -244,6 +244,29 @@ func TestUsoInvalido(t *testing.T) {
 	}
 }
 
+// TestConfigAusenteDica: config ausente ou inválida sai no mesmo formato dos
+// outros comandos (loadConfig da CLI), com a dica do doctor (atrito da demo,
+// item 11), pelo ID e pelo caminho do report.
+func TestConfigAusenteDica(t *testing.T) {
+	for _, target := range []string{"DEL-001", "docs-ai/deliveries/DEL-001/report.md"} {
+		t.Run(target, func(t *testing.T) {
+			root := project(t, map[string]string{"DEL-001": reportFor("DEL-001", "", "")})
+			if err := os.Remove(filepath.Join(root, config.FileName)); err != nil {
+				t.Fatal(err)
+			}
+			r := runAt(t, root, Options{Target: target, NoGit: true})
+			if r.code != ExitBadUsage {
+				t.Fatalf("quer %d; %s", ExitBadUsage, r)
+			}
+			for _, want := range []string{"pipeline-claude validate: configuração ausente ou inválida: ", "Rode `pipeline-claude doctor` para diagnosticar."} {
+				if !strings.Contains(r.stderr, want) {
+					t.Errorf("stderr sem %q:\n%s", want, r.stderr)
+				}
+			}
+		})
+	}
+}
+
 // Report inexistente é resultado, não uso inválido: reprova (1) no mesmo
 // formato dos demais erros, em texto e em JSON (TASK-055).
 func TestAlvoInexistente(t *testing.T) {

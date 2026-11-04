@@ -61,6 +61,9 @@ go install github.com/rodrigodosanjosoliveira/pipeline-ai-claude/cmd/pipeline-cl
   ajuda; antes vinha o texto em inglês do pacote `flag`. O código de saída
   continua 2. O `adopt` deixa de repetir o nome do comando no erro
   (`pipeline-claude adopt: adopt: ...`).
+- `validate` com configuração ausente ou inválida usa o mesmo texto dos outros
+  comandos (`configuração ausente ou inválida: ...`) e a dica do `doctor`.
+  Código de saída 2, como antes.
 - Skill `fluxo` descreve o ciclo de correção depois de um bloqueio de revisor
   (`test-writer` com o teste que reproduz o achado, `dev-implementation`, o
   mesmo revisor de novo) e quais revisores só leitura podem rodar em paralelo.
