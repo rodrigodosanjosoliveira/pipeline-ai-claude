@@ -13,6 +13,20 @@ go install github.com/rodrigodosanjosoliveira/pipeline-ai-claude/cmd/pipeline-cl
 
 ## [Não lançado]
 
+## [v1.0.0] - 2026-11-04
+
+Primeira versão estável. O código é o da `v1.0.0-rc.5`, validada no projeto de
+demonstração [`biblioteca-bairro`](https://github.com/rodrigodosanjosoliveira/biblioteca-bairro)
+(TD-36, DEL-009) sem atrito novo. Limitações conhecidas, sem validação em
+projeto real: `adopt`, provedor GitLab, os subagentes `release-ops` e
+`tenant-isolation` e um bloqueio real do hook numa sessão.
+
+### Alterado
+
+- O contrato de [`docs/CONTRATO.md`](docs/CONTRATO.md) (TD-37) passa a seguir
+  versionamento semântico: mudança incompatível só numa versão major.
+- README deixa o estado "v1.0 em preparação".
+
 ## [v1.0.0-rc.5] - 2026-11-04
 
 Quinto candidato da v1.0: corrige os atritos da validação da `v1.0.0-rc.4` na
@@ -219,7 +233,8 @@ Primeira versão instalável (Fases 0 a 3).
 - Revisores gerados só leitura: diff e sensores chegam pelo MCP (TD-29).
 - `enabled_modules` recusa módulo repetido (TD-28).
 
-[Não lançado]: https://github.com/rodrigodosanjosoliveira/pipeline-ai-claude/compare/v1.0.0-rc.5...HEAD
+[Não lançado]: https://github.com/rodrigodosanjosoliveira/pipeline-ai-claude/compare/v1.0.0...HEAD
+[v1.0.0]: https://github.com/rodrigodosanjosoliveira/pipeline-ai-claude/compare/v1.0.0-rc.5...v1.0.0
 [v1.0.0-rc.5]: https://github.com/rodrigodosanjosoliveira/pipeline-ai-claude/compare/v1.0.0-rc.4...v1.0.0-rc.5
 [v1.0.0-rc.4]: https://github.com/rodrigodosanjosoliveira/pipeline-ai-claude/compare/v1.0.0-rc.3...v1.0.0-rc.4
 [v1.0.0-rc.3]: https://github.com/rodrigodosanjosoliveira/pipeline-ai-claude/compare/v1.0.0-rc.2...v1.0.0-rc.3
