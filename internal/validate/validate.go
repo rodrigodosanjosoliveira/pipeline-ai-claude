@@ -66,6 +66,9 @@ func Run(opts Options, stdout, stderr io.Writer) int {
 		return ExitBadUsage
 	}
 
+	// Mesmo texto do loadConfig da CLI, com a dica do doctor.
+	const configHint = "configuração ausente ou inválida: %v\nRode `pipeline-claude doctor` para diagnosticar."
+
 	getwd := opts.Getwd
 	if getwd == nil {
 		getwd = os.Getwd
@@ -87,7 +90,7 @@ func Run(opts Options, stdout, stderr io.Writer) int {
 		}
 		reportPath = filepath.Clean(target)
 		if cfg, err = config.Load(filepath.Dir(reportPath)); err != nil {
-			return usage("%v", err)
+			return usage(configHint, err)
 		}
 		dirName = filepath.Base(filepath.Dir(reportPath))
 	} else {
@@ -95,7 +98,7 @@ func Run(opts Options, stdout, stderr io.Writer) int {
 			return usage("ID de delivery inválido: %q", target)
 		}
 		if cfg, err = config.Load(wd); err != nil {
-			return usage("%v", err)
+			return usage(configHint, err)
 		}
 		reportPath = filepath.Join(cfg.Root(), filepath.FromSlash(cfg.DeliveriesDir), target, "report.md")
 		dirName = target
