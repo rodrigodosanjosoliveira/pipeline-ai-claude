@@ -76,6 +76,9 @@ commit:
   próprias usa os alvos do `make` (`["make", "vet"]`, `["make", "test"]`,
   `["make", "vuln"]`) ou um script do projeto como sensor. Os subagentes
   revisores pedem `vuln` e `mod_verify` pelo nome; o `doctor` avisa se faltarem.
+  Para os testes, `["go", "test", "-json", "./..."]` com
+  `"format": "go-test-json"` mostra os testes pulados e o motivo; com
+  `"skips": "fail"`, teste pulado reprova (TD-43).
 
 ## 5. Conferir
 

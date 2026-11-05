@@ -1,0 +1,6 @@
+{"ImportPath":"example.com/biblioteca/quebrado [example.com/biblioteca/quebrado.test]","Action":"build-output","Output":"# example.com/biblioteca/quebrado [example.com/biblioteca/quebrado.test]\n"}
+{"ImportPath":"example.com/biblioteca/quebrado [example.com/biblioteca/quebrado.test]","Action":"build-output","Output":"quebrado/q.go:3:23: cannot use \"x\" (untyped string constant) as int value in return statement\n"}
+{"ImportPath":"example.com/biblioteca/quebrado [example.com/biblioteca/quebrado.test]","Action":"build-fail"}
+{"Time":"2026-11-05T18:22:58.199153801-03:00","Action":"start","Package":"example.com/biblioteca/quebrado"}
+{"Time":"2026-11-05T18:22:58.199408666-03:00","Action":"output","Package":"example.com/biblioteca/quebrado","Output":"FAIL\texample.com/biblioteca/quebrado [build failed]\n","OutputType":"frame"}
+{"Time":"2026-11-05T18:22:58.199441899-03:00","Action":"fail","Package":"example.com/biblioteca/quebrado","Elapsed":0,"FailedBuild":"example.com/biblioteca/quebrado [example.com/biblioteca/quebrado.test]"}

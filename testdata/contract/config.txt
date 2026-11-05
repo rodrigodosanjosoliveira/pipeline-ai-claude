@@ -34,3 +34,5 @@ report_schema.forbid_markers []string opcional
 sensors []object opcional
 sensors[].name string obrigatório
 sensors[].cmd []string obrigatório
+sensors[].format string opcional
+sensors[].skips string opcional

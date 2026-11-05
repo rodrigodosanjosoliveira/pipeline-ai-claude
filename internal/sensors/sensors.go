@@ -71,8 +71,12 @@ type SensorResult struct {
 	DurationMS int64 `json:"duration_ms"`
 	// Output são os últimos OutputLimit bytes de stdout e stderr juntos.
 	Output string `json:"output"`
-	// Truncated indica que o começo da saída foi descartado.
+	// Truncated indica que o começo da saída foi descartado ou, com format,
+	// que o fim do resumo foi cortado.
 	Truncated bool `json:"truncated"`
+	// Skipped conta os testes pulados; só sensor com format os conhece, os
+	// demais ficam com 0 (TD-43).
+	Skipped int `json:"skipped"`
 	// Error descreve por que o sensor não terminou normalmente (comando não
 	// encontrado, timeout, cancelamento). Vazio quando o processo saiu.
 	Error string `json:"error"`
@@ -178,6 +182,15 @@ func runOne(parent context.Context, root string, s config.Sensor, timeout time.D
 	cmd.Stdout = out
 	cmd.Stderr = out
 	cmd.WaitDelay = waitDelay
+	var events *goTestParser
+	if s.Format == config.SensorFormatGoTestJSON {
+		// stdout traz os eventos; stderr (go: downloading, erro do go) fica
+		// à parte e só aparece se o sensor falhar.
+		events = newGoTestParser()
+		out = newTailBuffer(stderrLimit)
+		cmd.Stdout = events
+		cmd.Stderr = out
+	}
 
 	start := time.Now()
 	err := cmd.Run()
@@ -207,7 +220,40 @@ func runOne(parent context.Context, root string, s config.Sensor, timeout time.D
 			res.Error = fmt.Sprintf("falha ao aguardar %s: %v", s.Cmd[0], err)
 		}
 	}
+	if events != nil {
+		goTestResult(&res, s, events)
+	}
 	return res
+}
+
+// stderrLimit é o máximo de stderr guardado de sensor com format.
+const stderrLimit = 2 << 10
+
+// goTestResult troca a saída crua pelo resumo do go test -json e aplica as
+// regras do TD-43: linha ilegível, teste falho com exit 0 e, com skips: fail,
+// teste pulado reprovam. res.Output chega com o stderr.
+func goTestResult(res *SensorResult, s config.Sensor, events *goTestParser) {
+	stderr := res.Output
+	sum, perr := events.finish()
+	res.Skipped = sum.Skipped
+	res.Output, res.Truncated = sum.Text, sum.Truncated
+	if res.Error == "" {
+		switch {
+		case perr != nil:
+			res.OK = false
+			res.Error = "saída do go test -json ilegível: " + perr.Error()
+		case res.ExitCode == 0 && (sum.Failed > 0 || sum.PackagesFailed > 0):
+			res.OK = false
+			res.Error = fmt.Sprintf("go test saiu com 0, mas há %d teste(s) com falha e %d pacote(s) com falha", sum.Failed, sum.PackagesFailed)
+		case res.OK && s.Skips == config.SkipsFail && sum.Skipped > 0:
+			res.OK = false
+			res.Error = fmt.Sprintf("%d teste(s) pulado(s) com skips: %s", sum.Skipped, config.SkipsFail)
+		}
+	}
+	if !res.OK && strings.TrimSpace(stderr) != "" {
+		text, cut := capText(res.Output + "\nstderr:\n" + stderr)
+		res.Output, res.Truncated = text, res.Truncated || cut
+	}
 }
 
 // Print escreve r em w, legível ou em JSON ({"ok", "sensors": [...]}), e
@@ -245,6 +291,12 @@ func Print(w io.Writer, r Result, asJSON bool) int {
 			failedN++
 		}
 		fmt.Fprintf(&b, "  %-8s %-20s %s\n", status, s.Name, formatDuration(s.DurationMS))
+		if s.OK && s.Skipped > 0 {
+			// skips: warn (TD-43): verde, mas o aviso e os motivos aparecem.
+			fmt.Fprintf(&b, "  %-8s %-20s → AVISO: %d teste(s) pulado(s)\n", "", "", s.Skipped)
+			writeOutput(&b, s)
+			continue
+		}
 		if s.OK {
 			continue
 		}
@@ -254,14 +306,7 @@ func Print(w io.Writer, r Result, asJSON bool) int {
 		default:
 			fmt.Fprintf(&b, "  %-8s %-20s → exit %d\n", "", "", s.ExitCode)
 		}
-		if s.Output != "" {
-			if s.Truncated {
-				fmt.Fprintf(&b, "      (saída truncada: últimos %d bytes)\n", OutputLimit)
-			}
-			for _, line := range strings.Split(strings.TrimRight(s.Output, "\n"), "\n") {
-				fmt.Fprintf(&b, "      | %s\n", line)
-			}
-		}
+		writeOutput(&b, s)
 	}
 	verdict := "aprovado"
 	if code != 0 {
@@ -272,6 +317,18 @@ func Print(w io.Writer, r Result, asJSON bool) int {
 		return fail()
 	}
 	return code
+}
+
+func writeOutput(b *strings.Builder, s SensorResult) {
+	if s.Output == "" {
+		return
+	}
+	if s.Truncated && !strings.Contains(s.Output, truncatedMark) {
+		fmt.Fprintf(b, "      (saída truncada: últimos %d bytes)\n", OutputLimit)
+	}
+	for _, line := range strings.Split(strings.TrimRight(s.Output, "\n"), "\n") {
+		fmt.Fprintf(b, "      | %s\n", line)
+	}
 }
 
 func formatDuration(ms int64) string {

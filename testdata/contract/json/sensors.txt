@@ -11,5 +11,6 @@ sensors[].exit_code: number
 sensors[].name: string
 sensors[].ok: bool
 sensors[].output: string
+sensors[].skipped: number
 sensors[].truncated: bool
 sensors[]: object

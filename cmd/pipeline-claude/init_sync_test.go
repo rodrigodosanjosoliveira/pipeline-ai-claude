@@ -484,3 +484,50 @@ func TestPinnable(t *testing.T) {
 		}
 	}
 }
+
+// TestE2EInitSensorTest: o init gera o sensor test com go test -json e
+// format go-test-json (TD-43); no projeto gerado ele roda de verdade, conta o
+// teste pulado e avisa sem reprovar.
+func TestE2EInitSensorTest(t *testing.T) {
+	if _, err := exec.LookPath("go"); err != nil {
+		t.Skip("go fora do PATH")
+	}
+	root := initProject(t)
+	writeFile(t, root, "cmd/biblioteca-bairro/acervo_test.go", `package main
+
+import "testing"
+
+func TestAcervoBanco(t *testing.T) {
+	t.Skip("sem BIBLIOTECA_DB_URL")
+}
+`)
+	code, stdout, stderr := runBin(t, root, "", "sensors", "--json", "test")
+	if code != exitOK {
+		t.Fatalf("sensors test: código %d\nstdout:\n%s\nstderr:\n%s", code, stdout, stderr)
+	}
+	var out struct {
+		OK      bool `json:"ok"`
+		Sensors []struct {
+			Name    string `json:"name"`
+			OK      bool   `json:"ok"`
+			Skipped *int   `json:"skipped"`
+			Output  string `json:"output"`
+		} `json:"sensors"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &out); err != nil {
+		t.Fatalf("saída não é JSON: %v\n%s", err, stdout)
+	}
+	if len(out.Sensors) != 1 || !out.Sensors[0].OK || out.Sensors[0].Skipped == nil || *out.Sensors[0].Skipped != 1 {
+		t.Fatalf("sensor test: %+v", out.Sensors)
+	}
+	for _, want := range []string{"--- SKIP: TestAcervoBanco", "sem BIBLIOTECA_DB_URL", "1 pulado"} {
+		if !strings.Contains(out.Sensors[0].Output, want) {
+			t.Errorf("output sem %q:\n%s", want, out.Sensors[0].Output)
+		}
+	}
+
+	code, stdout, _ = runBin(t, root, "", "sensors", "test")
+	if code != exitOK || !strings.Contains(stdout, "AVISO: 1 teste(s) pulado(s)") {
+		t.Errorf("saída humana: código %d\n%s", code, stdout)
+	}
+}

@@ -31,6 +31,34 @@ go install github.com/rodrigodosanjosoliveira/pipeline-ai-claude/cmd/pipeline-cl
   Erro de git, índice sem coluna Status ou report que não dá para atualizar
   sai com 1 sem gravar nada. `--json`: `{"ok", "changes": [{"id", "from",
   "to", "commit"}]}`, com `error` quando falha.
+- Sensor com testes pulados visíveis (TD-43): campos opcionais `format` (só
+  `go-test-json`) e `skips` (`warn`, o padrão com `format`, ou `fail`; só vale
+  com `format`). Com `format`, a saída do `go test -json` vira um resumo
+  (pacotes; testes que passaram, falharam e pularam; cada teste pulado com a
+  linha `--- SKIP` e o motivo; a saída dos que falharam). `skips: warn` mostra
+  `AVISO: N teste(s) pulado(s)` e mantém o sensor verde; `skips: fail` reprova
+  com teste pulado. Linha que não é evento JSON reprova o sensor. Cada sensor
+  ganha a chave `skipped` (número) no `sensors --json` e no
+  `pipeline_sensors`, com 0 em sensor sem `format`.
+
+### Alterado
+
+- O `init` gera o sensor `test` como `["go", "test", "-json", "./..."]` com
+  `"format": "go-test-json"` e `"skips": "warn"` (TD-43). A config não é
+  gerenciada: num projeto existente, troque à mão em `.pipeline-claude.json`
+
+  ```json
+  {"name": "test", "cmd": ["go", "test", "./..."]}
+  ```
+
+  por
+
+  ```json
+  {"name": "test", "cmd": ["go", "test", "-json", "./..."], "format": "go-test-json", "skips": "warn"}
+  ```
+
+  e use `"skips": "fail"` se teste pulado deve reprovar (por exemplo, no CI com
+  o banco disponível).
 
 ## [v1.0.0] - 2026-11-04
 

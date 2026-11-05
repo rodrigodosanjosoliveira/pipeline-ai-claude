@@ -83,7 +83,8 @@ func TestCheckSensors(t *testing.T) {
 			mutate:  func(t *testing.T, root string) { dropSensors(t, root, "test") },
 			status:  StatusWarn,
 			msg:     []string{"test (agent-auditor)"},
-			action:  `"name": "test"`,
+			// A sugestão traz o sensor inteiro, com format e skips (TD-43).
+			action: `{"name": "test", "cmd": ["go","test","-json","./..."], "format": "go-test-json", "skips": "warn"}`,
 		},
 		{
 			name:   "sensor test sobrando sem o módulo não importa",
