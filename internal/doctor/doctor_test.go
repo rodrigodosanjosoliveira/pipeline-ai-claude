@@ -651,8 +651,8 @@ func TestGoVersionSemTrocaDeToolchain(t *testing.T) {
 func TestCollectAmbienteReal(t *testing.T) {
 	root := project(t, nil)
 	checks := Collect(root)
-	if len(checks) != 11 {
-		t.Fatalf("checks = %d, quer 11: %+v", len(checks), checks)
+	if len(checks) != 12 {
+		t.Fatalf("checks = %d, quer 12: %+v", len(checks), checks)
 	}
 	for _, c := range checks {
 		t.Logf("[%s] %s: %s", c.Status, c.Name, c.Message)

@@ -529,6 +529,32 @@ func TestLoadValidacao(t *testing.T) {
 			wantErr: "auto_flags",
 		},
 
+		// security_surface_imports (TD-44).
+		{
+			name: "security_surface_imports válido",
+			body: bodyWith(t, map[string]any{"security_surface_imports": []any{"database/sql", "github.com/jackc/pgx"}}),
+		},
+		{
+			name:    "security_surface_imports vazio",
+			body:    bodyWith(t, map[string]any{"security_surface_imports": []any{}}),
+			wantErr: "security_surface_imports",
+		},
+		{
+			name:    "security_surface_imports com item vazio",
+			body:    bodyWith(t, map[string]any{"security_surface_imports": []any{"os/exec", " "}}),
+			wantErr: "security_surface_imports[1]",
+		},
+		{
+			name:    "security_surface_imports com barra no fim",
+			body:    bodyWith(t, map[string]any{"security_surface_imports": []any{"github.com/lib/pq/"}}),
+			wantErr: "security_surface_imports[0]",
+		},
+		{
+			name:    "security_surface_imports com espaço",
+			body:    bodyWith(t, map[string]any{"security_surface_imports": []any{"os/exec "}}),
+			wantErr: "security_surface_imports[0]",
+		},
+
 		// sensors.
 		{
 			name: "sensors válidos",
@@ -763,6 +789,42 @@ func TestDefaults(t *testing.T) {
 	}
 	if !reflect.DeepEqual(*c.ReportSchema, DefaultReportSchema()) {
 		t.Errorf("ReportSchema = %+v, quer padrão %+v", *c.ReportSchema, DefaultReportSchema())
+	}
+}
+
+// TestSensitiveImports: sem security_surface_imports vale a lista padrão; com
+// ele, a lista dele substitui a padrão (TD-44). O casamento é por prefixo de
+// caminho de import.
+func TestSensitiveImports(t *testing.T) {
+	def := loadBody(t, validBody)
+	want := []string{"database/sql", "os/exec", "github.com/jackc/pgx", "github.com/lib/pq"}
+	if got := def.SensitiveImports(); !reflect.DeepEqual(got, want) {
+		t.Errorf("padrão = %v, quer %v", got, want)
+	}
+	custom := loadBody(t, bodyWith(t, map[string]any{"security_surface_imports": []any{"net/http"}}))
+	if got := custom.SensitiveImports(); !reflect.DeepEqual(got, []string{"net/http"}) {
+		t.Errorf("configurado = %v", got)
+	}
+
+	cases := []struct {
+		imp  string
+		want string
+	}{
+		{"database/sql", "database/sql"},
+		{"database/sql/driver", "database/sql"},
+		{"github.com/jackc/pgx/v5", "github.com/jackc/pgx"},
+		{"github.com/jackc/pgx/v5/pgxpool", "github.com/jackc/pgx"},
+		{"github.com/lib/pq", "github.com/lib/pq"},
+		{"github.com/lib/pqx", ""},
+		{"github.com/jackc/pgxlisten", ""},
+		{"os", ""},
+		{"os/execabs", ""},
+		{"golang.org/x/sys/execabs", ""},
+	}
+	for _, tc := range cases {
+		if got := def.SensitiveImport(tc.imp); got != tc.want {
+			t.Errorf("SensitiveImport(%q) = %q, quer %q", tc.imp, got, tc.want)
+		}
 	}
 }
 

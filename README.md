@@ -26,7 +26,7 @@ atribuição (ver [`NOTICE`](NOTICE)).
 | `pipeline-claude validate` | Valida o relatório de delivery contra o esquema do projeto e o diff completo |
 | `pipeline-claude sensors` | Gates do projeto com saída JSON |
 | `pipeline-claude delivery new` | Cria o relatório da próxima delivery e registra no índice |
-| `pipeline-claude doctor` | Diagnóstico do ambiente e do projeto: hooks, arquivos gerenciados, sensores pedidos e ferramentas de cada subagente |
+| `pipeline-claude doctor` | Diagnóstico do ambiente e do projeto: hooks, arquivos gerenciados, sensores pedidos, ferramentas de cada subagente e imports sensíveis fora da superfície de segurança |
 | `pipeline-claude mcp` | Servidor MCP (stdio) para o Claude Code |
 
 ## Uso
