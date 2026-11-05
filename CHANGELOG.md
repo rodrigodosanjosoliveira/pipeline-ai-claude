@@ -40,6 +40,15 @@ go install github.com/rodrigodosanjosoliveira/pipeline-ai-claude/cmd/pipeline-cl
   com teste pulado. Linha que não é evento JSON reprova o sensor. Cada sensor
   ganha a chave `skipped` (número) no `sensors --json` e no
   `pipeline_sensors`, com 0 em sensor sem `format`.
+- Checagem `imports` no `doctor` (TD-44): avisa pacote Go que importa algo
+  sensível num arquivo fora de `security_surface_paths`, pela mesma regra de
+  cobertura do validador. Lê só os imports e ignora `_test.go`, `vendor/`,
+  `testdata/` e diretórios que começam com `.` ou `_`. Lista padrão, por
+  prefixo de caminho de import: `database/sql`, `os/exec`,
+  `github.com/jackc/pgx` e `github.com/lib/pq`. O campo opcional
+  `security_surface_imports` (lista não vazia) a substitui. Arquivo `.go`
+  ilegível vira aviso com o caminho. É sempre aviso, nunca erro. No
+  `doctor --json`, a checagem nova aparece entre `subagentes` e `binário`.
 
 ### Alterado
 

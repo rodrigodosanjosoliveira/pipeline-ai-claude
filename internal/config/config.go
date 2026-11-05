@@ -124,6 +124,11 @@ type Config struct {
 	// require_security no report, mesmo que o triage não tenha marcado.
 	SecuritySurfacePaths []string `json:"security_surface_paths"`
 
+	// SecuritySurfaceImports substitui DefaultSensitiveImports: o doctor avisa
+	// quando um pacote fora de security_surface_paths importa um deles
+	// (TD-44). Ausente vale a lista padrão; presente, não pode ser vazia.
+	SecuritySurfaceImports []string `json:"security_surface_imports"`
+
 	// AutoFlags liga flag do report a padrões de caminho: se o diff tocar um
 	// padrão, a flag precisa estar true (TD-13). Chaves ^require_[a-z_]+$.
 	AutoFlags map[string][]string `json:"auto_flags"`
@@ -393,6 +398,15 @@ func (c *Config) normalize() error {
 	}
 	if err := cleanAll("security_surface_paths", c.SecuritySurfacePaths); err != nil {
 		return err
+	}
+	if c.SecuritySurfaceImports != nil && len(c.SecuritySurfaceImports) == 0 {
+		return errors.New("security_surface_imports vazio: remova o campo para usar a lista padrão")
+	}
+	for i, imp := range c.SecuritySurfaceImports {
+		if imp == "" || strings.ContainsFunc(imp, unicode.IsSpace) || strings.HasPrefix(imp, "/") ||
+			strings.HasSuffix(imp, "/") || strings.Contains(imp, "//") || strings.Contains(imp, `\`) {
+			return fmt.Errorf("security_surface_imports[%d] %q inválido: use um caminho de import, como \"database/sql\"", i, imp)
+		}
 	}
 	for flag, patterns := range c.AutoFlags {
 		if !flagRe.MatchString(flag) {
@@ -708,6 +722,30 @@ func (c *Config) IsNoAgent(rel string) bool {
 // superfície de segurança.
 func (c *Config) IsSecuritySurface(rel string) bool {
 	return matchesAny(rel, c.SecuritySurfacePaths)
+}
+
+// DefaultSensitiveImports são os imports sensíveis quando a config não traz
+// security_surface_imports (TD-44).
+var DefaultSensitiveImports = []string{"database/sql", "os/exec", "github.com/jackc/pgx", "github.com/lib/pq"}
+
+// SensitiveImports devolve a lista de imports sensíveis em vigor: a da config
+// ou, sem ela, uma cópia de DefaultSensitiveImports.
+func (c *Config) SensitiveImports() []string {
+	if c.SecuritySurfaceImports != nil {
+		return c.SecuritySurfaceImports
+	}
+	return slices.Clone(DefaultSensitiveImports)
+}
+
+// SensitiveImport devolve o item de SensitiveImports que casa com o caminho de
+// import imp (igual a ele ou prefixo seguido de "/"), ou "" se nenhum casar.
+func (c *Config) SensitiveImport(imp string) string {
+	for _, s := range c.SensitiveImports() {
+		if imp == s || strings.HasPrefix(imp, s+"/") {
+			return s
+		}
+	}
+	return ""
 }
 
 // FlagsTriggeredBy devolve, em ordem alfabética, as flags de auto_flags cujos

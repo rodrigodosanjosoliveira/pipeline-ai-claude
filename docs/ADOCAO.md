@@ -92,6 +92,10 @@ bin/pipeline-claude sync --dry-run   # nada a fazer logo depois da adoção
 - `subagentes` avisa revisor do projeto com ferramenta de escrita ou Bash
   (TD-29). Ajuste o `tools` do subagente ou inclua-o em `editor_agents`.
 - `sensores` avisa sensor pedido pelos subagentes e ausente na config.
+- `imports` avisa pacote que importa `database/sql`, `os/exec`, `pgx` ou `pq`
+  fora de `security_surface_paths` (TD-44). Projeto existente costuma ter
+  migração e `cmd/` assim: acrescente o diretório na superfície, ou troque a
+  lista com `security_surface_imports`.
 
 ## 6. Paridade do validador
 

@@ -10,4 +10,4 @@ checks[].name: string
 checks[].status: string
 checks[]: object
 ok: bool
-checks[].name, em ordem: go, git, provedor git, configuração, hook, fmt-hook, sync, sensores, subagentes, binário, filesystem
+checks[].name, em ordem: go, git, provedor git, configuração, hook, fmt-hook, sync, sensores, subagentes, imports, binário, filesystem
