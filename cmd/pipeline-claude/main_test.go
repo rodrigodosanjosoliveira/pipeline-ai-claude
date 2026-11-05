@@ -684,7 +684,7 @@ func TestE2EMCP(t *testing.T) {
 	if resp[0].Result.ProtocolVersion != "2025-06-18" {
 		t.Errorf("initialize: %s", lines[0])
 	}
-	if len(resp[1].Result.Tools) != 5 { // 5 com pipeline_diff (TD-29)
+	if len(resp[1].Result.Tools) != 7 { // 5 com pipeline_diff (TD-29), 7 com os handoffs (TD-41)
 		t.Errorf("tools/list: %s", lines[1])
 	}
 	if resp[2].Result.IsError || len(resp[2].Result.Content) != 1 || !strings.Contains(resp[2].Result.Content[0].Text, `"ok": true`) {

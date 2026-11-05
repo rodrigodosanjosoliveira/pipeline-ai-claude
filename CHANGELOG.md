@@ -13,6 +13,17 @@ go install github.com/rodrigodosanjosoliveira/pipeline-ai-claude/cmd/pipeline-cl
 
 ## [Não lançado]
 
+### Adicionado
+
+- Ferramentas MCP `pipeline_handoff_put` e `pipeline_handoff_get` (TD-41): cada
+  subagente grava o próprio handoff em
+  `<deliveries_dir>/<ID>/handoffs/NN-<agente>.md`, com `NN` sequencial, e o
+  próximo lê o anterior direto, sem a sessão principal reescrever resumos. O
+  `put` só cria, nunca sobrescreve, e recusa sem gravar delivery inexistente,
+  subagente sem arquivo em `.claude/agents/`, conteúdo vazio, com NUL ou acima
+  de 64 KiB e caminho protegido. Os templates passam a usá-las numa versão
+  seguinte.
+
 ## [v1.0.0] - 2026-11-04
 
 Primeira versão estável. O código é o da `v1.0.0-rc.5`, validada no projeto de
