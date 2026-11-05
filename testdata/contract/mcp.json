@@ -61,6 +61,47 @@
       }
     },
     {
+      "name": "pipeline_handoff_get",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "agent": {
+            "type": "string"
+          },
+          "delivery": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "delivery"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "pipeline_handoff_put",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "agent": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string"
+          },
+          "delivery": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "delivery",
+          "agent",
+          "content"
+        ],
+        "type": "object"
+      }
+    },
+    {
       "name": "pipeline_sensors",
       "inputSchema": {
         "additionalProperties": false,

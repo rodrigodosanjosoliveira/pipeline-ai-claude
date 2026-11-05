@@ -62,7 +62,7 @@ internal/hook           hook PreToolUse (bloqueio de caminho protegido)
 internal/fmthook        hook PostToolUse (formata .go com go/format)
 internal/validate       validação de delivery (report, índice, diff)
 internal/sensors        execução dos sensores do projeto (argv, sem shell)
-internal/delivery       criação de delivery com ID sequencial e registro no índice
+internal/delivery       criação de delivery com ID sequencial, registro no índice e handoffs
 internal/doctor         diagnóstico do ambiente e do projeto
 internal/mcp            servidor MCP por stdio (ferramentas e recursos)
 internal/manifest       lock dos arquivos gerenciados (.pipeline-claude.lock)

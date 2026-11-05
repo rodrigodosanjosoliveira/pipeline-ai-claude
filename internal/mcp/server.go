@@ -9,7 +9,8 @@
 // pipeline_delivery_new recusada em caminho protegido (TD-16); caminhos
 // conferidos dentro da raiz (TD-17); recursos pipeline://config,
 // pipeline://invariants e pipeline://deliveries/index lidos da config;
-// pipeline_diff só leitura para os revisores (TD-29).
+// pipeline_diff só leitura para os revisores (TD-29); pipeline_handoff_put e
+// pipeline_handoff_get gravam e leem os handoffs da delivery (TD-41).
 
 // Package mcp implementa o servidor MCP do pipeline-claude por stdio (TD-21).
 //
@@ -317,6 +318,25 @@ var tools = []toolSpec{
 		},
 		run: (*server).toolDiff,
 	},
+	{
+		name:        "pipeline_handoff_put",
+		description: "Grava o handoff do subagente em <deliveries_dir>/<ID>/handoffs/NN-<agent>.md, com NN sequencial, e devolve o caminho. Só cria, nunca sobrescreve. Recusado se a delivery não existir, se o subagente não tiver arquivo em .claude/agents, com conteúdo vazio, com NUL ou acima de 64 KiB, ou em caminho protegido.",
+		args: []argSpec{
+			{name: "delivery", kind: kindString, required: true, description: "ID da delivery."},
+			{name: "agent", kind: kindString, required: true, description: "Nome do subagente que grava, como em .claude/agents/<agent>.md."},
+			{name: "content", kind: kindString, required: true, description: "Handoff completo, com o bloco STATUS, PROXIMO e SINAIS."},
+		},
+		run: (*server).toolHandoffPut,
+	},
+	{
+		name:        "pipeline_handoff_get",
+		description: "Lê os handoffs da delivery em ordem, cada um com o caminho; com agent, só os daquele subagente. Só leitura.",
+		args: []argSpec{
+			{name: "delivery", kind: kindString, required: true, description: "ID da delivery."},
+			{name: "agent", kind: kindString, description: "Só os handoffs deste subagente; padrão: todos."},
+		},
+		run: (*server).toolHandoffGet,
+	},
 }
 
 func toolList() []Tool {
@@ -563,13 +583,64 @@ func (s *server) toolDiff(a args) ToolResult {
 	return text(b.String(), false)
 }
 
+func (s *server) toolHandoffPut(a args) ToolResult {
+	cfg, _, err := s.loadConfig()
+	if err != nil {
+		return text(err.Error(), true)
+	}
+	if err := checkWritable(cfg, "pipeline_handoff_put"); err != nil {
+		return text(err.Error(), true)
+	}
+	rel, err := delivery.PutHandoff(cfg, a.str("delivery"), a.str("agent"), a.str("content"))
+	if err != nil {
+		return text(fmt.Sprintf("handoff não gravado: %v", err), true)
+	}
+	return text(fmt.Sprintf("Handoff gravado: %s\n", rel), false)
+}
+
+func (s *server) toolHandoffGet(a args) ToolResult {
+	cfg, _, err := s.loadConfig()
+	if err != nil {
+		return text(err.Error(), true)
+	}
+	id := a.str("delivery")
+	list, err := delivery.Handoffs(cfg, id, a.str("agent"))
+	if err != nil {
+		return text(fmt.Sprintf("handoffs não lidos: %v", err), true)
+	}
+	if len(list) == 0 {
+		return text(fmt.Sprintf("Nenhum handoff em %s.\n", path.Join(cfg.DeliveriesDir, id, delivery.HandoffsDir)), false)
+	}
+	var b strings.Builder
+	for i, h := range list {
+		if i > 0 {
+			b.WriteString("\n")
+		}
+		fmt.Fprintf(&b, "=== %s ===\n%s", h.Path, h.Content)
+		if !strings.HasSuffix(h.Content, "\n") {
+			b.WriteString("\n")
+		}
+	}
+	return text(b.String(), false)
+}
+
 // checkDeliveryWritable recusa pipeline_delivery_new quando deliveries_dir ou
 // index_file está em protected_paths, inclusive por symlink, ou quando há
 // caminho protegido dentro de deliveries_dir (TD-16). Roda antes de qualquer
 // escrita.
 func checkDeliveryWritable(cfg *config.Config) error {
+	return checkWritable(cfg, "pipeline_delivery_new")
+}
+
+// checkWritable é a checagem de checkDeliveryWritable para a ferramenta tool,
+// que grava dentro de deliveries_dir.
+func checkWritable(cfg *config.Config, tool string) error {
 	refuse := func(rel string) error {
-		return fmt.Errorf("pipeline_delivery_new recusada: %s está em caminho protegido (protected_paths); o MCP não grava em caminho protegido (TD-16). Crie a delivery fora da sessão com `pipeline-claude delivery new`", rel)
+		msg := fmt.Sprintf("%s recusada: %s está em caminho protegido (protected_paths); o MCP não grava em caminho protegido (TD-16)", tool, rel)
+		if tool == "pipeline_delivery_new" {
+			msg += ". Crie a delivery fora da sessão com `pipeline-claude delivery new`"
+		}
+		return errors.New(msg)
 	}
 	for _, rel := range []string{cfg.DeliveriesDir, cfg.IndexFile} {
 		if cfg.IsProtected(rel) {
@@ -577,7 +648,7 @@ func checkDeliveryWritable(cfg *config.Config) error {
 		}
 		t, err := hookio.ResolveInRoot(cfg.Root(), rel)
 		if err != nil {
-			return fmt.Errorf("pipeline_delivery_new recusada: não foi possível resolver %s: %v", rel, err)
+			return fmt.Errorf("%s recusada: não foi possível resolver %s: %v", tool, rel, err)
 		}
 		if t.Inside && cfg.IsProtected(t.Rel) {
 			return refuse(rel + " (" + t.Rel + ")")
