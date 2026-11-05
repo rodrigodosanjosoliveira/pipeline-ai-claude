@@ -414,6 +414,83 @@ com o rc.4 na validação da demo.
 reprovou" de "chamada errada"; delivery que não existe é resultado da
 validação, não erro de quem chamou, e a falha fechada (regra 3) pede reprovar.
 
+## Fase 6 (v1.1)
+
+Decisões tiradas do feedback da validação da `v1.0.0-rc.4` no projeto de
+demonstração (DEL-008), que ficaram fora da `v1.0.0` por não quebrarem o fluxo.
+Tudo é acréscimo compatível pelo TD-37 (minor).
+
+### TD-41 — Handoffs em arquivo, pelo MCP
+Cada subagente grava o próprio handoff com a ferramenta MCP
+`pipeline_handoff_put` (`delivery`, `agent`, `content`) em
+`docs-ai/deliveries/<ID>/handoffs/NN-<agent>.md`, com `NN` sequencial de dois
+dígitos, e devolve à sessão principal só o caminho e o bloco `STATUS`,
+`PROXIMO` e `SINAIS`. O próximo subagente lê o anterior por
+`pipeline_handoff_get` (`delivery`, `agent` opcional) ou por `Read`. O
+servidor só cria: nunca sobrescreve nem apaga (criação exclusiva, com nova
+tentativa no próximo `NN` se dois revisores paralelos gravarem juntos). Recusa,
+sem gravar nada: delivery inexistente, `agent` fora de `^[a-z][a-z0-9-]*$` ou
+sem arquivo em `.claude/agents/`, conteúdo vazio, com NUL ou acima de 64 KiB, e
+caminho final fora da pasta da delivery após `filepath.Clean`. Os handoffs vão
+no commit da delivery; o validador não depende deles.
+**Motivo:** a sessão principal reescrevia resumos longos a cada etapa, com custo
+alto e risco de perder detalhe. O handoff é registro, não autorização: o hook e
+o validador continuam decidindo sozinhos.
+
+### TD-42 — `index sync`: status do índice a partir do git
+`pipeline-claude index sync [--base <ref>] [--dry-run] [--json]` e a ferramenta
+MCP `pipeline_index_sync` marcam como `merged` cada delivery `draft` ou `em
+revisão` do `INDEX.md` que tenha commit com `[<ID>]` na `base_ref`
+(`git log --fixed-strings --grep`), na linha do índice e no `status` do front
+matter do report. Só promovem para `merged`; não mexem em outro status nem em
+outra coluna, e preservam o resto do arquivo byte a byte. Erro de git ou índice
+ilegível: sai com 1 sem gravar nada (regra 3). O `/fluxo` chama a ferramenta no
+lugar da regra 1 manual, e o `docs-update` deixa de receber `MESCLADAS`.
+**Motivo:** o status dependia de um agente seguir a regra; é um fato do git e
+pode ser calculado de forma determinística.
+
+### TD-43 — Sensor com testes pulados visíveis
+Sensor ganha o campo opcional `format`; o único valor é `go-test-json`. Com ele,
+o sensor roda `go test -json`, a saída vira um resumo (pacotes, testes que
+passaram, falharam e pularam, e cada teste pulado com o motivo) e o resultado
+ganha `skipped` (número). Campo opcional `skips`: `warn` (padrão) mostra aviso
+e mantém o sensor verde; `fail` reprova com `skipped` > 0. Linha de JSON
+ilegível reprova o sensor. O `init` passa a gerar o sensor `test` assim;
+projeto existente troca à mão (a config não é gerenciada).
+**Motivo:** na demo, os testes de banco pulavam sem a variável do banco e o
+sensor dava verde sem provar a camada de banco.
+
+### TD-44 — `doctor` cruza imports com a superfície de segurança
+O `doctor` lê os imports (`go/parser`, só imports) dos pacotes Go do projeto,
+sem `_test.go`, `vendor/` e `testdata/`, e avisa quando um pacote importa algo
+da lista de imports sensíveis e o diretório dele não está em
+`security_surface_paths`. Lista padrão: `database/sql`, `os/exec`,
+`github.com/jackc/pgx`, `github.com/lib/pq` (por prefixo). Campo opcional
+`security_surface_imports` substitui a lista. É aviso, não erro.
+**Motivo:** na demo, `internal/migrate/` e `cmd/` executavam SQL com DSN de
+produção fora da superfície, e nada avisou.
+
+### TD-45 — Log opcional das decisões do hook
+Campo opcional `hook_log` (caminho relativo à raiz, dentro dela após
+`filepath.Clean`). Com ele, o hook acrescenta uma linha JSON por decisão:
+`time` (UTC, RFC 3339), `tool`, `path` (relativo à raiz), `agent` (vazio na
+sessão principal), `decision` (`allow` ou `deny`) e `rule`. Nunca grava
+conteúdo da edição. O próprio arquivo de log é sempre protegido contra edição
+por ferramenta. Falha ao gravar o log bloqueia (exit 2, regra 3). O `init`
+gera `hook_log` em `.pipeline-claude/hook-log.jsonl` e o põe no `.gitignore`.
+**Motivo:** a validação da demo só provou o hook com payload sintético; o log
+deixa uma delivery mostrar que o hook foi exercitado de verdade.
+
+### TD-46 — Revisores só leitura continuam sem Bash
+Nenhum revisor só leitura (`migration-reviewer`, `qa-validation`,
+`security-review`, `supply-chain-review`, `code-reviewer`, `tenant-isolation`,
+`agent-auditor`) ganha `Bash`. O `migration-reviewer` ganha
+`pipeline_sensors`. A prova da camada de banco vem do sensor de teste com
+pulados visíveis (TD-43), não de comando livre. Decisão do usuário em
+2026-11-05.
+**Motivo:** Bash num revisor transforma leitura em execução arbitrária; o guard-ia
+fez a mesma escolha. O que faltava ao QA era evidência, e o TD-43 a dá.
+
 ## Pontos em aberto
 
 1. Distribuição da camada Claude também como plugin do Claude Code.

@@ -79,7 +79,8 @@ docs/                   decisões, guias e prompts de execução por fatia
 ```
 
 Pacotes previstos: nenhum. Guia de adoção de projeto existente em
-`docs/ADOCAO.md`. Fase 5 (v1.0) em `docs/prompts/fase-5-v1.md`. Contrato estável
+`docs/ADOCAO.md`. Fase 5 (v1.0) em `docs/prompts/fase-5-v1.md`; Fase 6 (v1.1) em
+`docs/prompts/fase-6-v1-1.md`. Contrato estável
 (TD-37) em `docs/CONTRATO.md`; histórico de versões no `CHANGELOG.md`.
 
 ## Convenções
