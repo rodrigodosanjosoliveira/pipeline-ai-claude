@@ -604,6 +604,10 @@ func snapshot(t *testing.T, root string) string {
 		if err != nil {
 			return err
 		}
+		// .git fica de fora: o git mexe nele em segundo plano depois de commit.
+		if d.IsDir() && d.Name() == ".git" {
+			return filepath.SkipDir
+		}
 		rel, _ := filepath.Rel(root, p)
 		fmt.Fprintf(&b, "%s %v", rel, d.Type())
 		if d.Type().IsRegular() {

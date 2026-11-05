@@ -24,6 +24,8 @@ func gitRepo(t *testing.T, root string, commits ...string) {
 		}
 	}
 	run("init", "-q", "-b", "main")
+	run("config", "maintenance.auto", "false")
+	run("config", "gc.auto", "0")
 	run("add", "-A")
 	run("commit", "-q", "-m", "chore: inicial")
 	for _, m := range commits {

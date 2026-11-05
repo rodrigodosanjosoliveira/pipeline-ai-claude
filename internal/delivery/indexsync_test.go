@@ -49,6 +49,8 @@ func syncProject(t *testing.T, index string, reports map[string]string, commits 
 		}
 	}
 	git("init", "-q", "-b", "main")
+	git("config", "maintenance.auto", "false")
+	git("config", "gc.auto", "0")
 	git("add", "-A")
 	git("commit", "-q", "-m", "chore: projeto inicial")
 	for _, msg := range commits {
@@ -252,3 +254,4 @@ func FuzzSetFrontStatus(f *testing.F) {
 		}
 	})
 }
+
