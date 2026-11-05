@@ -771,6 +771,9 @@ func TestGeneratedConfigLoads(t *testing.T) {
 						t.Errorf("sensor %s: format=%q skips=%q, quer %q e %q", s.Name, s.Format, s.Skips, wantFormat, wantSkips)
 					}
 				}
+				if cfg.HookLog != ".pipeline-claude/hook-log.jsonl" {
+					t.Errorf("hook_log = %q (TD-45)", cfg.HookLog)
+				}
 				if len(cfg.SecuritySurfacePaths) == 0 {
 					t.Error("security_surface_paths vazio")
 				}
@@ -909,8 +912,13 @@ func TestGoMod(t *testing.T) {
 
 func TestGitignore(t *testing.T) {
 	out := render(t, ".gitignore", sampleData())
-	if !slices.Contains(strings.Split(out, "\n"), "bin/") {
+	lines := strings.Split(out, "\n")
+	if !slices.Contains(lines, "bin/") {
 		t.Error(".gitignore sem bin/")
+	}
+	// O log do hook (TD-45) fica fora do git.
+	if !slices.Contains(lines, "/.pipeline-claude/") {
+		t.Error(".gitignore sem /.pipeline-claude/")
 	}
 }
 

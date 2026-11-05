@@ -265,6 +265,7 @@ const contractConfigFull = `{
   "enabled_modules": ["data-model"],
   "security_surface_paths": ["internal/acesso/"],
   "security_surface_imports": ["database/sql"],
+  "hook_log": "docs-ai/registro/hook.jsonl",
   "auto_flags": {"require_security": ["internal/acesso/"]},
   "report_schema": {
     "section_level": 2,

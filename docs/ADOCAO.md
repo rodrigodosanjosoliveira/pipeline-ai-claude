@@ -72,6 +72,9 @@ commit:
 - **`report_schema`:** seções e campos do report do projeto. Regra própria do
   tipo "flag X exige campo Y no front matter" vai em `flag_front` (TD-30);
   desligue `forbid_markers` se reports antigos usam TODO como texto.
+- **`hook_log`:** opcional. Com `".pipeline-claude/hook-log.jsonl"` e
+  `/.pipeline-claude/` no `.gitignore`, o hook registra cada decisão (TD-45)
+  e uma delivery pode mostrar que ele foi exercitado de verdade.
 - **`sensors`:** comandos sem shell. Projeto com build tags ou checagens
   próprias usa os alvos do `make` (`["make", "vet"]`, `["make", "test"]`,
   `["make", "vuln"]`) ou um script do projeto como sensor. Os subagentes

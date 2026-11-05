@@ -531,3 +531,32 @@ func TestAcervoBanco(t *testing.T) {
 		t.Errorf("saída humana: código %d\n%s", code, stdout)
 	}
 }
+
+// TestE2EInitHookLog: o projeto do init liga hook_log (TD-45); cada decisão
+// do hook vira uma linha e o log fica fora do git.
+func TestE2EInitHookLog(t *testing.T) {
+	root := initProject(t)
+	if !slices.Contains(strings.Split(readFile(t, root, ".gitignore"), "\n"), "/.pipeline-claude/") {
+		t.Error(".gitignore sem /.pipeline-claude/")
+	}
+	for _, tc := range []struct {
+		fixture string
+		want    int
+	}{
+		{"pretooluse-edit-main.json", exitBlocked},
+		{"pretooluse-write-dev-implementation.json", exitOK},
+	} {
+		if code, _, stderr := runBin(t, root, fixture(t, tc.fixture, root), "hook"); code != tc.want {
+			t.Fatalf("%s: código %d, quer %d\n%s", tc.fixture, code, tc.want, stderr)
+		}
+	}
+	log := strings.Split(strings.TrimSuffix(readFile(t, root, ".pipeline-claude/hook-log.jsonl"), "\n"), "\n")
+	if len(log) != 2 {
+		t.Fatalf("log com %d linhas:\n%s", len(log), strings.Join(log, "\n"))
+	}
+	for i, want := range []string{`"decision":"deny"`, `"decision":"allow"`} {
+		if !strings.Contains(log[i], want) || !strings.Contains(log[i], `"path":"internal/exemplo/`) {
+			t.Errorf("linha %d = %s, quer %s", i, log[i], want)
+		}
+	}
+}

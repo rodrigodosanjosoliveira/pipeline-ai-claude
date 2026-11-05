@@ -124,6 +124,11 @@ type Config struct {
 	// require_security no report, mesmo que o triage não tenha marcado.
 	SecuritySurfacePaths []string `json:"security_surface_paths"`
 
+	// HookLog é o arquivo, relativo à raiz, em que o hook acrescenta uma linha
+	// JSON por decisão (TD-45). Vazio desliga o log. O próprio arquivo nunca é
+	// editado por ferramenta.
+	HookLog string `json:"hook_log"`
+
 	// SecuritySurfaceImports substitui DefaultSensitiveImports: o doctor avisa
 	// quando um pacote fora de security_surface_paths importa um deles
 	// (TD-44). Ausente vale a lista padrão; presente, não pode ser vazia.
@@ -363,6 +368,11 @@ func (c *Config) normalize() error {
 	if c.ReportTemplate != "" {
 		if c.ReportTemplate, err = cleanFile(c.ReportTemplate); err != nil {
 			return fmt.Errorf("report_template: %w", err)
+		}
+	}
+	if c.HookLog != "" {
+		if c.HookLog, err = cleanFile(c.HookLog); err != nil {
+			return fmt.Errorf("hook_log: %w", err)
 		}
 	}
 	for i, f := range c.InvariantsFiles {
@@ -716,6 +726,16 @@ func (c *Config) IsProtected(rel string) bool {
 // IsNoAgent informa se rel, relativo à raiz do projeto, cai em no_agent_paths.
 func (c *Config) IsNoAgent(rel string) bool {
 	return matchesAny(rel, c.NoAgentPaths)
+}
+
+// IsHookLog informa se rel, relativo à raiz do projeto, é o arquivo de
+// hook_log, pela mesma regra de casamento dos caminhos protegidos. Sem
+// hook_log, nada é.
+func (c *Config) IsHookLog(rel string) bool {
+	if c.HookLog == "" {
+		return false
+	}
+	return matchesAny(rel, []string{c.HookLog})
 }
 
 // IsSecuritySurface informa se rel, relativo à raiz do projeto, toca a

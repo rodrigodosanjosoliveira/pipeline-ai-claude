@@ -49,6 +49,15 @@ go install github.com/rodrigodosanjosoliveira/pipeline-ai-claude/cmd/pipeline-cl
   `security_surface_imports` (lista não vazia) a substitui. Arquivo `.go`
   ilegível vira aviso com o caminho. É sempre aviso, nunca erro. No
   `doctor --json`, a checagem nova aparece entre `subagentes` e `binário`.
+- Campo opcional `hook_log` (TD-45): caminho de arquivo relativo à raiz, que
+  precisa ficar dentro dela. Com ele, o hook acrescenta uma linha JSON por
+  decisão sobre Edit, Write, MultiEdit e NotebookEdit: `time` (UTC, RFC
+  3339), `tool`, `path` (relativo à raiz; vazio fora dela), `agent`,
+  `decision` (`allow` ou `deny`) e `rule` (`hook_log`, `no_agent_paths`,
+  `protected_paths`, `report_writers`, `editor_agents`, `unprotected`,
+  `outside_root` ou `unresolved_path`). Nunca grava o conteúdo da edição. O
+  próprio log é bloqueado para edição por qualquer agente. Falha ao gravar o
+  log bloqueia a ferramenta (exit 2).
 
 ### Alterado
 
@@ -68,6 +77,9 @@ go install github.com/rodrigodosanjosoliveira/pipeline-ai-claude/cmd/pipeline-cl
 
   e use `"skips": "fail"` se teste pulado deve reprovar (por exemplo, no CI com
   o banco disponível).
+- O `init` gera `"hook_log": ".pipeline-claude/hook-log.jsonl"` e põe
+  `/.pipeline-claude/` no `.gitignore` (TD-45). Num projeto existente, para
+  registrar as decisões do hook, acrescente as duas linhas à mão.
 
 ## [v1.0.0] - 2026-11-04
 

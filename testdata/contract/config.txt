@@ -18,6 +18,7 @@ editor_agents []string opcional
 report_writers []string opcional
 enabled_modules []string opcional
 security_surface_paths []string opcional
+hook_log string opcional
 security_surface_imports []string opcional
 auto_flags map[string][]string opcional
 report_schema object opcional
