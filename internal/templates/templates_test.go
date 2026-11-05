@@ -754,12 +754,22 @@ func TestGeneratedConfigLoads(t *testing.T) {
 					sensors = append(sensors, s.Cmd)
 				}
 				wantSensors := [][]string{
-					{"go", "vet", "./..."}, {"go", "test", "./..."}, {"go", "build", "./..."},
+					{"go", "vet", "./..."}, {"go", "test", "-json", "./..."}, {"go", "build", "./..."},
 					{"go", "run", "golang.org/x/vuln/cmd/govulncheck@" + toolkitGovulncheck(t), "./..."},
 					{"go", "mod", "verify"},
 				}
 				if !slices.EqualFunc(sensors, wantSensors, slices.Equal[[]string]) {
 					t.Errorf("sensors = %v", sensors)
+				}
+				// Só o test lê a saída como go test -json (TD-43).
+				for _, s := range cfg.Sensors {
+					wantFormat, wantSkips := "", ""
+					if s.Name == "test" {
+						wantFormat, wantSkips = config.SensorFormatGoTestJSON, config.SkipsWarn
+					}
+					if s.Format != wantFormat || s.Skips != wantSkips {
+						t.Errorf("sensor %s: format=%q skips=%q, quer %q e %q", s.Name, s.Format, s.Skips, wantFormat, wantSkips)
+					}
 				}
 				if len(cfg.SecuritySurfacePaths) == 0 {
 					t.Error("security_surface_paths vazio")

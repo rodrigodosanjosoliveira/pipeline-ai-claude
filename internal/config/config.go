@@ -190,7 +190,20 @@ type Sensor struct {
 	Name string `json:"name"`
 	// Cmd é o comando e seus argumentos, executado sem shell. Não vazio.
 	Cmd []string `json:"cmd"`
+	// Format diz como ler a saída do comando. Vazio guarda a saída crua;
+	// SensorFormatGoTestJSON lê eventos do go test -json e resume (TD-43).
+	Format string `json:"format,omitempty"`
+	// Skips diz o que fazer com testes pulados: SkipsWarn (padrão com Format)
+	// avisa e mantém o sensor verde; SkipsFail reprova. Só vale com Format.
+	Skips string `json:"skips,omitempty"`
 }
+
+// Valores de Sensor.Format e Sensor.Skips (TD-43).
+const (
+	SensorFormatGoTestJSON = "go-test-json"
+	SkipsWarn              = "warn"
+	SkipsFail              = "fail"
+)
 
 // DefaultReportSchema devolve o esquema de report padrão. Cada chamada devolve
 // uma cópia independente.
@@ -446,6 +459,19 @@ func (c *Config) normalize() error {
 		seen[s.Name] = true
 		if len(s.Cmd) == 0 || s.Cmd[0] == "" {
 			return fmt.Errorf("sensors[%d] %q: cmd vazio", i, s.Name)
+		}
+		switch s.Format {
+		case "", SensorFormatGoTestJSON:
+		default:
+			return fmt.Errorf("sensors[%d] %q: format %q desconhecido (use %q)", i, s.Name, s.Format, SensorFormatGoTestJSON)
+		}
+		switch {
+		case s.Skips != "" && s.Format == "":
+			return fmt.Errorf("sensors[%d] %q: skips só vale com format", i, s.Name)
+		case s.Skips == "" && s.Format != "":
+			c.Sensors[i].Skips = SkipsWarn
+		case s.Skips != "" && s.Skips != SkipsWarn && s.Skips != SkipsFail:
+			return fmt.Errorf("sensors[%d] %q: skips %q desconhecido (use %q ou %q)", i, s.Name, s.Skips, SkipsWarn, SkipsFail)
 		}
 	}
 	return nil

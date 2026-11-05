@@ -654,7 +654,14 @@ func sensorsCheck(cfg *config.Config, cfgErr error) Check {
 		for _, d := range defaults {
 			if d.Name == name {
 				argv, _ := json.Marshal(d.Cmd)
-				entries = append(entries, fmt.Sprintf(`{"name": %q, "cmd": %s}`, d.Name, argv))
+				entry := fmt.Sprintf(`{"name": %q, "cmd": %s`, d.Name, argv)
+				if d.Format != "" {
+					entry += fmt.Sprintf(`, "format": %q`, d.Format)
+				}
+				if d.Skips != "" {
+					entry += fmt.Sprintf(`, "skips": %q`, d.Skips)
+				}
+				entries = append(entries, entry+"}")
 			}
 		}
 	}

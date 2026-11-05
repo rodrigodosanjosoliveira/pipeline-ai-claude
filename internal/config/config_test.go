@@ -573,6 +573,42 @@ func TestLoadValidacao(t *testing.T) {
 			}}),
 			wantErr: "shell",
 		},
+		{
+			name: "sensor com format go-test-json e skips",
+			body: bodyWith(t, map[string]any{"sensors": []any{
+				map[string]any{"name": "test", "cmd": []any{"go", "test", "-json", "./..."}, "format": "go-test-json"},
+				map[string]any{"name": "test_db", "cmd": []any{"go", "test", "-json", "./..."}, "format": "go-test-json", "skips": "fail"},
+				map[string]any{"name": "test_aviso", "cmd": []any{"go", "test", "-json", "./..."}, "format": "go-test-json", "skips": "warn"},
+			}}),
+		},
+		{
+			name: "sensor com format desconhecido",
+			body: bodyWith(t, map[string]any{"sensors": []any{
+				map[string]any{"name": "test", "cmd": []any{"go", "test", "./..."}, "format": "tap"},
+			}}),
+			wantErr: `format "tap"`,
+		},
+		{
+			name: "sensor com skips desconhecido",
+			body: bodyWith(t, map[string]any{"sensors": []any{
+				map[string]any{"name": "test", "cmd": []any{"go", "test", "-json", "./..."}, "format": "go-test-json", "skips": "ignore"},
+			}}),
+			wantErr: `skips "ignore"`,
+		},
+		{
+			name: "sensor com skips sem format",
+			body: bodyWith(t, map[string]any{"sensors": []any{
+				map[string]any{"name": "test", "cmd": []any{"go", "test", "./..."}, "skips": "fail"},
+			}}),
+			wantErr: "skips só vale com format",
+		},
+		{
+			name: "sensor com format de tipo errado",
+			body: bodyWith(t, map[string]any{"sensors": []any{
+				map[string]any{"name": "test", "cmd": []any{"go", "test", "./..."}, "format": true},
+			}}),
+			wantErr: "format",
+		},
 
 		// report_schema.
 		{
@@ -727,6 +763,21 @@ func TestDefaults(t *testing.T) {
 	}
 	if !reflect.DeepEqual(*c.ReportSchema, DefaultReportSchema()) {
 		t.Errorf("ReportSchema = %+v, quer padrão %+v", *c.ReportSchema, DefaultReportSchema())
+	}
+}
+
+// TestDefaultsSensorSkips: com format, skips ausente vale warn (TD-43); sem
+// format, os dois ficam vazios.
+func TestDefaultsSensorSkips(t *testing.T) {
+	c := loadBody(t, bodyWith(t, map[string]any{"sensors": []any{
+		map[string]any{"name": "test", "cmd": []any{"go", "test", "-json", "./..."}, "format": "go-test-json"},
+		map[string]any{"name": "vet", "cmd": []any{"go", "vet", "./..."}},
+	}}))
+	if got := c.Sensors[0]; got.Format != SensorFormatGoTestJSON || got.Skips != SkipsWarn {
+		t.Errorf("test: format=%q skips=%q, quer %q e %q", got.Format, got.Skips, SensorFormatGoTestJSON, SkipsWarn)
+	}
+	if got := c.Sensors[1]; got.Format != "" || got.Skips != "" {
+		t.Errorf("vet: format=%q skips=%q, quer vazios", got.Format, got.Skips)
 	}
 }
 

@@ -68,19 +68,35 @@ func TestHelperProcess(t *testing.T) {
 	case "env":
 		fmt.Print(os.Getenv("PIPELINE_CLAUDE_SENSORS_PROBE"))
 		os.Exit(0)
+	case "cat":
+		// cat <arquivo> <exit> [<texto no stderr>]: imita o go test -json.
+		if len(args) < 3 {
+			os.Exit(93)
+		}
+		data, err := os.ReadFile(args[1])
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(94)
+		}
+		os.Stdout.Write(data)
+		if len(args) > 3 {
+			fmt.Fprintln(os.Stderr, args[3])
+		}
+		code, _ := strconv.Atoi(args[2])
+		os.Exit(code)
 	}
 	fmt.Fprintf(os.Stderr, "helper: modo desconhecido %q\n", args[0])
 	os.Exit(92)
 }
 
 // helperCmd devolve o argv de um sensor que roda o helper no modo informado.
-func helperCmd(t *testing.T, mode string) []string {
+func helperCmd(t *testing.T, mode string, extra ...string) []string {
 	t.Helper()
 	exe, err := os.Executable()
 	if err != nil {
 		t.Fatalf("os.Executable: %v", err)
 	}
-	return []string{exe, "-test.run=^TestHelperProcess$", "--", mode}
+	return append([]string{exe, "-test.run=^TestHelperProcess$", "--", mode}, extra...)
 }
 
 // loadConfig grava uma configuração válida com os sensores dados num diretório
@@ -432,7 +448,7 @@ func TestPrintJSON(t *testing.T) {
 		t.Fatalf("sensors = %d, esperado 3", len(got.Sensors))
 	}
 	for _, s := range got.Sensors {
-		for _, k := range []string{"name", "ok", "exit_code", "duration_ms", "output", "truncated", "error"} {
+		for _, k := range []string{"name", "ok", "exit_code", "duration_ms", "output", "truncated", "error", "skipped"} {
 			if _, ok := s[k]; !ok {
 				t.Errorf("sensor %v sem a chave %q", s["name"], k)
 			}

@@ -224,9 +224,16 @@ func fieldsContract(t *testing.T, typ reflect.Type, full string, parse func([]by
 	fields := reflectFields("", typ)
 	required := make([]bool, len(fields))
 	for i, f := range fields {
-		required[i] = parse(without(t, full, f.path)) != nil
+		required[i] = parse(without(t, full, append([]string{f.path}, contractDependents[f.path]...)...)) != nil
 	}
 	return fields, required
+}
+
+// contractDependents lista campos que só valem junto com outro: ao medir se o
+// campo da chave é obrigatório, os dependentes saem com ele.
+var contractDependents = map[string][]string{
+	// skips só vale com format (TD-43).
+	"sensors[].format": {"sensors[].skips"},
 }
 
 func requiredWord(req bool) string {
@@ -237,7 +244,8 @@ func requiredWord(req bool) string {
 }
 
 // contractConfigFull usa todos os campos de .pipeline-claude.json, com valores
-// válidos e independentes entre si (remover um não invalida outro por tabela).
+// válidos e independentes entre si (remover um não invalida outro por tabela),
+// salvo os de contractDependents.
 const contractConfigFull = `{
   "version": 1,
   "project_type": "api",
@@ -268,7 +276,7 @@ const contractConfigFull = `{
     "placeholder_values": ["tbd"],
     "forbid_markers": ["TODO"]
   },
-  "sensors": [{"name": "testes", "cmd": ["go", "test", "./..."]}]
+  "sensors": [{"name": "testes", "cmd": ["go", "test", "-json", "./..."], "format": "go-test-json", "skips": "fail"}]
 }`
 
 func TestContractConfig(t *testing.T) {

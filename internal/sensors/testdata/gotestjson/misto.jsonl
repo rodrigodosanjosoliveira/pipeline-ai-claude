@@ -1,0 +1,43 @@
+{"Time":"2026-11-05T18:22:57.489357757-03:00","Action":"start","Package":"example.com/biblioteca/acervo"}
+{"Time":"2026-11-05T18:22:57.489715466-03:00","Action":"run","Package":"example.com/biblioteca/acervo","Test":"TestCatalogo"}
+{"Time":"2026-11-05T18:22:57.489729298-03:00","Action":"output","Package":"example.com/biblioteca/acervo","Test":"TestCatalogo","Output":"=== RUN   TestCatalogo\n","OutputType":"frame"}
+{"Time":"2026-11-05T18:22:57.489807031-03:00","Action":"output","Package":"example.com/biblioteca/acervo","Test":"TestCatalogo","Output":"--- PASS: TestCatalogo (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-11-05T18:22:57.48982749-03:00","Action":"pass","Package":"example.com/biblioteca/acervo","Test":"TestCatalogo","Elapsed":0}
+{"Time":"2026-11-05T18:22:57.489843879-03:00","Action":"run","Package":"example.com/biblioteca/acervo","Test":"TestBanco"}
+{"Time":"2026-11-05T18:22:57.489850939-03:00","Action":"output","Package":"example.com/biblioteca/acervo","Test":"TestBanco","Output":"=== RUN   TestBanco\n","OutputType":"frame"}
+{"Time":"2026-11-05T18:22:57.489861671-03:00","Action":"output","Package":"example.com/biblioteca/acervo","Test":"TestBanco","Output":"    acervo_test.go:8: sem BIBLIOTECA_DB_URL\n"}
+{"Time":"2026-11-05T18:22:57.489872112-03:00","Action":"output","Package":"example.com/biblioteca/acervo","Test":"TestBanco","Output":"--- SKIP: TestBanco (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-11-05T18:22:57.489880202-03:00","Action":"skip","Package":"example.com/biblioteca/acervo","Test":"TestBanco","Elapsed":0}
+{"Time":"2026-11-05T18:22:57.489887507-03:00","Action":"run","Package":"example.com/biblioteca/acervo","Test":"TestSub"}
+{"Time":"2026-11-05T18:22:57.489893577-03:00","Action":"output","Package":"example.com/biblioteca/acervo","Test":"TestSub","Output":"=== RUN   TestSub\n","OutputType":"frame"}
+{"Time":"2026-11-05T18:22:57.489901327-03:00","Action":"run","Package":"example.com/biblioteca/acervo","Test":"TestSub/titulo"}
+{"Time":"2026-11-05T18:22:57.489907551-03:00","Action":"output","Package":"example.com/biblioteca/acervo","Test":"TestSub/titulo","Output":"=== RUN   TestSub/titulo\n","OutputType":"frame"}
+{"Time":"2026-11-05T18:22:57.489916158-03:00","Action":"output","Package":"example.com/biblioteca/acervo","Test":"TestSub/titulo","Output":"--- PASS: TestSub/titulo (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-11-05T18:22:57.489924164-03:00","Action":"pass","Package":"example.com/biblioteca/acervo","Test":"TestSub/titulo","Elapsed":0}
+{"Time":"2026-11-05T18:22:57.489931301-03:00","Action":"run","Package":"example.com/biblioteca/acervo","Test":"TestSub/autor"}
+{"Time":"2026-11-05T18:22:57.489938339-03:00","Action":"output","Package":"example.com/biblioteca/acervo","Test":"TestSub/autor","Output":"=== RUN   TestSub/autor\n","OutputType":"frame"}
+{"Time":"2026-11-05T18:22:57.48994621-03:00","Action":"output","Package":"example.com/biblioteca/acervo","Test":"TestSub/autor","Output":"    acervo_test.go:13: autor ainda não indexado\n"}
+{"Time":"2026-11-05T18:22:57.489957978-03:00","Action":"output","Package":"example.com/biblioteca/acervo","Test":"TestSub/autor","Output":"--- SKIP: TestSub/autor (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-11-05T18:22:57.489965974-03:00","Action":"skip","Package":"example.com/biblioteca/acervo","Test":"TestSub/autor","Elapsed":0}
+{"Time":"2026-11-05T18:22:57.48997427-03:00","Action":"output","Package":"example.com/biblioteca/acervo","Test":"TestSub","Output":"--- PASS: TestSub (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-11-05T18:22:57.489981904-03:00","Action":"pass","Package":"example.com/biblioteca/acervo","Test":"TestSub","Elapsed":0}
+{"Time":"2026-11-05T18:22:57.48998848-03:00","Action":"output","Package":"example.com/biblioteca/acervo","Output":"PASS\n","OutputType":"frame"}
+{"Time":"2026-11-05T18:22:57.489998194-03:00","Action":"output","Package":"example.com/biblioteca/acervo","Output":"ok  \texample.com/biblioteca/acervo\t(cached)\n"}
+{"Time":"2026-11-05T18:22:57.490010412-03:00","Action":"pass","Package":"example.com/biblioteca/acervo","Elapsed":0.001}
+{"Time":"2026-11-05T18:22:57.673194624-03:00","Action":"start","Package":"example.com/biblioteca/emprestimo"}
+{"Time":"2026-11-05T18:22:57.673378864-03:00","Action":"start","Package":"example.com/biblioteca/vazio"}
+{"Time":"2026-11-05T18:22:57.673449519-03:00","Action":"output","Package":"example.com/biblioteca/vazio","Output":"?   \texample.com/biblioteca/vazio\t[no test files]\n"}
+{"Time":"2026-11-05T18:22:57.673470644-03:00","Action":"skip","Package":"example.com/biblioteca/vazio","Elapsed":0}
+{"Time":"2026-11-05T18:22:57.678021842-03:00","Action":"run","Package":"example.com/biblioteca/emprestimo","Test":"TestPrazo"}
+{"Time":"2026-11-05T18:22:57.67811704-03:00","Action":"output","Package":"example.com/biblioteca/emprestimo","Test":"TestPrazo","Output":"=== RUN   TestPrazo\n","OutputType":"frame"}
+{"Time":"2026-11-05T18:22:57.678137071-03:00","Action":"output","Package":"example.com/biblioteca/emprestimo","Test":"TestPrazo","Output":"    emprestimo_test.go:6: calculando prazo\n"}
+{"Time":"2026-11-05T18:22:57.678145595-03:00","Action":"output","Package":"example.com/biblioteca/emprestimo","Test":"TestPrazo","Output":"    emprestimo_test.go:7: prazo = 7, esperado 14\n","OutputType":"error"}
+{"Time":"2026-11-05T18:22:57.678162485-03:00","Action":"output","Package":"example.com/biblioteca/emprestimo","Test":"TestPrazo","Output":"--- FAIL: TestPrazo (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-11-05T18:22:57.678171035-03:00","Action":"fail","Package":"example.com/biblioteca/emprestimo","Test":"TestPrazo","Elapsed":0}
+{"Time":"2026-11-05T18:22:57.678182903-03:00","Action":"run","Package":"example.com/biblioteca/emprestimo","Test":"TestDevolucao"}
+{"Time":"2026-11-05T18:22:57.678250287-03:00","Action":"output","Package":"example.com/biblioteca/emprestimo","Test":"TestDevolucao","Output":"=== RUN   TestDevolucao\n","OutputType":"frame"}
+{"Time":"2026-11-05T18:22:57.678274251-03:00","Action":"output","Package":"example.com/biblioteca/emprestimo","Test":"TestDevolucao","Output":"--- PASS: TestDevolucao (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-11-05T18:22:57.678291015-03:00","Action":"pass","Package":"example.com/biblioteca/emprestimo","Test":"TestDevolucao","Elapsed":0}
+{"Time":"2026-11-05T18:22:57.678298641-03:00","Action":"output","Package":"example.com/biblioteca/emprestimo","Output":"FAIL\n","OutputType":"frame"}
+{"Time":"2026-11-05T18:22:57.678891619-03:00","Action":"output","Package":"example.com/biblioteca/emprestimo","Output":"FAIL\texample.com/biblioteca/emprestimo\t0.005s\n","OutputType":"frame"}
+{"Time":"2026-11-05T18:22:57.678942161-03:00","Action":"fail","Package":"example.com/biblioteca/emprestimo","Elapsed":0.006}
