@@ -718,6 +718,7 @@ type index struct {
 	eol    string   // "\n" ou "\r\n", do original
 	header []string // títulos das colunas da tabela de registro, normalizados
 	last   int      // última linha da tabela de registro
+	head   int      // linha de títulos da tabela de registro
 	// cells é o conteúdo de toda célula de linha de tabela, em qualquer parte
 	// do arquivo (inclusive comentário e código, como o validador enxerga),
 	// sem link, crases e ênfase. Nunca contém célula vazia.
@@ -778,7 +779,7 @@ func parseIndex(content string) (*index, error) {
 			i = last
 			continue
 		}
-		idx.header, idx.last = header, last
+		idx.header, idx.head, idx.last = header, i, last
 		return idx, nil
 	}
 	if sawTable {

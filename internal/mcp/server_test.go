@@ -327,7 +327,8 @@ func TestFerramentas(t *testing.T) {
 				{"name":"pipeline_delivery_new","inputSchema":{"type":"object","additionalProperties":false,"required":["title"]}},
 				{"name":"pipeline_diff","inputSchema":{"type":"object","additionalProperties":false}},
 				{"name":"pipeline_handoff_put","inputSchema":{"type":"object","additionalProperties":false,"required":["delivery","agent","content"]}},
-				{"name":"pipeline_handoff_get","inputSchema":{"type":"object","additionalProperties":false,"required":["delivery"]}}]}}`},
+				{"name":"pipeline_handoff_get","inputSchema":{"type":"object","additionalProperties":false,"required":["delivery"]}},
+				{"name":"pipeline_index_sync","inputSchema":{"type":"object","additionalProperties":false}}]}}`},
 		},
 		{
 			name: "doctor (caso original)",
