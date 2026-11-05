@@ -52,7 +52,7 @@ make fixtures-check BLOCKLIST=<arquivo privado>
 ## Layout
 
 ```
-cmd/pipeline-claude     dispatcher da CLI (init e sync em init_sync.go, adopt em adopt.go)
+cmd/pipeline-claude     dispatcher da CLI (init e sync em init_sync.go, adopt em adopt.go, index em index.go)
 internal/buildinfo      versão do binário
 internal/config         carrega e valida .pipeline-claude.json
 internal/gitdiff        arquivos alterados (diff completo, TD-11) e diff de revisão (TD-29)
@@ -62,7 +62,7 @@ internal/hook           hook PreToolUse (bloqueio de caminho protegido)
 internal/fmthook        hook PostToolUse (formata .go com go/format)
 internal/validate       validação de delivery (report, índice, diff)
 internal/sensors        execução dos sensores do projeto (argv, sem shell)
-internal/delivery       criação de delivery com ID sequencial, registro no índice e handoffs
+internal/delivery       criação de delivery com ID sequencial, índice (registro e sync) e handoffs
 internal/doctor         diagnóstico do ambiente e do projeto
 internal/mcp            servidor MCP por stdio (ferramentas e recursos)
 internal/manifest       lock dos arquivos gerenciados (.pipeline-claude.lock)

@@ -327,7 +327,8 @@ func TestFerramentas(t *testing.T) {
 				{"name":"pipeline_delivery_new","inputSchema":{"type":"object","additionalProperties":false,"required":["title"]}},
 				{"name":"pipeline_diff","inputSchema":{"type":"object","additionalProperties":false}},
 				{"name":"pipeline_handoff_put","inputSchema":{"type":"object","additionalProperties":false,"required":["delivery","agent","content"]}},
-				{"name":"pipeline_handoff_get","inputSchema":{"type":"object","additionalProperties":false,"required":["delivery"]}}]}}`},
+				{"name":"pipeline_handoff_get","inputSchema":{"type":"object","additionalProperties":false,"required":["delivery"]}},
+				{"name":"pipeline_index_sync","inputSchema":{"type":"object","additionalProperties":false}}]}}`},
 		},
 		{
 			name: "doctor (caso original)",
@@ -602,6 +603,10 @@ func snapshot(t *testing.T, root string) string {
 	err := filepath.WalkDir(root, func(p string, d os.DirEntry, err error) error {
 		if err != nil {
 			return err
+		}
+		// .git fica de fora: o git mexe nele em segundo plano depois de commit.
+		if d.IsDir() && d.Name() == ".git" {
+			return filepath.SkipDir
 		}
 		rel, _ := filepath.Rel(root, p)
 		fmt.Fprintf(&b, "%s %v", rel, d.Type())

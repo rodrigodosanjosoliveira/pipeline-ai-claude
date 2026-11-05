@@ -23,6 +23,14 @@ go install github.com/rodrigodosanjosoliveira/pipeline-ai-claude/cmd/pipeline-cl
   subagente sem arquivo em `.claude/agents/`, conteúdo vazio, com NUL ou acima
   de 64 KiB e caminho protegido. Os templates passam a usá-las numa versão
   seguinte.
+- Comando `pipeline-claude index sync [--base <ref>] [--dry-run] [--json]` e
+  ferramenta MCP `pipeline_index_sync` (TD-42): marcam como `merged`, na
+  coluna Status do índice e no `status` do front matter do report, cada
+  delivery `draft` ou `em revisão` com commit `[<ID>]` na base. Não mexem em
+  outro status e preservam o resto dos arquivos byte a byte, inclusive CRLF.
+  Erro de git, índice sem coluna Status ou report que não dá para atualizar
+  sai com 1 sem gravar nada. `--json`: `{"ok", "changes": [{"id", "from",
+  "to", "commit"}]}`, com `error` quando falha.
 
 ## [v1.0.0] - 2026-11-04
 

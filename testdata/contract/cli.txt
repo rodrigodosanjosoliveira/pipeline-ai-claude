@@ -32,6 +32,12 @@ comando help
 comando hook
   -h: saída 2
   sem opções
+comando index sync
+  -h: saída 0
+  opção desconhecida: saída 2
+  --base string padrão=""
+  --dry-run bool padrão=false
+  --json bool padrão=false
 comando init
   -h: saída 0
   opção desconhecida: saída 2

@@ -603,6 +603,11 @@ func TestContractJSON(t *testing.T) {
 		code, stdout, _ := runBin(t, e2eProject(t), "", "delivery", "new", "--json", "--title", "Reserva de livros")
 		jsonContract(t, "json/delivery-new.txt", "delivery new", code, stdout)
 	})
+	t.Run("index sync", func(t *testing.T) {
+		// DEL-002 tem commit [DEL-002]: uma mudança, com todas as chaves.
+		code, stdout, _ := runBin(t, indexProject(t), "", "index", "sync", "--json", "--base", "main")
+		jsonContract(t, "json/index-sync.txt", "index sync", code, stdout)
+	})
 	t.Run("init", func(t *testing.T) {
 		parent := t.TempDir()
 		code, stdout, _ := runBin(t, parent, "", "init", "biblioteca-bairro", "--dir", filepath.Join(parent, "biblioteca-bairro"),

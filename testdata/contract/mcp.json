@@ -102,6 +102,21 @@
       }
     },
     {
+      "name": "pipeline_index_sync",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "base": {
+            "type": "string"
+          },
+          "dry_run": {
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      }
+    },
+    {
       "name": "pipeline_sensors",
       "inputSchema": {
         "additionalProperties": false,

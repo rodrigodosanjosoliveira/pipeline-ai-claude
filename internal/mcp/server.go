@@ -10,7 +10,8 @@
 // conferidos dentro da raiz (TD-17); recursos pipeline://config,
 // pipeline://invariants e pipeline://deliveries/index lidos da config;
 // pipeline_diff só leitura para os revisores (TD-29); pipeline_handoff_put e
-// pipeline_handoff_get gravam e leem os handoffs da delivery (TD-41).
+// pipeline_handoff_get gravam e leem os handoffs da delivery (TD-41);
+// pipeline_index_sync marca as deliveries mescladas (TD-42).
 
 // Package mcp implementa o servidor MCP do pipeline-claude por stdio (TD-21).
 //
@@ -337,6 +338,15 @@ var tools = []toolSpec{
 		},
 		run: (*server).toolHandoffGet,
 	},
+	{
+		name:        "pipeline_index_sync",
+		description: "Marca como merged, no índice e no status do report, cada delivery draft ou em revisão com commit [<ID>] na base. Não mexe em outro status. Recusado se deliveries_dir ou index_file estiver em protected_paths.",
+		args: []argSpec{
+			{name: "base", kind: kindString, description: "Ref onde procurar os commits; padrão: base_ref da configuração."},
+			{name: "dry_run", kind: kindBool, description: "Mostra as mudanças sem gravar."},
+		},
+		run: (*server).toolIndexSync,
+	},
 }
 
 func toolList() []Tool {
@@ -622,6 +632,24 @@ func (s *server) toolHandoffGet(a args) ToolResult {
 		}
 	}
 	return text(b.String(), false)
+}
+
+func (s *server) toolIndexSync(a args) ToolResult {
+	cfg, _, err := s.loadConfig()
+	if err != nil {
+		return text(err.Error(), true)
+	}
+	dryRun := a.boolean("dry_run")
+	if !dryRun {
+		if err := checkWritable(cfg, "pipeline_index_sync"); err != nil {
+			return text(err.Error(), true)
+		}
+	}
+	changes, err := delivery.SyncIndex(s.ctx, cfg, delivery.SyncOptions{Base: a.str("base"), DryRun: dryRun})
+	if err != nil {
+		return text(fmt.Sprintf("índice não sincronizado: %v", err), true)
+	}
+	return text(delivery.FormatChanges(changes, dryRun), false)
 }
 
 // checkDeliveryWritable recusa pipeline_delivery_new quando deliveries_dir ou

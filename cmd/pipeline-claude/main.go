@@ -88,6 +88,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		return runSync(args[1:], stdout, stderr)
 	case "adopt":
 		return runAdopt(args[1:], stdout, stderr)
+	case "index":
+		return runIndex(args[1:], stdout, stderr)
 	}
 	if phase, ok := planned[args[0]]; ok {
 		fmt.Fprintf(stderr, "pipeline-claude: comando %q ainda não implementado (previsto para a %s).\n", args[0], phase)
@@ -109,6 +111,7 @@ Comandos:
   sensors [--json] [--timeout <duração>] [nome...]  executa os sensores do projeto
   delivery new --title <título> [--prefix <p>] [--json]
                                                     cria a próxima delivery e registra no índice
+  index sync [--base <ref>] [--dry-run] [--json]    marca como merged as deliveries com commit na base
   doctor [--json]                                   diagnostica ambiente e projeto
   init <nome> [--dir <d>] [--module <m>] [--summary <s>] [--provider github|gitlab]
        [--modules a,b] [--toolkit-version <v>] [--git] [--json]

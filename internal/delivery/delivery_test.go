@@ -85,6 +85,10 @@ func snapshot(t *testing.T, dir string) map[string]string {
 		if err != nil {
 			return err
 		}
+		// .git fica de fora: o git mexe nele em segundo plano depois de commit.
+		if d.IsDir() && d.Name() == ".git" {
+			return filepath.SkipDir
+		}
 		rel, _ := filepath.Rel(dir, p)
 		switch {
 		case d.Type()&fs.ModeSymlink != 0:

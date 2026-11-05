@@ -227,3 +227,35 @@ func matchAny(f string, paths []string) bool {
 	}
 	return false
 }
+
+// VerifyCommit confere que ref resolve para um commit em root.
+func VerifyCommit(ctx context.Context, root, ref string) error {
+	if ref == "" {
+		return errors.New("gitdiff: ref vazia")
+	}
+	if strings.HasPrefix(ref, "-") {
+		return fmt.Errorf("gitdiff: ref %q não pode começar com \"-\"", ref)
+	}
+	if _, err := run(ctx, root, "rev-parse", "--verify", "--quiet", "--end-of-options", ref+"^{commit}"); err != nil {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) && exitErr.ExitCode() == 1 && ctx.Err() == nil {
+			return fmt.Errorf("gitdiff: a ref %s não existe em %s (rode git fetch?)", ref, root)
+		}
+		return err
+	}
+	return nil
+}
+
+// FindCommit devolve o hash do commit mais recente alcançável de ref cuja
+// mensagem contém needle, como texto fixo; "" se nenhum. Chame VerifyCommit
+// antes: ref inexistente é erro do git.
+func FindCommit(ctx context.Context, root, ref, needle string) (string, error) {
+	if strings.HasPrefix(ref, "-") {
+		return "", fmt.Errorf("gitdiff: ref %q não pode começar com \"-\"", ref)
+	}
+	out, err := run(ctx, root, "log", "--fixed-strings", "--grep="+needle, "--format=%H", "-n", "1", "--end-of-options", ref, "--")
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(out)), nil
+}
