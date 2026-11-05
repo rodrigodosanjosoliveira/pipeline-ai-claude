@@ -254,4 +254,3 @@ func FuzzSetFrontStatus(f *testing.F) {
 		}
 	})
 }
-
