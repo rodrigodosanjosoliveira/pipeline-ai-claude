@@ -13,6 +13,51 @@ go install github.com/rodrigodosanjosoliveira/pipeline-ai-claude/cmd/pipeline-cl
 
 ## [Não lançado]
 
+## [v1.1.0-rc.2] - 2026-11-06
+
+Ajustes da validação da `v1.1.0-rc.1` na demo (DEL-011, uma delivery de código
+com migração pelo fluxo completo). Só acréscimos ao contrato da v1.0 (TD-37).
+
+Projeto na `v1.1.0-rc.1`, para atualizar:
+
+1. Fixe `PIPELINE_CLAUDE_VERSION := v1.1.0-rc.2` no `Makefile` e rode
+   `make tools`.
+2. `bin/pipeline-claude sync --dry-run` e depois `bin/pipeline-claude sync`:
+   três subagentes editores mudam (ver "Alterado"). Nada muda na config.
+
+Projeto na `v1.0.0`: siga também os passos da `v1.1.0-rc.1`.
+
+Limites conhecidos, observados na demo e mantidos nesta versão:
+
+1. O hook só vê as ferramentas de edição. O `hook_log` registra só o que passa
+   por elas, e no uso normal um `deny` quase não aparece: a sessão principal
+   recusa antes de tentar, e os editores têm permissão (TD-29, TD-45).
+2. O `qa-validation` não tem shell. Com o sensor de teste rodando sem a
+   variável do banco, o resultado fica `parcial` até alguém rodar a suíte com
+   banco e o QA conferir a evidência.
+3. Subagentes com Bash podem subir um banco descartável (por exemplo, com
+   `docker run`) para rodar os testes de banco; na demo, todos o apagaram no
+   fim.
+
+### Alterado
+
+- Resumo do sensor com `"format": "go-test-json"` (TD-43): as falhas vêm antes
+  dos testes pulados, e os pulados saem agrupados por pacote e motivo, com o
+  motivo sem o `arquivo_test.go:NN:` do `t.Skip`. Primeiro vêm todos os
+  grupos, numerados (`1. <pacote>, N pulados: <motivo>`), depois os nomes dos
+  testes de cada grupo (`nomes dos pulados:`). A linha `--- SKIP` de cada
+  teste sai do resumo. Na demo, a lista de 188 pulados era cortada no meio de
+  uma linha e escondia pacotes inteiros; agora o corte em 8 KiB, quando
+  acontece, só tira nomes e cai no fim de uma linha. Contagens, `skipped` e o
+  JSON não mudam.
+- `test-writer`, `dev-implementation` e `query-performance` (chegam pelo
+  `sync`): gravam arquivo do projeto só com `Edit`, `Write` ou `MultiEdit`,
+  nunca pelo Bash (`sed -i`, `perl -pi`, `python`, `cat >`, `tee`), e não
+  desfazem alteração com `git checkout` ou `git restore`. Na DEL-011, os
+  editores gravaram quase tudo pelo Bash, que não passa pelo hook, pelo
+  `hook_log` nem pelo `fmt-hook`. É instrução, não garantia: o Bash continua
+  com eles (TD-29).
+
 ## [v1.1.0-rc.1] - 2026-11-06
 
 Primeiro candidato da v1.1: traz os itens do feedback da validação da
@@ -348,7 +393,8 @@ Primeira versão instalável (Fases 0 a 3).
 - Revisores gerados só leitura: diff e sensores chegam pelo MCP (TD-29).
 - `enabled_modules` recusa módulo repetido (TD-28).
 
-[Não lançado]: https://github.com/rodrigodosanjosoliveira/pipeline-ai-claude/compare/v1.1.0-rc.1...HEAD
+[Não lançado]: https://github.com/rodrigodosanjosoliveira/pipeline-ai-claude/compare/v1.1.0-rc.2...HEAD
+[v1.1.0-rc.2]: https://github.com/rodrigodosanjosoliveira/pipeline-ai-claude/compare/v1.1.0-rc.1...v1.1.0-rc.2
 [v1.1.0-rc.1]: https://github.com/rodrigodosanjosoliveira/pipeline-ai-claude/compare/v1.0.0...v1.1.0-rc.1
 [v1.0.0]: https://github.com/rodrigodosanjosoliveira/pipeline-ai-claude/compare/v1.0.0-rc.5...v1.0.0
 [v1.0.0-rc.5]: https://github.com/rodrigodosanjosoliveira/pipeline-ai-claude/compare/v1.0.0-rc.4...v1.0.0-rc.5

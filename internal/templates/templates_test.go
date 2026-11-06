@@ -1578,6 +1578,39 @@ func TestTestWriterMutants(t *testing.T) {
 	}
 }
 
+// TestEditorsWriteThroughTools: na DEL-011 da demo, os editores gravaram quase
+// tudo pelo Bash (python, perl -pi, cat >), fora do hook, do hook_log e do
+// fmt-hook (limite do TD-29). Quem tem Bash e ferramenta de escrita é
+// instruído a gravar arquivo do projeto só pelas ferramentas de edição e a
+// não desfazer trabalho com git checkout; quem não escreve não recebe a regra.
+func TestEditorsWriteThroughTools(t *testing.T) {
+	d := sampleData()
+	n := 0
+	for name, at := range agentTools {
+		tools := splitTools(at.tools)
+		writes := slices.Contains(tools, "Edit") || slices.Contains(tools, "Write")
+		editor := writes && slices.Contains(tools, "Bash")
+		body := renderFlat(t, ".claude/agents/"+name+".md", d)
+		has := strings.Contains(body, "Não gravar arquivo do projeto pelo Bash")
+		if has != editor {
+			t.Errorf("%s: regra de gravar pelas ferramentas = %v, quero %v", name, has, editor)
+		}
+		if !editor {
+			continue
+		}
+		n++
+		for _, want := range []string{"`sed -i`", "`perl -pi`", "`cat >`", "o hook confere e registra no `hook_log`",
+			"Bash é para ler, rodar teste, sensor e git", "`git checkout`", "`git restore`"} {
+			if !strings.Contains(body, want) {
+				t.Errorf("%s sem %q", name, want)
+			}
+		}
+	}
+	if n != 3 {
+		t.Errorf("%d editores com Bash, quero 3 (test-writer, dev-implementation, query-performance)", n)
+	}
+}
+
 // TestSkippedEvidence: QA e migration-reviewer leem o skipped do sensor de
 // teste; teste de banco pulado não vira ok (TD-43, TD-46).
 func TestSkippedEvidence(t *testing.T) {

@@ -87,6 +87,13 @@ A formatação dos `.go` é automática (hook `fmt-hook` depois de cada edição
 - Não tocar em arquivo fora do escopo definido.
 - Não deixar implementação de referência, mutante ou cópia temporária na
   árvore do projeto.
+- Não gravar arquivo do projeto pelo Bash (`sed -i`, `perl -pi`, `python`,
+  `cat >`, `tee`): usar `Edit` ou `Write`, que o hook confere e registra no
+  `hook_log` e que passam pelo `fmt-hook`. Bash é para ler, rodar teste,
+  sensor e git. A cópia temporária dos mutantes, fora da árvore, não é
+  arquivo do projeto.
+- Não desfazer alteração com `git checkout` ou `git restore` num arquivo:
+  isso apaga também o trabalho não commitado da delivery. Desfazer com `Edit`.
 
 ## Roteamento
 

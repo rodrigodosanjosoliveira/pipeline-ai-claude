@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"regexp"
 	"slices"
 	"strings"
 	"unicode/utf8"
@@ -20,7 +21,15 @@ const maxEventLine = 1 << 20
 const (
 	eventOutputLimit = 2 << 10
 	maxListed        = 200
+	maxSkipNames     = 1000
 	maxRunning       = 10000
+)
+
+// Formato dos pulados no resumo: largura da linha de nomes e tamanho máximo
+// do motivo, em bytes.
+const (
+	skipNamesWidth = 110
+	maxSkipReason  = 200
 )
 
 // truncatedMark fecha um resumo cortado em OutputLimit.
@@ -57,6 +66,13 @@ type pkgState struct {
 	failedBuild string
 }
 
+// skipGroup junta os testes pulados de um pacote pelo mesmo motivo.
+type skipGroup struct {
+	pkg, reason string
+	n           int
+	names       []string
+}
+
 type listed struct {
 	head  string // linha --- SKIP / --- FAIL / FAIL <pacote>
 	pkg   string
@@ -80,14 +96,18 @@ type goTestParser struct {
 	buildFailed []string
 
 	passed, failed, skipped int
-	skips, fails            []listed
+	fails                   []listed
+	skipGroups              map[string]*skipGroup
+	skipNames               int // nomes guardados, até maxSkipNames
+	skipsUngrouped          int // pulados além de maxListed grupos
 }
 
 func newGoTestParser() *goTestParser {
 	return &goTestParser{
-		pkgs:   map[string]*pkgState{},
-		tests:  map[string]*tailBuffer{},
-		builds: map[string]*tailBuffer{},
+		pkgs:       map[string]*pkgState{},
+		tests:      map[string]*tailBuffer{},
+		builds:     map[string]*tailBuffer{},
+		skipGroups: map[string]*skipGroup{},
 	}
 }
 
@@ -201,9 +221,7 @@ func (p *goTestParser) endTest(ev testEvent) {
 		p.passed++
 	case "skip":
 		p.skipped++
-		if len(p.skips) < maxListed {
-			p.skips = append(p.skips, frame(lines, "SKIP", ev.Test, ev.Package))
-		}
+		p.addSkip(ev.Package, ev.Test, skipReason(frame(lines, "SKIP", ev.Test, ev.Package).lines))
 	case "fail":
 		p.failed++
 		p.pkg(ev.Package).failedTests++
@@ -211,6 +229,50 @@ func (p *goTestParser) endTest(ev testEvent) {
 			p.fails = append(p.fails, frame(lines, "FAIL", ev.Test, ev.Package))
 		}
 	}
+}
+
+// addSkip conta o pulado no grupo do pacote e motivo; grupos além de
+// maxListed e nomes além de maxSkipNames só entram na contagem.
+func (p *goTestParser) addSkip(pkg, test, reason string) {
+	key := pkg + "\x00" + reason
+	g, ok := p.skipGroups[key]
+	if !ok {
+		if len(p.skipGroups) >= maxListed {
+			p.skipsUngrouped++
+			return
+		}
+		g = &skipGroup{pkg: pkg, reason: reason}
+		p.skipGroups[key] = g
+	}
+	g.n++
+	if p.skipNames < maxSkipNames {
+		g.names = append(g.names, test)
+		p.skipNames++
+	}
+}
+
+// fileLinePrefix é o "arquivo_test.go:12: " que o t.Skip põe na mensagem.
+var fileLinePrefix = regexp.MustCompile(`^[^\s:]+\.go:\d+: `)
+
+// skipReason devolve o motivo do pulo sem arquivo:linha, para testes pulados
+// pelo mesmo t.Skip em linhas diferentes caírem no mesmo grupo.
+func skipReason(lines []string) string {
+	parts := make([]string, 0, len(lines))
+	for _, l := range lines {
+		parts = append(parts, fileLinePrefix.ReplaceAllString(l, ""))
+	}
+	r := strings.Join(parts, " / ")
+	if r == "" {
+		return "sem motivo registrado"
+	}
+	if len(r) > maxSkipReason {
+		cut := maxSkipReason
+		for cut > 0 && !utf8.RuneStart(r[cut]) {
+			cut--
+		}
+		r = r[:cut] + "…"
+	}
+	return r
 }
 
 func (p *goTestParser) endPackage(ev testEvent) {
@@ -320,8 +382,9 @@ func (p *goTestParser) summary() goTestSummary {
 	fmt.Fprintf(&b, "pacotes: %d (%d ok, %d com falha, %d sem testes)\n", s.Packages, ok, s.PackagesFailed, s.PackagesNoTests)
 	fmt.Fprintf(&b, "testes: %s, %s, %s\n",
 		plural(s.Passed, "passou", "passaram"), plural(s.Failed, "falhou", "falharam"), plural(s.Skipped, "pulado", "pulados"))
-	writeListed(&b, "pulados", p.skips, s.Skipped)
+	// Falhas antes dos pulados: o corte em OutputLimit nunca as esconde.
 	writeListed(&b, "falhas", slices.Concat(p.fails, pkgFails), s.Failed+len(pkgFails))
+	p.writeSkips(&b)
 	s.Text, s.Truncated = capText(b.String())
 	return s
 }
@@ -343,6 +406,57 @@ func writeListed(b *strings.Builder, title string, items []listed, total int) {
 	}
 	if total > len(items) {
 		fmt.Fprintf(b, "  … e mais %d\n", total-len(items))
+	}
+}
+
+// writeSkips lista os pulados em duas partes: primeiro os grupos numerados
+// (pacote, contagem e motivo), depois os nomes de cada grupo, em linhas de até
+// skipNamesWidth. Com tudo acima de OutputLimit, o corte come só nomes, nunca
+// um grupo.
+func (p *goTestParser) writeSkips(b *strings.Builder) {
+	if len(p.skipGroups) == 0 && p.skipsUngrouped == 0 {
+		return
+	}
+	groups := make([]*skipGroup, 0, len(p.skipGroups))
+	for _, g := range p.skipGroups {
+		groups = append(groups, g)
+	}
+	slices.SortFunc(groups, func(a, c *skipGroup) int {
+		if n := strings.Compare(a.pkg, c.pkg); n != 0 {
+			return n
+		}
+		return strings.Compare(a.reason, c.reason)
+	})
+	b.WriteString("\npulados, por pacote e motivo:\n")
+	for i, g := range groups {
+		fmt.Fprintf(b, "  %d. %s, %s: %s\n", i+1, g.pkg, plural(g.n, "pulado", "pulados"), g.reason)
+	}
+	if p.skipsUngrouped > 0 {
+		fmt.Fprintf(b, "  … e mais %d em outros grupos\n", p.skipsUngrouped)
+	}
+	b.WriteString("\nnomes dos pulados:\n")
+	for i, g := range groups {
+		names := slices.Sorted(slices.Values(g.names))
+		if rest := g.n - len(names); rest > 0 {
+			names = append(names, fmt.Sprintf("… e mais %d", rest))
+		}
+		num := fmt.Sprintf("%d. ", i+1)
+		indent := strings.Repeat(" ", len(num))
+		line := ""
+		for k, n := range names {
+			if k < len(names)-1 {
+				n += ","
+			}
+			if line != "" && len(line)+1+len(n) > skipNamesWidth {
+				fmt.Fprintf(b, "  %s%s\n", num, line)
+				num, line = indent, ""
+			}
+			if line != "" {
+				line += " "
+			}
+			line += n
+		}
+		fmt.Fprintf(b, "  %s%s\n", num, line)
 	}
 }
 
@@ -387,13 +501,17 @@ func plural(n int, one, many string) string {
 }
 
 // capText devolve s em UTF-8 válido e com no máximo OutputLimit bytes; o
-// corte guarda o começo (as contagens) e termina com truncatedMark.
+// corte guarda o começo (as contagens), cai no fim de uma linha quando há
+// uma, e termina com truncatedMark.
 func capText(s string) (string, bool) {
 	s = strings.ToValidUTF8(s, "\uFFFD")
 	if len(s) <= OutputLimit {
 		return s, false
 	}
 	cut := OutputLimit - len(truncatedMark)
+	if i := strings.LastIndexByte(s[:cut], '\n'); i > 0 {
+		cut = i
+	}
 	for cut > 0 && !utf8.RuneStart(s[cut]) {
 		cut--
 	}

@@ -520,7 +520,7 @@ func TestAcervoBanco(t *testing.T) {
 	if len(out.Sensors) != 1 || !out.Sensors[0].OK || out.Sensors[0].Skipped == nil || *out.Sensors[0].Skipped != 1 {
 		t.Fatalf("sensor test: %+v", out.Sensors)
 	}
-	for _, want := range []string{"--- SKIP: TestAcervoBanco", "sem BIBLIOTECA_DB_URL", "1 pulado"} {
+	for _, want := range []string{"pulados, por pacote e motivo:\n  1. ", ", 1 pulado: sem BIBLIOTECA_DB_URL\n", "nomes dos pulados:\n  1. TestAcervoBanco\n"} {
 		if !strings.Contains(out.Sensors[0].Output, want) {
 			t.Errorf("output sem %q:\n%s", want, out.Sensors[0].Output)
 		}

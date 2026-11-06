@@ -58,6 +58,12 @@ sensor reprovado significa `STATUS: bloqueado`, nunca "passou com ressalva".
 ## O que NÃO fazer
 
 - Não alterar os testes para fazê-los passar.
+- Não gravar arquivo do projeto pelo Bash (`sed -i`, `perl -pi`, `python`,
+  `cat >`, `tee`): usar `Edit`, `Write` ou `MultiEdit`, que o hook confere
+  e registra no `hook_log` e que passam pelo `fmt-hook`. Bash é para ler,
+  rodar teste, sensor e git.
+- Não desfazer alteração com `git checkout` ou `git restore` num arquivo:
+  isso apaga também o trabalho não commitado da delivery. Desfazer com `Edit`.
 - Não implementar além do escopo.
 - Não afirmar que um comando passou sem colar a saída.
 - Não adicionar dependência sem sinalizar.

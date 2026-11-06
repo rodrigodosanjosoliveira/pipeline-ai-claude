@@ -459,6 +459,12 @@ ilegível reprova o sensor. O `init` passa a gerar o sensor `test` assim;
 projeto existente troca à mão (a config não é gerenciada).
 **Motivo:** na demo, os testes de banco pulavam sem a variável do banco e o
 sensor dava verde sem provar a camada de banco.
+**Ajuste na `v1.1.0-rc.2`:** no resumo, as falhas vêm antes dos pulados, e os
+pulados saem agrupados por pacote e motivo (sem o `arquivo:linha` do `t.Skip`):
+primeiro todos os grupos, numerados, depois os nomes de cada um. O corte em
+8 KiB só tira nomes e cai no fim de uma linha. Na DEL-011 da demo, a lista de
+188 pulados era cortada no meio e escondia pacotes, e o QA registrou que não
+viu todos.
 
 ### TD-44 — `doctor` cruza imports com a superfície de segurança
 O `doctor` lê os imports (`go/parser`, só imports) dos pacotes Go do projeto,
@@ -480,6 +486,14 @@ por ferramenta. Falha ao gravar o log bloqueia (exit 2, regra 3). O `init`
 gera `hook_log` em `.pipeline-claude/hook-log.jsonl` e o põe no `.gitignore`.
 **Motivo:** a validação da demo só provou o hook com payload sintético; o log
 deixa uma delivery mostrar que o hook foi exercitado de verdade.
+**Ajuste na `v1.1.0-rc.2`:** o log cobre só as ferramentas de edição. Na
+DEL-011, os editores gravaram quase tudo pelo Bash (limite do TD-29), e o log
+ficou sem o código da delivery. Os editores (`test-writer`,
+`dev-implementation`, `query-performance`) passam a ser instruídos a gravar
+arquivo do projeto só com `Edit`, `Write` ou `MultiEdit` e a não desfazer
+alteração com `git checkout`/`git restore`. É instrução, não garantia. O único
+`deny` real da validação foi provocado: no uso normal, a sessão principal
+recusa antes de tentar.
 
 ### TD-46 — Revisores só leitura continuam sem Bash
 Nenhum revisor só leitura (`migration-reviewer`, `qa-validation`,
