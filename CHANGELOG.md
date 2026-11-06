@@ -13,6 +13,29 @@ go install github.com/rodrigodosanjosoliveira/pipeline-ai-claude/cmd/pipeline-cl
 
 ## [Não lançado]
 
+## [v1.1.0-rc.1] - 2026-11-06
+
+Primeiro candidato da v1.1: traz os itens do feedback da validação da
+`v1.0.0-rc.4` na demo (DEL-008) que ficaram fora da `v1.0.0` (TD-41 a TD-46).
+Só acréscimos ao contrato da v1.0 (TD-37).
+
+Projeto existente, para atualizar:
+
+1. Fixe `PIPELINE_CLAUDE_VERSION := v1.1.0-rc.1` no `Makefile` e rode
+   `make tools`.
+2. `bin/pipeline-claude sync --dry-run` e depois `bin/pipeline-claude sync`:
+   subagentes e `/fluxo` chegam por aqui (ver "Alterado"). Arquivo editado no
+   projeto não é sobrescrito; o plano mostra o que ficou para trás.
+3. À mão, porque a config não é gerenciada:
+   - sensor `test` com `"format": "go-test-json"` e `"skips": "warn"` (ver
+     "Alterado"), para os testes pulados aparecerem;
+   - `"hook_log": ".pipeline-claude/hook-log.jsonl"` no `.pipeline-claude.json`
+     e `/.pipeline-claude/` no `.gitignore`, para registrar as decisões do hook;
+   - `security_surface_imports`, só se a lista padrão de imports sensíveis não
+     servir ao projeto.
+4. `bin/pipeline-claude doctor`: a checagem `imports` aponta pacote com import
+   sensível fora de `security_surface_paths`.
+
 ### Adicionado
 
 - Ferramentas MCP `pipeline_handoff_put` e `pipeline_handoff_get` (TD-41): cada
@@ -325,7 +348,8 @@ Primeira versão instalável (Fases 0 a 3).
 - Revisores gerados só leitura: diff e sensores chegam pelo MCP (TD-29).
 - `enabled_modules` recusa módulo repetido (TD-28).
 
-[Não lançado]: https://github.com/rodrigodosanjosoliveira/pipeline-ai-claude/compare/v1.0.0...HEAD
+[Não lançado]: https://github.com/rodrigodosanjosoliveira/pipeline-ai-claude/compare/v1.1.0-rc.1...HEAD
+[v1.1.0-rc.1]: https://github.com/rodrigodosanjosoliveira/pipeline-ai-claude/compare/v1.0.0...v1.1.0-rc.1
 [v1.0.0]: https://github.com/rodrigodosanjosoliveira/pipeline-ai-claude/compare/v1.0.0-rc.5...v1.0.0
 [v1.0.0-rc.5]: https://github.com/rodrigodosanjosoliveira/pipeline-ai-claude/compare/v1.0.0-rc.4...v1.0.0-rc.5
 [v1.0.0-rc.4]: https://github.com/rodrigodosanjosoliveira/pipeline-ai-claude/compare/v1.0.0-rc.3...v1.0.0-rc.4

@@ -134,9 +134,20 @@ func TestChangelog(t *testing.T) {
 			t.Errorf("versões fora de ordem decrescente: %s antes de %s", versions[i-1], versions[i])
 		}
 	}
-	for _, v := range []string{"v0.1.0", "v0.2.0", "v0.3.0", "v1.0.0-rc.1", "v1.0.0-rc.2", "v1.0.0-rc.3", "v1.0.0-rc.4", "v1.0.0-rc.5", "v1.0.0"} {
+	for _, v := range []string{"v0.1.0", "v0.2.0", "v0.3.0", "v1.0.0-rc.1", "v1.0.0-rc.2", "v1.0.0-rc.3", "v1.0.0-rc.4", "v1.0.0-rc.5", "v1.0.0", "v1.1.0-rc.1"} {
 		if !slices.Contains(versions, v) {
 			t.Errorf("versão publicada %s sem seção no CHANGELOG.md", v)
+		}
+	}
+	// A v1.1 traz o que projeto existente troca à mão, porque a config não é
+	// gerenciada (TD-43, TD-44, TD-45).
+	if _, rc, ok := strings.Cut(text, "\n## [v1.1.0-rc.1]"); ok {
+		// Só a introdução, antes da primeira subseção: a lista fica junta.
+		rc, _, _ = strings.Cut(rc, "\n### ")
+		for _, want := range []string{"Projeto existente", `"format": "go-test-json"`, `"hook_log"`, "/.pipeline-claude/", "`security_surface_imports`", "pipeline-claude sync"} {
+			if !strings.Contains(rc, want) {
+				t.Errorf("seção v1.1.0-rc.1 sem %q", want)
+			}
 		}
 	}
 	// Referências de link: [Não lançado] compara a última versão com HEAD;
@@ -275,7 +286,7 @@ func TestDocLinks(t *testing.T) {
 		}
 	}
 	readme := readRepoDoc(t, "README.md")
-	for _, want := range []string{"](CHANGELOG.md)", "](docs/CONTRATO.md)", "Última versão publicada: `v1.0.0`", "](https://github.com/rodrigodosanjosoliveira/biblioteca-bairro)"} {
+	for _, want := range []string{"](CHANGELOG.md)", "](docs/CONTRATO.md)", "Última versão publicada: `v1.1.0-rc.1`", "](https://github.com/rodrigodosanjosoliveira/biblioteca-bairro)"} {
 		if !strings.Contains(readme, want) {
 			t.Errorf("README.md não traz %q", want)
 		}
