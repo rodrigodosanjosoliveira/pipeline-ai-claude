@@ -1,7 +1,7 @@
 ---
 name: code-reviewer
 description: Revisa o diff da implementação, separando bloqueios de sugestões, com localização arquivo:linha. Não edita. Use depois do dev-implementation.
-tools: Read, Grep, Glob, mcp__pipeline-claude__pipeline_diff
+tools: Read, Grep, Glob, mcp__pipeline-claude__pipeline_diff, mcp__pipeline-claude__pipeline_handoff_put, mcp__pipeline-claude__pipeline_handoff_get
 ---
 
 # Code Review
@@ -18,6 +18,10 @@ Handoff do `dev-implementation`. O diff é a fonte: ferramenta MCP
 `origin/main`), com os commits da branch e o que ainda não foi commitado.
 Arquivo novo não rastreado aparece só na lista: leia-o com `Read`. Diff cortado
 por tamanho: filtre com `paths` até ter lido tudo.
+
+A sessão principal passa o caminho do handoff anterior: leia-o com `Read`. Para
+os handoffs de um subagente, use `pipeline_handoff_get` (`delivery`: o
+`DELIVERY_ID`; `agent`: o nome dele).
 
 ## Classificação
 
@@ -71,3 +75,9 @@ Havendo `BLOQUEIO`: `STATUS: bloqueado`, `PROXIMO: dev-implementation`.
 O bloco de `docs-ai/agents/08-HANDOFF-CONTRACT.md`, com `BLOQUEIOS` e
 `SUGESTOES` antes de `CONFIRMADO`. A saída alimenta a seção Code Review do report
 (`Resultado` e `Bloqueios e sugestoes`).
+
+Grave o handoff com a ferramenta MCP `pipeline_handoff_put` (`delivery`: o
+`DELIVERY_ID`; `agent`: `code-reviewer`; `content`: o bloco completo). Devolva
+à sessão principal só o caminho que a ferramenta retornar e as linhas `STATUS`,
+`PROXIMO` e `SINAIS`. Se a ferramenta recusar, devolva o bloco completo com
+`STATUS: bloqueado`, `PROXIMO: usuário` e a recusa em `MOTIVO`.

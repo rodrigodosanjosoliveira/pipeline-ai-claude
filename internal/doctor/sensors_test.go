@@ -83,8 +83,19 @@ func TestCheckSensors(t *testing.T) {
 			mutate:  func(t *testing.T, root string) { dropSensors(t, root, "test") },
 			status:  StatusWarn,
 			msg:     []string{"test (agent-auditor)"},
+			// Só os subagentes instalados: migration-reviewer também pede
+			// test, mas o módulo não está habilitado.
+			noMsg: []string{"migration-reviewer"},
 			// A sugestão traz o sensor inteiro, com format e skips (TD-43).
 			action: `{"name": "test", "cmd": ["go","test","-json","./..."], "format": "go-test-json", "skips": "warn"}`,
+		},
+		{
+			name:    "dois módulos pedem test e a config não tem",
+			modules: []string{"agent-auditor", "migration-reviewer"},
+			mutate:  func(t *testing.T, root string) { dropSensors(t, root, "test") },
+			status:  StatusWarn,
+			msg:     []string{"test (agent-auditor, migration-reviewer)"},
+			action:  `"name": "test"`,
 		},
 		{
 			name:   "sensor test sobrando sem o módulo não importa",

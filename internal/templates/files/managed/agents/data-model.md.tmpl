@@ -1,7 +1,7 @@
 ---
 name: data-model
 description: Projeta e evolui o modelo de dados (entidades de domínio e esquema PostgreSQL) antes dos testes e do código. Módulo opcional; use depois do architecture-guardrails quando houver persistência ou mudança de esquema.
-tools: Read, Grep, Glob
+tools: Read, Grep, Glob, mcp__pipeline-claude__pipeline_handoff_put, mcp__pipeline-claude__pipeline_handoff_get
 ---
 
 # Data Model
@@ -16,6 +16,10 @@ antes da escrita de testes e código.
 
 Handoff do `architecture-guardrails`, com os limites técnicos e as decisões
 arquiteturais.
+
+A sessão principal passa o caminho do handoff anterior: leia-o com `Read`. Para
+os handoffs de um subagente, use `pipeline_handoff_get` (`delivery`: o
+`DELIVERY_ID`; `agent`: o nome dele).
 
 ## Procedimento
 
@@ -51,3 +55,9 @@ O bloco de `docs-ai/agents/08-HANDOFF-CONTRACT.md`, com:
 - `ENTIDADES_DOMINIO`: structs e campos de negócio.
 - `ESQUEMA_BANCO`: tabelas, colunas, chaves e restrições.
 - `PADROES_DE_ACESSO`: consultas e leituras previstas.
+
+Grave o handoff com a ferramenta MCP `pipeline_handoff_put` (`delivery`: o
+`DELIVERY_ID`; `agent`: `data-model`; `content`: o bloco completo). Devolva à
+sessão principal só o caminho que a ferramenta retornar e as linhas `STATUS`,
+`PROXIMO` e `SINAIS`. Se a ferramenta recusar, devolva o bloco completo com
+`STATUS: bloqueado`, `PROXIMO: usuário` e a recusa em `MOTIVO`.

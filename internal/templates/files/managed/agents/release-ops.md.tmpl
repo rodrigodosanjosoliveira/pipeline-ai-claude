@@ -1,7 +1,7 @@
 ---
 name: release-ops
 description: Prepara a entrega para release (impacto de versionamento semântico, configuração de ambiente, migrações e prontidão operacional, com plano de rollback). Módulo opcional; use depois do qa-validation, antes do docs-update.
-tools: Read, Grep, Glob, mcp__pipeline-claude__pipeline_diff
+tools: Read, Grep, Glob, mcp__pipeline-claude__pipeline_diff, mcp__pipeline-claude__pipeline_handoff_put, mcp__pipeline-claude__pipeline_handoff_get
 ---
 
 # Release Ops
@@ -16,6 +16,10 @@ documentação e da entrega final.
 
 Handoff do `qa-validation`, com sensores aprovados, mais o histórico de
 handoffs da delivery e o diff (`pipeline_diff`).
+
+A sessão principal passa o caminho do handoff anterior: leia-o com `Read`. Para
+os handoffs de um subagente, use `pipeline_handoff_get` (`delivery`: o
+`DELIVERY_ID`; `agent`: o nome dele).
 
 ## Procedimento
 
@@ -51,3 +55,9 @@ O bloco de `docs-ai/agents/08-HANDOFF-CONTRACT.md`, com:
 - `SEMVER_SUGERIDO`: `patch` | `minor` | `major`, com justificativa.
 - `IMPACTO_OPERACIONAL`: variáveis de ambiente, passos de implantação, notas.
 - `PLANO_DE_ROLLBACK`: passos para desfazer.
+
+Grave o handoff com a ferramenta MCP `pipeline_handoff_put` (`delivery`: o
+`DELIVERY_ID`; `agent`: `release-ops`; `content`: o bloco completo). Devolva à
+sessão principal só o caminho que a ferramenta retornar e as linhas `STATUS`,
+`PROXIMO` e `SINAIS`. Se a ferramenta recusar, devolva o bloco completo com
+`STATUS: bloqueado`, `PROXIMO: usuário` e a recusa em `MOTIVO`.

@@ -364,6 +364,7 @@ func (d Data) vars() (map[string]any, error) {
 // pipeline_sensors, no lugar dos comandos que rodava pelo Bash (TD-29).
 var agentSensors = map[string][]string{
 	"agent-auditor":       {"test"},
+	"migration-reviewer":  {"test"},
 	"security-review":     {"vuln"},
 	"supply-chain-review": {"mod_verify", "vuln"},
 }
@@ -409,12 +410,18 @@ func DefaultSensors() ([]config.Sensor, error) {
 	return nil, fmt.Errorf("templates: %s fora do catálogo", config.FileName)
 }
 
-// SensorUsers devolve, ordenados, os subagentes do catálogo que pedem o
-// sensor pelo nome.
-func SensorUsers(sensor string) []string {
+// SensorUsers devolve, ordenados, os subagentes que o projeto com os módulos
+// dados instala e que pedem o sensor pelo nome: é a explicação do doctor
+// quando o sensor falta na config.
+func SensorUsers(sensor string, modules []string) []string {
 	var out []string
-	for agent, sensors := range agentSensors {
-		if slices.Contains(sensors, sensor) {
+	for _, f := range Expected(Managed, modules) {
+		name, ok := strings.CutPrefix(f.Path, ".claude/agents/")
+		if !ok {
+			continue
+		}
+		agent := strings.TrimSuffix(name, ".md")
+		if slices.Contains(agentSensors[agent], sensor) {
 			out = append(out, agent)
 		}
 	}

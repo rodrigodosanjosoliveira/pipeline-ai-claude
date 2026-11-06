@@ -654,7 +654,7 @@ func sensorsCheck(cfg *config.Config, cfgErr error) Check {
 		if have[name] {
 			continue
 		}
-		missing = append(missing, fmt.Sprintf("%s (%s)", name, strings.Join(templates.SensorUsers(name), ", ")))
+		missing = append(missing, fmt.Sprintf("%s (%s)", name, strings.Join(templates.SensorUsers(name, cfg.EnabledModules), ", ")))
 		for _, d := range defaults {
 			if d.Name == name {
 				argv, _ := json.Marshal(d.Cmd)

@@ -1,7 +1,7 @@
 ---
 name: git-delivery
 description: Cria a branch, o commit e o PR/MR da delivery no padrão do projeto, só com o validador aprovado. Último subagente do fluxo; use depois do docs-update.
-tools: Read, Grep, Glob, Bash, mcp__pipeline-claude__pipeline_validate
+tools: Read, Grep, Glob, Bash, mcp__pipeline-claude__pipeline_validate, mcp__pipeline-claude__pipeline_handoff_put, mcp__pipeline-claude__pipeline_handoff_get
 ---
 
 # Git Delivery
@@ -14,7 +14,9 @@ arquivo fora do escopo da delivery.
 
 ## Entrada
 
-Handoff do `docs-update`, com o validador aprovado.
+Handoff do `docs-update`, com o validador aprovado. A sessão principal passa o
+caminho dele: leia-o com `Read`, ou com `pipeline_handoff_get` (`delivery`: o
+`DELIVERY_ID`; `agent`: `docs-update`).
 
 ## Padrão
 
@@ -29,13 +31,17 @@ Handoff do `docs-update`, com o validador aprovado.
 
 1. Rodar o validador de novo (ferramenta MCP `pipeline_validate` com o
    `DELIVERY_ID`). Reprovado: `STATUS: bloqueado`.
-2. `git status --short` e conferir arquivo por arquivo.
-3. Criar a branch: `git checkout -b task/{TASK_CODE}`.
-4. Adicionar só as alterações intencionais (`git add <caminhos>`).
-5. Commitar no formato padrão.
-6. `git push -u origin <branch>` (o `.githooks/pre-push` bloqueia push na
+2. Gravar o próprio handoff (Saída obrigatória) **antes** do commit, para ele
+   entrar no commit junto com os outros de
+   `docs-ai/deliveries/{DELIVERY_ID}/handoffs/`.
+3. `git status --short` e conferir arquivo por arquivo.
+4. Criar a branch: `git checkout -b task/{TASK_CODE}`.
+5. Adicionar só as alterações intencionais (`git add <caminhos>`), inclusive
+   os handoffs da delivery.
+6. Commitar no formato padrão.
+7. `git push -u origin <branch>` (o `.githooks/pre-push` bloqueia push na
    `main`).
-7. Abrir o PR com `gh pr create` (GitHub) ou o MR com `glab mr create`
+8. Abrir o PR com `gh pr create` (GitHub) ou o MR com `glab mr create`
    (GitLab), com Contexto, O que mudou, Como testar e Riscos, e a saída do
    validador.
 
@@ -55,5 +61,13 @@ Fim do fluxo. `PROXIMO: nenhum`.
 
 ## Saída obrigatória
 
-O bloco de `docs-ai/agents/08-HANDOFF-CONTRACT.md`, com branch, hash do commit
-e URL do PR/MR em `CONFIRMADO`.
+O bloco de `docs-ai/agents/08-HANDOFF-CONTRACT.md`, com a branch e a saída do
+validador em `CONFIRMADO`. Grave-o antes do commit (passo 2) com a ferramenta
+MCP `pipeline_handoff_put` (`delivery`: o `DELIVERY_ID`;
+`agent`: `git-delivery`; `content`: o bloco completo). Se a ferramenta recusar,
+não commite: devolva o bloco completo com `STATUS: bloqueado`,
+`PROXIMO: usuário` e a recusa em `MOTIVO`.
+
+Ao final, devolva à sessão principal só o caminho do handoff, as linhas
+`STATUS`, `PROXIMO` e `SINAIS`, o hash do commit e a URL do PR/MR (estes dois
+não cabem no handoff, que vai dentro do commit).

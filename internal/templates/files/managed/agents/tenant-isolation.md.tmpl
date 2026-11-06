@@ -1,7 +1,7 @@
 ---
 name: tenant-isolation
 description: Revisa o isolamento entre inquilinos (tenants) no diff, garantindo que toda leitura e escrita de dado por inquilino é filtrada pelo inquilino da requisição autenticada. Módulo opcional; use depois do code-reviewer quando a delivery tocar consultas, rotas ou modelos com dados por inquilino. Não edita.
-tools: Read, Grep, Glob, mcp__pipeline-claude__pipeline_diff
+tools: Read, Grep, Glob, mcp__pipeline-claude__pipeline_diff, mcp__pipeline-claude__pipeline_handoff_put, mcp__pipeline-claude__pipeline_handoff_get
 ---
 
 # Tenant Isolation
@@ -20,6 +20,10 @@ empréstimos.
 
 Handoff do `code-reviewer` e o diff (`pipeline_diff`): consultas, rotas,
 handlers, jobs e migrações que tocam tabelas com coluna de inquilino.
+
+A sessão principal passa o caminho do handoff anterior: leia-o com `Read`. Para
+os handoffs de um subagente, use `pipeline_handoff_get` (`delivery`: o
+`DELIVERY_ID`; `agent`: o nome dele).
 
 ## Procedimento
 
@@ -60,3 +64,9 @@ Com bloqueio: `dev-implementation`.
 
 O bloco de `docs-ai/agents/08-HANDOFF-CONTRACT.md`, com `SUPERFICIE_REVISADA`
 (consultas e rotas por inquilino) e `ACHADOS` com `[arquivo:linha]`.
+
+Grave o handoff com a ferramenta MCP `pipeline_handoff_put` (`delivery`: o
+`DELIVERY_ID`; `agent`: `tenant-isolation`; `content`: o bloco completo).
+Devolva à sessão principal só o caminho que a ferramenta retornar e as linhas
+`STATUS`, `PROXIMO` e `SINAIS`. Se a ferramenta recusar, devolva o bloco
+completo com `STATUS: bloqueado`, `PROXIMO: usuário` e a recusa em `MOTIVO`.
