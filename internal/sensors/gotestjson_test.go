@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -42,7 +43,7 @@ func TestParseGoTestJSON(t *testing.T) {
 		file                            string
 		packages, pkgFailed, pkgNoTests int
 		passed, failed, skipped         int
-		has, not                        []string
+		has, not, order                 []string
 	}{
 		{
 			file: "misto.jsonl", packages: 3, pkgFailed: 1, pkgNoTests: 1,
@@ -50,17 +51,20 @@ func TestParseGoTestJSON(t *testing.T) {
 			has: []string{
 				"pacotes: 3 (1 ok, 1 com falha, 1 sem testes)",
 				"testes: 4 passaram, 1 falhou, 2 pulados",
-				"--- SKIP: TestBanco (0.00s)",
-				"acervo_test.go:8: sem BIBLIOTECA_DB_URL",
-				"--- SKIP: TestSub/autor (0.00s)",
-				"acervo_test.go:13: autor ainda não indexado",
+				// Pulados agrupados por pacote e motivo, sem arquivo:linha.
+				"pulados, por pacote e motivo:\n" +
+					"  1. example.com/biblioteca/acervo, 1 pulado: autor ainda não indexado\n" +
+					"  2. example.com/biblioteca/acervo, 1 pulado: sem BIBLIOTECA_DB_URL\n",
+				"nomes dos pulados:\n  1. TestSub/autor\n  2. TestBanco\n",
 				"--- FAIL: TestPrazo (0.00s)",
 				"emprestimo_test.go:6: calculando prazo",
 				"emprestimo_test.go:7: prazo = 7, esperado 14",
 				"example.com/biblioteca/emprestimo",
 			},
 			// Teste que passou não aparece; molduras de execução também não.
-			not: []string{"TestCatalogo", "TestDevolucao", "=== RUN", "TestSub/titulo"},
+			not: []string{"TestCatalogo", "TestDevolucao", "=== RUN", "TestSub/titulo", "--- SKIP", "acervo_test.go:8"},
+			// Falha vem antes dos pulados: o corte nunca a esconde atrás deles.
+			order: []string{"falhas:", "pulados, por pacote e motivo:"},
 		},
 		{
 			file: "pulados.jsonl", packages: 2, pkgNoTests: 1,
@@ -99,10 +103,191 @@ func TestParseGoTestJSON(t *testing.T) {
 					t.Errorf("resumo com %q:\n%s", n, s.Text)
 				}
 			}
+			rest := s.Text
+			for _, o := range tc.order {
+				i := strings.Index(rest, o)
+				if i < 0 {
+					t.Errorf("resumo sem %q depois do anterior (ordem %q):\n%s", o, tc.order, s.Text)
+					break
+				}
+				rest = rest[i+len(o):]
+			}
 			if s.Truncated {
 				t.Error("resumo truncado sem motivo")
 			}
 		})
+	}
+}
+
+// TestParseGoTestJSONPuladosAgrupados: o caso da DEL-011 da demo. Muitos
+// testes pulados pelo mesmo motivo (com arquivo:linha diferentes) cabem no
+// resumo: um grupo por pacote e motivo, todos os nomes listados, e a falha
+// aparece antes deles.
+func TestParseGoTestJSONPuladosAgrupados(t *testing.T) {
+	const motivo = "BIBLIOTECA_TEST_DATABASE_URL não definida: teste de banco pulado"
+	var b strings.Builder
+	enc := json.NewEncoder(&b)
+	ev := func(action, pkg, test, output string) {
+		e := map[string]string{"Action": action, "Package": "example.com/biblioteca/" + pkg}
+		if test != "" {
+			e["Test"] = test
+		}
+		if output != "" {
+			e["Output"] = output
+		}
+		if err := enc.Encode(e); err != nil {
+			t.Fatal(err)
+		}
+	}
+	skip := func(pkg, test, file string, line int, reason string) {
+		ev("output", pkg, test, fmt.Sprintf("    %s:%d: %s\n", file, line, reason))
+		ev("output", pkg, test, "--- SKIP: "+test+" (0.00s)\n")
+		ev("skip", pkg, test, "")
+	}
+	var names []string
+	for _, g := range []struct {
+		pkg, file, reason string
+		n                 int
+	}{
+		{"storage", "repositorio_test.go", motivo, 150},
+		{"migrate", "controle_banco_test.go", motivo, 30},
+		{"cmd", "migrate_correcao_test.go", motivo, 5},
+		{"cmd", "pool_test.go", "sem docker", 3},
+	} {
+		ev("start", g.pkg, "", "")
+		for i := range g.n {
+			name := fmt.Sprintf("Test%sBanco%03d/sub_%d", strings.ToUpper(g.pkg[:1])+g.pkg[1:], i, i%3)
+			names = append(names, name)
+			skip(g.pkg, name, g.file, 100+i, g.reason)
+		}
+	}
+	ev("output", "storage", "TestPrazo", "    prazo_test.go:7: prazo = 7, esperado 14\n")
+	ev("output", "storage", "TestPrazo", "--- FAIL: TestPrazo (0.00s)\n")
+	ev("fail", "storage", "TestPrazo", "")
+	for _, pkg := range []string{"storage", "migrate", "cmd"} {
+		action := "pass"
+		if pkg == "storage" {
+			action = "fail"
+		}
+		ev(action, pkg, "", "")
+	}
+
+	s, err := parseGoTestJSON(strings.NewReader(b.String()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s.Skipped != 188 || s.Failed != 1 {
+		t.Errorf("pulados = %d, falhas = %d", s.Skipped, s.Failed)
+	}
+	if s.Truncated {
+		t.Fatalf("resumo truncado com %d bytes:\n%s", len(s.Text), s.Text)
+	}
+	for _, want := range []string{
+		"testes: 0 passaram, 1 falhou, 188 pulados",
+		"prazo = 7, esperado 14",
+		"  1. example.com/biblioteca/cmd, 5 pulados: " + motivo + "\n",
+		"  2. example.com/biblioteca/cmd, 3 pulados: sem docker\n",
+		"  3. example.com/biblioteca/migrate, 30 pulados: " + motivo + "\n",
+		"  4. example.com/biblioteca/storage, 150 pulados: " + motivo + "\n",
+	} {
+		if !strings.Contains(s.Text, want) {
+			t.Errorf("resumo sem %q:\n%s", want, s.Text)
+		}
+	}
+	if n := strings.Count(s.Text, motivo); n != 3 {
+		t.Errorf("motivo repetido %d vezes, quer 3 (um por grupo)", n)
+	}
+	for _, name := range names {
+		if !strings.Contains(s.Text, name) {
+			t.Errorf("pulado %s fora do resumo", name)
+		}
+	}
+	if i, j := strings.Index(s.Text, "falhas:"), strings.Index(s.Text, "pulados, por pacote e motivo:"); i < 0 || j < i {
+		t.Errorf("falhas (%d) não vêm antes dos pulados (%d)", i, j)
+	}
+	for _, l := range strings.Split(s.Text, "\n") {
+		if len(l) > 120 {
+			t.Errorf("linha com %d bytes, quer até 120: %q", len(l), l)
+		}
+	}
+}
+
+// TestParseGoTestJSONGruposAntesDosNomes: o caso da demo na rc.2. Nomes de
+// subteste longos passam do limite; o corte come os nomes, nunca um grupo:
+// todos os grupos vêm antes de qualquer nome.
+func TestParseGoTestJSONGruposAntesDosNomes(t *testing.T) {
+	var b strings.Builder
+	enc := json.NewEncoder(&b)
+	ev := func(action, pkg, test, output string) {
+		e := map[string]string{"Action": action, "Package": "example.com/biblioteca/" + pkg, "Test": test, "Output": output}
+		if err := enc.Encode(e); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, pkg := range []string{"acervo", "migrate", "zzz"} {
+		n := 2
+		if pkg == "migrate" {
+			n = 400
+		}
+		for i := range n {
+			name := fmt.Sprintf("TestControleAdotadoComArmadilhaFalhaFechado/caso_com_nome_comprido_%03d/Subir", i)
+			ev("output", pkg, name, "    controle_test.go:9: sem banco\n")
+			ev("skip", pkg, name, "")
+		}
+	}
+	s, err := parseGoTestJSON(strings.NewReader(b.String()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !s.Truncated {
+		t.Fatalf("quero corte nos nomes; resumo com %d bytes", len(s.Text))
+	}
+	head, names, ok := strings.Cut(s.Text, "nomes dos pulados:\n")
+	if !ok {
+		t.Fatalf("sem a lista de nomes:\n%.600s", s.Text)
+	}
+	for _, want := range []string{
+		"  1. example.com/biblioteca/acervo, 2 pulados: sem banco\n",
+		"  2. example.com/biblioteca/migrate, 400 pulados: sem banco\n",
+		"  3. example.com/biblioteca/zzz, 2 pulados: sem banco\n",
+	} {
+		if !strings.Contains(head, want) {
+			t.Errorf("grupo fora da parte antes dos nomes: %q", want)
+		}
+	}
+	if strings.Contains(head, "TestControle") {
+		t.Error("nome de teste antes da lista de nomes")
+	}
+	if !strings.HasPrefix(names, "  1. TestControle") {
+		t.Errorf("nomes não começam pelo grupo 1: %.120q", names)
+	}
+}
+
+// TestCapTextCortaEmLinha: o corte do resumo cai no fim de uma linha, nunca
+// no meio dela.
+func TestCapTextCortaEmLinha(t *testing.T) {
+	var b strings.Builder
+	for i := 0; b.Len() <= OutputLimit; i++ {
+		fmt.Fprintf(&b, "linha %05d com algum texto para encher\n", i)
+	}
+	got, cut := capText(b.String())
+	if !cut || len(got) > OutputLimit {
+		t.Fatalf("cut = %v, len = %d", cut, len(got))
+	}
+	body, ok := strings.CutSuffix(got, truncatedMark)
+	if !ok {
+		t.Fatalf("sem a marca de corte no fim: %q", got[len(got)-80:])
+	}
+	for _, l := range strings.Split(body, "\n") {
+		if !strings.HasSuffix(l, "para encher") {
+			t.Fatalf("linha cortada no meio: %q", l)
+		}
+	}
+
+	// Uma linha única maior que o limite ainda é cortada, em UTF-8 válido.
+	got, cut = capText(strings.Repeat("ç", OutputLimit))
+	if !cut || len(got) > OutputLimit || !utf8.ValidString(got) {
+		t.Errorf("linha única: cut = %v, len = %d, utf8 = %v", cut, len(got), utf8.ValidString(got))
 	}
 }
 
@@ -349,7 +534,7 @@ func TestPrintHumanSkips(t *testing.T) {
 		t.Fatalf("warn: Print = %d, quer 0\n%s", code, buf.String())
 	}
 	out := buf.String()
-	for _, want := range []string{"[ok]", "AVISO: 2 teste(s) pulado(s)", "--- SKIP: TestBanco", "sem BIBLIOTECA_DB_URL", "aprovado"} {
+	for _, want := range []string{"[ok]", "AVISO: 2 teste(s) pulado(s)", "TestBanco", "sem BIBLIOTECA_DB_URL", "aprovado"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("warn: saída sem %q:\n%s", want, out)
 		}
