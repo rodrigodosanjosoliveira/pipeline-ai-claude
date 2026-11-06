@@ -529,6 +529,32 @@ func TestLoadValidacao(t *testing.T) {
 			wantErr: "auto_flags",
 		},
 
+		// hook_log (TD-45).
+		{
+			name: "hook_log relativo",
+			body: bodyWith(t, map[string]any{"hook_log": ".pipeline-claude/hook-log.jsonl"}),
+		},
+		{
+			name:    "hook_log absoluto",
+			body:    bodyWith(t, map[string]any{"hook_log": "/var/log/hook.jsonl"}),
+			wantErr: "hook_log",
+		},
+		{
+			name:    "hook_log saindo da raiz",
+			body:    bodyWith(t, map[string]any{"hook_log": "logs/../../hook.jsonl"}),
+			wantErr: "hook_log",
+		},
+		{
+			name:    "hook_log diretório",
+			body:    bodyWith(t, map[string]any{"hook_log": ".pipeline-claude/"}),
+			wantErr: "hook_log",
+		},
+		{
+			name:    "hook_log na raiz inteira",
+			body:    bodyWith(t, map[string]any{"hook_log": "."}),
+			wantErr: "hook_log",
+		},
+
 		// security_surface_imports (TD-44).
 		{
 			name: "security_surface_imports válido",
@@ -789,6 +815,30 @@ func TestDefaults(t *testing.T) {
 	}
 	if !reflect.DeepEqual(*c.ReportSchema, DefaultReportSchema()) {
 		t.Errorf("ReportSchema = %+v, quer padrão %+v", *c.ReportSchema, DefaultReportSchema())
+	}
+}
+
+// TestHookLogNormalizado: hook_log é guardado limpo; IsHookLog casa o próprio
+// arquivo, sem diferenciar caixa, e nada mais.
+func TestHookLogNormalizado(t *testing.T) {
+	c := loadBody(t, bodyWith(t, map[string]any{"hook_log": "./.pipeline-claude/x/../hook-log.jsonl"}))
+	if c.HookLog != ".pipeline-claude/hook-log.jsonl" {
+		t.Errorf("HookLog = %q", c.HookLog)
+	}
+	for rel, want := range map[string]bool{
+		".pipeline-claude/hook-log.jsonl":   true,
+		".pipeline-claude/HOOK-LOG.jsonl":   true,
+		".pipeline-claude/./hook-log.jsonl": true,
+		".pipeline-claude/outro.jsonl":      false,
+		".pipeline-claude":                  false,
+		"hook-log.jsonl":                    false,
+	} {
+		if got := c.IsHookLog(rel); got != want {
+			t.Errorf("IsHookLog(%q) = %v, quer %v", rel, got, want)
+		}
+	}
+	if loadBody(t, validBody).IsHookLog(".pipeline-claude/hook-log.jsonl") {
+		t.Error("sem hook_log, nada é o log")
 	}
 }
 

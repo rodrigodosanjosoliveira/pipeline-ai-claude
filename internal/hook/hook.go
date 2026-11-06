@@ -3,7 +3,9 @@
 // falha fechada em payload ilegível, evento errado, caminho ausente e config
 // ausente (TD-08); notebook_path no NotebookEdit, relativo resolvido contra a raiz
 // e symlinks seguidos (TD-09); no_agent_paths (TD-10); chaves do payload lidas
-// sem casamento por caixa; report_writers só escrevem em deliveries_dir (TD-35).
+// sem casamento por caixa; report_writers só escrevem em deliveries_dir (TD-35);
+// registro opcional das decisões em hook_log, com o próprio log protegido
+// (TD-45).
 // Leitura do payload e resolução de caminho em internal/hookio, compartilhadas
 // com o fmt-hook.
 
@@ -15,9 +17,14 @@
 package hook
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/rodrigodosanjosoliveira/pipeline-ai-claude/internal/config"
 	"github.com/rodrigodosanjosoliveira/pipeline-ai-claude/internal/hookio"
@@ -90,27 +97,103 @@ func Run(stdin io.Reader, stderr io.Writer, getwd func() (string, error)) int {
 		return block("configuração ausente ou inválida: %v\nRode `pipeline-claude doctor` para diagnosticar.", err)
 	}
 
+	// decide registra a decisão no hook_log, se houver, e devolve o código.
+	// Falha ao registrar bloqueia (TD-45, regra 3).
+	decide := func(rel, rule, msg string) int {
+		decision, code := "allow", ExitAllow
+		if msg != "" {
+			decision, code = "deny", ExitBlock
+		}
+		if err := appendLog(cfg, logEntry{Tool: tool, Path: rel, Agent: agent, Decision: decision, Rule: rule}); err != nil {
+			fmt.Fprintf(stderr, "BLOQUEADO pelo pipeline-claude: falha ao gravar hook_log (%s): %v\n", cfg.HookLog, err)
+			fmt.Fprint(stderr, "Toda decisão do hook é registrada; sem o registro, nada é liberado. Rode `pipeline-claude doctor`.\n")
+			if msg != "" {
+				fmt.Fprint(stderr, "\n"+msg)
+			}
+			return ExitBlock
+		}
+		fmt.Fprint(stderr, msg)
+		return code
+	}
+
 	resolved, err := hookio.ResolveInRoot(cfg.Root(), target)
 	if err != nil {
-		return block("não foi possível resolver o caminho alvo: %v", err)
+		return decide("", "unresolved_path", fmt.Sprintf("pipeline-claude hook: não foi possível resolver o caminho alvo: %v\n", err))
 	}
 	if !resolved.Inside {
-		return ExitAllow // outro repositório
+		return decide("", "outside_root", "") // outro repositório
 	}
 	rel := resolved.Rel
 
 	switch {
+	case cfg.IsHookLog(rel):
+		return decide(rel, "hook_log", blockMessage(rel, agent, "arquivo de registro do hook (hook_log)", cfg))
 	case cfg.IsNoAgent(rel):
-		fmt.Fprint(stderr, blockMessage(rel, agent, "caminho sem edição por agentes", cfg))
-		return ExitBlock
+		return decide(rel, "no_agent_paths", blockMessage(rel, agent, "caminho sem edição por agentes", cfg))
 	case cfg.IsProtected(rel) && !cfg.IsEditorAgent(agent):
-		fmt.Fprint(stderr, blockMessage(rel, agent, "agente sem permissão", cfg))
-		return ExitBlock
+		return decide(rel, "protected_paths", blockMessage(rel, agent, "agente sem permissão", cfg))
 	case cfg.IsReportWriter(agent) && !cfg.InDeliveries(rel):
-		fmt.Fprint(stderr, blockMessage(rel, agent, "agente de report fora de deliveries_dir", cfg))
-		return ExitBlock
+		return decide(rel, "report_writers", blockMessage(rel, agent, "agente de report fora de deliveries_dir", cfg))
+	case cfg.IsProtected(rel):
+		return decide(rel, "editor_agents", "")
 	}
-	return ExitAllow
+	return decide(rel, "unprotected", "")
+}
+
+// logEntry é uma linha do hook_log (TD-45). Nunca leva conteúdo da edição.
+type logEntry struct {
+	Time     string `json:"time"`
+	Tool     string `json:"tool"`
+	Path     string `json:"path"`
+	Agent    string `json:"agent"`
+	Decision string `json:"decision"`
+	Rule     string `json:"rule"`
+}
+
+// appendLog acrescenta e ao hook_log de cfg numa escrita só, em modo append.
+// Sem hook_log, não faz nada. O arquivo, com symlinks resolvidos, precisa
+// ficar dentro da raiz; a pasta é criada se faltar.
+func appendLog(cfg *config.Config, e logEntry) error {
+	if cfg.HookLog == "" {
+		return nil
+	}
+	e.Time = time.Now().UTC().Format(time.RFC3339)
+	line, err := json.Marshal(e)
+	if err != nil {
+		return err
+	}
+	line = append(line, '\n')
+
+	resolve := func() (string, error) {
+		r, err := hookio.ResolveInRoot(cfg.Root(), cfg.HookLog)
+		if err != nil {
+			return "", err
+		}
+		if !r.Inside {
+			return "", errors.New("o caminho resolve para fora da raiz do projeto")
+		}
+		return r.Real, nil
+	}
+	p, err := resolve()
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+		return err
+	}
+	// De novo depois do MkdirAll: a pasta pode ter virado symlink.
+	if p, err = resolve(); err != nil {
+		return err
+	}
+	f, err := os.OpenFile(p, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0o644)
+	if err != nil {
+		return err
+	}
+	_, werr := f.Write(line)
+	if cerr := f.Close(); werr == nil {
+		werr = cerr
+	}
+	return werr
 }
 
 func blockMessage(rel, agent, reason string, cfg *config.Config) string {
@@ -132,6 +215,9 @@ func blockMessage(rel, agent, reason string, cfg *config.Config) string {
 	}
 
 	switch {
+	case cfg.IsHookLog(rel):
+		b.WriteString("\nPróximo passo: o hook_log é gravado só pelo hook e não é editado por nenhuma ferramenta;\n")
+		b.WriteString("para desligar o registro, uma pessoa remove hook_log de " + config.FileName + ".\n")
 	case cfg.IsNoAgent(rel):
 		b.WriteString("\nPróximo passo: este caminho está em no_agent_paths e não é editado por nenhum agente;\n")
 		b.WriteString("a alteração é feita por uma pessoa, fora da sessão.\n")
