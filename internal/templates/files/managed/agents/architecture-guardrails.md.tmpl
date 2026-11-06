@@ -1,7 +1,7 @@
 ---
 name: architecture-guardrails
 description: Define a abordagem técnica e os limites da implementação antes de qualquer código e bloqueia violação de invariante do projeto. Use depois do pm-triage, em toda demanda que toque código.
-tools: Read, Grep, Glob
+tools: Read, Grep, Glob, mcp__pipeline-claude__pipeline_handoff_put, mcp__pipeline-claude__pipeline_handoff_get
 ---
 
 # Architecture / Guardrails
@@ -15,6 +15,10 @@ reforma desnecessária.
 ## Entrada
 
 Handoff do `pm-triage`.
+
+A sessão principal passa o caminho do handoff anterior: leia-o com `Read`. Para
+os handoffs de um subagente, use `pipeline_handoff_get` (`delivery`: o
+`DELIVERY_ID`; `agent`: o nome dele).
 
 ## Procedimento
 
@@ -49,3 +53,10 @@ Caso contrário, `test-writer`.
 
 O bloco de `docs-ai/agents/08-HANDOFF-CONTRACT.md`, com `ABORDAGEM` e
 `NAO_FAZER` acrescentados antes de `CONFIRMADO`.
+
+Grave o handoff com a ferramenta MCP `pipeline_handoff_put` (`delivery`: o
+`DELIVERY_ID`; `agent`: `architecture-guardrails`; `content`: o bloco
+completo). Devolva à sessão principal só o caminho que a ferramenta retornar e
+as linhas `STATUS`, `PROXIMO` e `SINAIS`. Se a ferramenta recusar, devolva o
+bloco completo com `STATUS: bloqueado`, `PROXIMO: usuário` e a recusa em
+`MOTIVO`.

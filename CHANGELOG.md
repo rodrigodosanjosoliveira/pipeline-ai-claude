@@ -21,8 +21,8 @@ go install github.com/rodrigodosanjosoliveira/pipeline-ai-claude/cmd/pipeline-cl
   próximo lê o anterior direto, sem a sessão principal reescrever resumos. O
   `put` só cria, nunca sobrescreve, e recusa sem gravar delivery inexistente,
   subagente sem arquivo em `.claude/agents/`, conteúdo vazio, com NUL ou acima
-  de 64 KiB e caminho protegido. Os templates passam a usá-las numa versão
-  seguinte.
+  de 64 KiB e caminho protegido. Os subagentes do fluxo passam a usá-las (ver
+  "Alterado").
 - Comando `pipeline-claude index sync [--base <ref>] [--dry-run] [--json]` e
   ferramenta MCP `pipeline_index_sync` (TD-42): marcam como `merged`, na
   coluna Status do índice e no `status` do front matter do report, cada
@@ -80,6 +80,30 @@ go install github.com/rodrigodosanjosoliveira/pipeline-ai-claude/cmd/pipeline-cl
 - O `init` gera `"hook_log": ".pipeline-claude/hook-log.jsonl"` e põe
   `/.pipeline-claude/` no `.gitignore` (TD-45). Num projeto existente, para
   registrar as decisões do hook, acrescente as duas linhas à mão.
+- Subagentes e `/fluxo` (arquivos gerenciados: chegam pelo `sync`):
+  - Os 15 subagentes da ordem do fluxo ganham `pipeline_handoff_put` e
+    `pipeline_handoff_get` (TD-41). Cada um grava o próprio handoff e devolve
+    à sessão principal só o caminho e as linhas `STATUS`, `PROXIMO` e
+    `SINAIS`; o `git-delivery` grava o seu antes do commit, para os handoffs
+    entrarem no commit da delivery. O `agent-auditor` ganha só o
+    `pipeline_handoff_get`.
+  - O `/fluxo` roda `git fetch` e `pipeline_index_sync` no lugar da conferência
+    manual com `git log` (TD-42), passa ao próximo subagente o caminho do
+    handoff anterior, não um resumo, e não escreve nem reescreve handoff.
+  - O `docs-update` deixa de receber `MESCLADAS` e muda no índice só a linha da
+    própria delivery, para `em revisão`. Insistir com `Edit` depois de uma
+    recusa que não vem do hook vale só para o report da delivery; em outro
+    arquivo, recusa bloqueia.
+  - O `migration-reviewer` ganha `pipeline_sensors` e lê os testes pulados do
+    sensor `test`; nenhum revisor só leitura ganha `Bash` (TD-46). O `doctor`
+    passa a apontar o sensor `test` como pedido também pelo
+    `migration-reviewer`, e a checagem `sensores` lista só os subagentes
+    instalados no projeto.
+  - O `qa-validation` cita o `skipped` do sensor de teste: teste pulado da
+    camada de banco deixa o resultado `parcial`, com o motivo, não `ok`.
+  - O `test-writer` valida os testes com mutantes simples contra uma
+    implementação de referência, numa cópia descartável fora da árvore do
+    projeto, e registra `Mutantes: N mortos, M sobreviventes` no handoff.
 
 ## [v1.0.0] - 2026-11-04
 

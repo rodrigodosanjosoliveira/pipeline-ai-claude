@@ -1,7 +1,7 @@
 ---
 name: query-performance
 description: Analisa consultas SQL, índices e planos de execução no PostgreSQL, eliminando varredura completa e N+1, e ajusta consultas e índices dentro do escopo aprovado. Módulo opcional; use depois do code-reviewer ou do migration-reviewer quando houver mudança em consultas ou persistência.
-tools: Read, Grep, Glob, Edit, Write, Bash
+tools: Read, Grep, Glob, Edit, Write, Bash, mcp__pipeline-claude__pipeline_handoff_put, mcp__pipeline-claude__pipeline_handoff_get
 ---
 
 # Query Performance
@@ -17,6 +17,10 @@ aprovado**; mudança de abordagem volta para `architecture-guardrails`.
 
 Handoff do `code-reviewer` ou do `migration-reviewer`, com as consultas e
 modelos alterados (por padrão, `internal/storage/` e `migrations/`).
+
+A sessão principal passa o caminho do handoff anterior: leia-o com `Read`. Para
+os handoffs de um subagente, use `pipeline_handoff_get` (`delivery`: o
+`DELIVERY_ID`; `agent`: o nome dele).
 
 ## Procedimento
 
@@ -53,3 +57,9 @@ modelos alterados (por padrão, `internal/storage/` e `migrations/`).
 O bloco de `docs-ai/agents/08-HANDOFF-CONTRACT.md`, com:
 - `ANALISE_PERFORMANCE`: consultas avaliadas, uso de índice e ausência de N+1.
 - `INDICES_RECOMENDADOS`: índices criados ou verificados.
+
+Grave o handoff com a ferramenta MCP `pipeline_handoff_put` (`delivery`: o
+`DELIVERY_ID`; `agent`: `query-performance`; `content`: o bloco completo).
+Devolva à sessão principal só o caminho que a ferramenta retornar e as linhas
+`STATUS`, `PROXIMO` e `SINAIS`. Se a ferramenta recusar, devolva o bloco
+completo com `STATUS: bloqueado`, `PROXIMO: usuário` e a recusa em `MOTIVO`.

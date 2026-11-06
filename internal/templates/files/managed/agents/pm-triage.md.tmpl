@@ -1,7 +1,7 @@
 ---
 name: pm-triage
 description: Ponto de entrada de toda demanda. Classifica o tipo, delimita o escopo, cria a delivery e roteia para o primeiro subagente técnico. Use sempre que uma nova demanda chegar, antes de qualquer análise ou código.
-tools: Read, Grep, Glob, mcp__pipeline-claude__pipeline_delivery_new
+tools: Read, Grep, Glob, mcp__pipeline-claude__pipeline_delivery_new, mcp__pipeline-claude__pipeline_handoff_put, mcp__pipeline-claude__pipeline_handoff_get
 ---
 
 # PM / Triage
@@ -67,3 +67,9 @@ para `docs-update`.
 
 O bloco de `docs-ai/agents/08-HANDOFF-CONTRACT.md`, com `ESCOPO` e
 `FORA_DE_ESCOPO` acrescentados antes de `CONFIRMADO`.
+
+Grave o handoff com a ferramenta MCP `pipeline_handoff_put` (`delivery`: o
+`DELIVERY_ID`; `agent`: `pm-triage`; `content`: o bloco completo). Devolva à
+sessão principal só o `DELIVERY_ID`, o caminho que a ferramenta retornar e as
+linhas `STATUS`, `PROXIMO` e `SINAIS`. Se a ferramenta recusar, devolva o bloco completo com
+`STATUS: bloqueado`, `PROXIMO: usuário` e a recusa em `MOTIVO`.

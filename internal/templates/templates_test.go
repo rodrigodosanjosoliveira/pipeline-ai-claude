@@ -63,6 +63,11 @@ const (
 	mcpDiff        = "mcp__pipeline-claude__pipeline_diff"
 	mcpSensors     = "mcp__pipeline-claude__pipeline_sensors"
 	mcpValidate    = "mcp__pipeline-claude__pipeline_validate"
+	mcpHandoffPut  = "mcp__pipeline-claude__pipeline_handoff_put"
+	mcpHandoffGet  = "mcp__pipeline-claude__pipeline_handoff_get"
+	// handoff: os subagentes do fluxo gravam o próprio handoff e leem o
+	// anterior pelo MCP (TD-41).
+	handoff = ", " + mcpHandoffPut + ", " + mcpHandoffGet
 )
 
 // agentTools é a tabela explícita das ferramentas de cada subagente e de quem
@@ -72,31 +77,35 @@ var agentTools = map[string]struct {
 	write bool
 }{
 	// Cria a delivery pela ferramenta MCP (docs-ai/ não é protegido); sem Bash.
-	"pm-triage":               {"Read, Grep, Glob, " + mcpDeliveryNew, false},
-	"architecture-guardrails": {"Read, Grep, Glob", false},
-	"test-writer":             {"Read, Grep, Glob, Edit, Write, Bash", true},
-	"dev-implementation":      {"Read, Grep, Glob, Edit, Write, MultiEdit, Bash, " + mcpSensors, true},
-	// Revisores: diff e sensores pelo MCP, sem Bash (TD-29).
-	"code-reviewer":       {"Read, Grep, Glob, " + mcpDiff, false},
-	"security-review":     {"Read, Grep, Glob, " + mcpDiff + ", " + mcpSensors, false},
-	"supply-chain-review": {"Read, Grep, Glob, " + mcpDiff + ", " + mcpSensors, false},
-	"qa-validation":       {"Read, Grep, Glob, " + mcpDiff + ", " + mcpSensors, false},
+	"pm-triage":               {"Read, Grep, Glob, " + mcpDeliveryNew + handoff, false},
+	"architecture-guardrails": {"Read, Grep, Glob" + handoff, false},
+	"test-writer":             {"Read, Grep, Glob, Edit, Write, Bash" + handoff, true},
+	"dev-implementation":      {"Read, Grep, Glob, Edit, Write, MultiEdit, Bash, " + mcpSensors + handoff, true},
+	// Revisores: diff e sensores pelo MCP, sem Bash (TD-29, TD-46).
+	"code-reviewer":       {"Read, Grep, Glob, " + mcpDiff + handoff, false},
+	"security-review":     {"Read, Grep, Glob, " + mcpDiff + ", " + mcpSensors + handoff, false},
+	"supply-chain-review": {"Read, Grep, Glob, " + mcpDiff + ", " + mcpSensors + handoff, false},
+	"qa-validation":       {"Read, Grep, Glob, " + mcpDiff + ", " + mcpSensors + handoff, false},
 	// Edita docs-ai/ e o report; valida pela ferramenta MCP, sem Bash.
-	"docs-update":  {"Read, Grep, Glob, Edit, Write, " + mcpValidate, true},
-	"git-delivery": {"Read, Grep, Glob, Bash, " + mcpValidate, false},
-	// Módulos.
-	"data-model":         {"Read, Grep, Glob", false},
-	"migration-reviewer": {"Read, Grep, Glob, " + mcpDiff, false},
-	"query-performance":  {"Read, Grep, Glob, Edit, Write, Bash", true},
-	"release-ops":        {"Read, Grep, Glob, " + mcpDiff, false},
-	"agent-auditor":      {"Read, Grep, Glob, " + mcpDiff + ", " + mcpSensors, false},
-	"context-loader":     {"Read, Grep, Glob, WebFetch, WebSearch", false},
-	"tenant-isolation":   {"Read, Grep, Glob, " + mcpDiff, false},
+	"docs-update":  {"Read, Grep, Glob, Edit, Write, " + mcpValidate + handoff, true},
+	"git-delivery": {"Read, Grep, Glob, Bash, " + mcpValidate + handoff, false},
+	// Módulos. O migration-reviewer prova a camada de banco pelo sensor de
+	// teste, não por Bash (TD-46).
+	"data-model":         {"Read, Grep, Glob" + handoff, false},
+	"migration-reviewer": {"Read, Grep, Glob, " + mcpDiff + ", " + mcpSensors + handoff, false},
+	"query-performance":  {"Read, Grep, Glob, Edit, Write, Bash" + handoff, true},
+	"release-ops":        {"Read, Grep, Glob, " + mcpDiff + handoff, false},
+	"tenant-isolation":   {"Read, Grep, Glob, " + mcpDiff + handoff, false},
+	// Sob demanda, fora da ordem do fluxo: o auditor só lê os handoffs; o
+	// context-loader devolve a síntese a quem pediu.
+	"agent-auditor":  {"Read, Grep, Glob, " + mcpDiff + ", " + mcpSensors + ", " + mcpHandoffGet, false},
+	"context-loader": {"Read, Grep, Glob, WebFetch, WebSearch", false},
 }
 
 // agentSensorsWant são os sensores que cada subagente pede pelo nome (TD-29).
 var agentSensorsWant = map[string][]string{
 	"agent-auditor":       {"test"},
+	"migration-reviewer":  {"test"},
 	"security-review":     {"vuln"},
 	"supply-chain-review": {"mod_verify", "vuln"},
 }
@@ -125,6 +134,13 @@ func render(t *testing.T, p string, d Data) string {
 		t.Fatalf("Render(%s): %v", p, err)
 	}
 	return string(out)
+}
+
+// renderFlat renderiza p com os espaços e quebras de linha colapsados num
+// espaço só, para procurar frases que a quebra de linha do Markdown parte.
+func renderFlat(t *testing.T, p string, d Data) string {
+	t.Helper()
+	return strings.Join(strings.Fields(render(t, p, d)), " ")
 }
 
 // renderProject grava num diretório o que o init gravaria: os arquivos do
@@ -1306,6 +1322,7 @@ func TestRequiredSensors(t *testing.T) {
 	}{
 		{nil, []string{"mod_verify", "vuln"}},
 		{[]string{"agent-auditor"}, []string{"mod_verify", "test", "vuln"}},
+		{[]string{"migration-reviewer"}, []string{"mod_verify", "test", "vuln"}},
 		{allModules(), []string{"mod_verify", "test", "vuln"}},
 	}
 	for _, tt := range tests {
@@ -1314,12 +1331,25 @@ func TestRequiredSensors(t *testing.T) {
 		}
 	}
 	for _, r := range RequiredSensors(allModules()) {
-		if len(SensorUsers(r)) == 0 {
+		if len(SensorUsers(r, allModules())) == 0 {
 			t.Errorf("SensorUsers(%q) vazio", r)
 		}
 	}
-	if got := SensorUsers("vuln"); !slices.Equal(got, []string{"security-review", "supply-chain-review"}) {
-		t.Errorf("SensorUsers(vuln) = %v", got)
+	users := []struct {
+		sensor  string
+		modules []string
+		want    []string
+	}{
+		{"vuln", nil, []string{"security-review", "supply-chain-review"}},
+		{"test", allModules(), []string{"agent-auditor", "migration-reviewer"}},
+		// Só os subagentes que o projeto instala.
+		{"test", []string{"migration-reviewer"}, []string{"migration-reviewer"}},
+		{"test", nil, nil},
+	}
+	for _, u := range users {
+		if got := SensorUsers(u.sensor, u.modules); !slices.Equal(got, u.want) {
+			t.Errorf("SensorUsers(%s, %v) = %v, quero %v", u.sensor, u.modules, got, u.want)
+		}
 	}
 	// DefaultSensors é a config gerada, comando por comando.
 	def, err := DefaultSensors()
@@ -1405,23 +1435,81 @@ func TestTriageGravaEscopoEFlags(t *testing.T) {
 }
 
 // TestDeliveryIndexStatus: o fluxo leva a delivery a "em revisão" ao abrir o
-// PR/MR e a "merged" quando o commit dela chega à base (atrito da demo: o
-// índice ficava em draft e cada delivery corrigia as anteriores à mão).
+// PR/MR (docs-update) e a "merged" pelo pipeline_index_sync, calculado do git
+// (TD-42). Nem o fluxo nem o docs-update conferem commits à mão.
 func TestDeliveryIndexStatus(t *testing.T) {
-	fluxo := render(t, ".claude/skills/fluxo/SKILL.md", sampleData())
-	for _, want := range []string{"base_ref", "git fetch", "git log --fixed-strings --grep", "MESCLADAS", "docs-update"} {
+	fluxo := renderFlat(t, ".claude/skills/fluxo/SKILL.md", sampleData())
+	for _, want := range []string{"`git fetch`", "`pipeline_index_sync`", "não edite o índice"} {
 		if !strings.Contains(fluxo, want) {
 			t.Errorf("fluxo sem %q", want)
 		}
 	}
-	if i, j := strings.Index(fluxo, "MESCLADAS"), strings.Index(fluxo, "Comece pelo `pm-triage`"); i < 0 || j < 0 || i > j {
-		t.Error("fluxo confere as deliveries mescladas depois de começar pelo pm-triage")
+	for _, gone := range []string{"git log --fixed-strings", "MESCLADAS"} {
+		if strings.Contains(fluxo, gone) {
+			t.Errorf("fluxo ainda com %q (TD-42)", gone)
+		}
 	}
-	docs := render(t, ".claude/agents/docs-update.md", sampleData())
-	for _, want := range []string{"`em revisão`", "`merged`", "MESCLADAS", "só a coluna Status"} {
+	if i, j := strings.Index(fluxo, "`pipeline_index_sync`"), strings.Index(fluxo, "Comece pelo `pm-triage`"); i < 0 || j < 0 || i > j {
+		t.Error("fluxo sincroniza o índice depois de começar pelo pm-triage")
+	}
+	docs := renderFlat(t, ".claude/agents/docs-update.md", sampleData())
+	for _, want := range []string{"`em revisão`", "só a coluna Status", "só a linha desta delivery", "`pipeline_index_sync`"} {
 		if !strings.Contains(docs, want) {
 			t.Errorf("docs-update sem %q", want)
 		}
+	}
+	if strings.Contains(docs, "MESCLADAS") {
+		t.Error("docs-update ainda recebe MESCLADAS (TD-42)")
+	}
+}
+
+// TestFluxoHandoffs: a sessão principal passa ao próximo subagente o caminho
+// do handoff anterior, não um resumo, e nunca reescreve handoff (TD-41).
+func TestFluxoHandoffs(t *testing.T) {
+	fluxo := renderFlat(t, ".claude/skills/fluxo/SKILL.md", sampleData())
+	for _, want := range []string{"`pipeline_handoff_get`", "caminho do handoff", "não um resumo", "não escreve nem reescreve handoff"} {
+		if !strings.Contains(fluxo, want) {
+			t.Errorf("fluxo sem %q", want)
+		}
+	}
+	if strings.Contains(fluxo, "nenhum grava nada") {
+		t.Error("fluxo diz que revisor paralelo não grava nada, mas cada um grava o próprio handoff")
+	}
+}
+
+// TestAgentHandoffs: cada subagente com pipeline_handoff_put grava o próprio
+// handoff com o próprio nome e devolve à sessão principal só o caminho e as
+// linhas STATUS, PROXIMO e SINAIS (o pm-triage, também o DELIVERY_ID). Todos
+// menos o pm-triage, que abre a delivery, dizem como ler o anterior pelo
+// pipeline_handoff_get (TD-41).
+func TestAgentHandoffs(t *testing.T) {
+	d := sampleData()
+	n := 0
+	for name, at := range agentTools {
+		tools := splitTools(at.tools)
+		body := renderFlat(t, ".claude/agents/"+name+".md", d)
+		hasPut, hasGet := slices.Contains(tools, mcpHandoffPut), slices.Contains(tools, mcpHandoffGet)
+		if hasPut != strings.Contains(body, "`pipeline_handoff_put`") {
+			t.Errorf("%s: tools com handoff_put = %v, texto não acompanha", name, hasPut)
+		}
+		if hasGet && name != "pm-triage" && !strings.Contains(body, "`pipeline_handoff_get`") {
+			t.Errorf("%s: tem pipeline_handoff_get e não diz como ler o handoff", name)
+		}
+		if !hasPut {
+			continue
+		}
+		n++
+		if !hasGet {
+			t.Errorf("%s: grava handoff sem poder ler o anterior", name)
+		}
+		for _, want := range []string{"`agent`: `" + name + "`", "à sessão principal só o", "caminho", "`STATUS`, `PROXIMO` e `SINAIS`", "`STATUS: bloqueado`"} {
+			if !strings.Contains(body, want) {
+				t.Errorf("%s: saída sem %q", name, want)
+			}
+		}
+	}
+	if n != 15 {
+		t.Errorf("%d subagentes gravam handoff, esperado 15 (os da ordem do fluxo)", n)
 	}
 }
 
@@ -1463,12 +1551,46 @@ func TestReportFixedLabels(t *testing.T) {
 
 // TestDocsUpdateEditsReport: o docs-update edita o report com Edit e sabe
 // distinguir a recusa do hook da recusa da camada de ferramentas (atrito da
-// demo, item 9: Write recusado com mensagem que não é do pipeline).
+// demo, item 9: Write recusado com mensagem que não é do pipeline). Insistir
+// vale só para o report (achado BAIXO-1 do security-review da DEL-009 da demo).
 func TestDocsUpdateEditsReport(t *testing.T) {
-	docs := render(t, ".claude/agents/docs-update.md", sampleData())
-	for _, want := range []string{"com `Edit`", "BLOQUEADO pelo pipeline-claude", "não vem do hook"} {
+	docs := renderFlat(t, ".claude/agents/docs-update.md", sampleData())
+	for _, want := range []string{"com `Edit`", "BLOQUEADO pelo pipeline-claude", "não vem do hook",
+		"vale só para `docs-ai/deliveries/{DELIVERY_ID}/report.md`", "Em qualquer outro arquivo"} {
 		if !strings.Contains(docs, want) {
 			t.Errorf("docs-update sem %q", want)
+		}
+	}
+	if !strings.Contains(docs, "`handoffs/`") {
+		t.Error("docs-update não proíbe editar os handoffs")
+	}
+}
+
+// TestTestWriterMutants: o test-writer valida os testes com mutantes numa
+// cópia fora da árvore e registra o resultado no handoff (prática da DEL-008).
+func TestTestWriterMutants(t *testing.T) {
+	tw := renderFlat(t, ".claude/agents/test-writer.md", sampleData())
+	for _, want := range []string{"implementação de referência", "fora da árvore do projeto",
+		"Mutantes: N mortos, M sobreviventes", "motivo de cada sobrevivente", "nunca no diff"} {
+		if !strings.Contains(tw, want) {
+			t.Errorf("test-writer sem %q", want)
+		}
+	}
+}
+
+// TestSkippedEvidence: QA e migration-reviewer leem o skipped do sensor de
+// teste; teste de banco pulado não vira ok (TD-43, TD-46).
+func TestSkippedEvidence(t *testing.T) {
+	qa := renderFlat(t, ".claude/agents/qa-validation.md", sampleData())
+	for _, want := range []string{"`skipped`", "`parcial`", "não `ok`"} {
+		if !strings.Contains(qa, want) {
+			t.Errorf("qa-validation sem %q", want)
+		}
+	}
+	mig := renderFlat(t, ".claude/agents/migration-reviewer.md", sampleData())
+	for _, want := range []string{"`skipped`", "`pipeline_sensors`"} {
+		if !strings.Contains(mig, want) {
+			t.Errorf("migration-reviewer sem %q", want)
 		}
 	}
 }

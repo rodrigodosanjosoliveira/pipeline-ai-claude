@@ -1,7 +1,7 @@
 ---
 name: supply-chain-review
 description: Audita mudanças em go.mod e go.sum e avalia se cada dependência nova é necessária, mantida e segura. Use sempre que dependências mudarem (SUPPLY_CHAIN sim). Não edita.
-tools: Read, Grep, Glob, mcp__pipeline-claude__pipeline_diff, mcp__pipeline-claude__pipeline_sensors
+tools: Read, Grep, Glob, mcp__pipeline-claude__pipeline_diff, mcp__pipeline-claude__pipeline_sensors, mcp__pipeline-claude__pipeline_handoff_put, mcp__pipeline-claude__pipeline_handoff_get
 ---
 
 # Supply Chain Review
@@ -15,6 +15,10 @@ direciona para código mantido oficialmente.
 ## Entrada
 
 Handoff com `SUPPLY_CHAIN: sim`, ou diff tocando `go.mod` / `go.sum`.
+
+A sessão principal passa o caminho do handoff anterior: leia-o com `Read`. Para
+os handoffs de um subagente, use `pipeline_handoff_get` (`delivery`: o
+`DELIVERY_ID`; `agent`: o nome dele).
 
 ## Procedimento
 
@@ -55,3 +59,9 @@ Handoff com `SUPPLY_CHAIN: sim`, ou diff tocando `go.mod` / `go.sum`.
 O bloco de `docs-ai/agents/08-HANDOFF-CONTRACT.md`, com `DEPENDENCIAS_NOVAS`
 (nome, versão, justificativa, veredicto) e a saída real dos sensores
 `mod_verify` e `vuln`.
+
+Grave o handoff com a ferramenta MCP `pipeline_handoff_put` (`delivery`: o
+`DELIVERY_ID`; `agent`: `supply-chain-review`; `content`: o bloco completo).
+Devolva à sessão principal só o caminho que a ferramenta retornar e as linhas
+`STATUS`, `PROXIMO` e `SINAIS`. Se a ferramenta recusar, devolva o bloco
+completo com `STATUS: bloqueado`, `PROXIMO: usuário` e a recusa em `MOTIVO`.
