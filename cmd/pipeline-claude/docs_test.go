@@ -134,7 +134,7 @@ func TestChangelog(t *testing.T) {
 			t.Errorf("versões fora de ordem decrescente: %s antes de %s", versions[i-1], versions[i])
 		}
 	}
-	for _, v := range []string{"v0.1.0", "v0.2.0", "v0.3.0", "v1.0.0-rc.1", "v1.0.0-rc.2", "v1.0.0-rc.3", "v1.0.0-rc.4", "v1.0.0-rc.5", "v1.0.0", "v1.1.0-rc.1", "v1.1.0-rc.2"} {
+	for _, v := range []string{"v0.1.0", "v0.2.0", "v0.3.0", "v1.0.0-rc.1", "v1.0.0-rc.2", "v1.0.0-rc.3", "v1.0.0-rc.4", "v1.0.0-rc.5", "v1.0.0", "v1.1.0-rc.1", "v1.1.0-rc.2", "v1.1.0"} {
 		if !slices.Contains(versions, v) {
 			t.Errorf("versão publicada %s sem seção no CHANGELOG.md", v)
 		}
@@ -158,6 +158,17 @@ func TestChangelog(t *testing.T) {
 			"Limites conhecidos", "`hook_log`", "`deny`", "`parcial`"} {
 			if !strings.Contains(rc, want) {
 				t.Errorf("seção v1.1.0-rc.2 sem %q", want)
+			}
+		}
+	}
+	// A v1.1.0 diz de qual rc veio o código, como atualizar e o que segue
+	// sem validação.
+	if _, sec, ok := strings.Cut(text, "\n## [v1.1.0] - "); ok {
+		sec, _, _ = strings.Cut(sec, "\n### ")
+		for _, want := range []string{"`v1.1.0-rc.2`", "DEL-011", "PIPELINE_CLAUDE_VERSION := v1.1.0", "pipeline-claude sync",
+			"`v1.1.0-rc.1`", "Limitações conhecidas", "`adopt`", "GitLab"} {
+			if !strings.Contains(sec, want) {
+				t.Errorf("seção v1.1.0 sem %q", want)
 			}
 		}
 	}
@@ -297,7 +308,7 @@ func TestDocLinks(t *testing.T) {
 		}
 	}
 	readme := readRepoDoc(t, "README.md")
-	for _, want := range []string{"](CHANGELOG.md)", "](docs/CONTRATO.md)", "Última versão publicada: `v1.1.0-rc.2`", "](https://github.com/rodrigodosanjosoliveira/biblioteca-bairro)"} {
+	for _, want := range []string{"](CHANGELOG.md)", "](docs/CONTRATO.md)", "Última versão publicada: `v1.1.0`", "v1.1 estável", "](https://github.com/rodrigodosanjosoliveira/biblioteca-bairro)"} {
 		if !strings.Contains(readme, want) {
 			t.Errorf("README.md não traz %q", want)
 		}

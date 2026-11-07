@@ -13,6 +13,31 @@ go install github.com/rodrigodosanjosoliveira/pipeline-ai-claude/cmd/pipeline-cl
 
 ## [Não lançado]
 
+## [v1.1.0] - 2026-11-06
+
+Versão estável da v1.1. O código é o da `v1.1.0-rc.2`. A `v1.1.0-rc.1` foi
+validada no projeto de demonstração
+[`biblioteca-bairro`](https://github.com/rodrigodosanjosoliveira/biblioteca-bairro)
+com uma delivery de código com migração pelo fluxo completo (DEL-011). Ela
+provou os handoffs em arquivo, o `index sync`, os testes pulados no sensor e
+no QA, a checagem `imports` e um `deny` real no log do hook. Os dois atritos
+que enfraqueciam a versão foram corrigidos na `v1.1.0-rc.2`. Só acréscimos ao
+contrato da v1.0 (TD-37).
+
+Projeto existente, para atualizar: fixe `PIPELINE_CLAUDE_VERSION := v1.1.0` no
+`Makefile`, rode `make tools` e depois `bin/pipeline-claude sync --dry-run` e
+`bin/pipeline-claude sync`. Vindo da `v1.0.0`, faça também as trocas à mão da
+config descritas na `v1.1.0-rc.1`.
+
+Limitações conhecidas: as três da `v1.1.0-rc.2` (o `hook_log` só vê as
+ferramentas de edição; o QA sem shell fica `parcial` sem a suíte com banco; os
+agentes sobem banco descartável), e seguem sem validação em projeto real o
+`adopt`, o provedor GitLab e os subagentes `release-ops` e `tenant-isolation`.
+
+### Alterado
+
+- README passa ao estado "v1.1 estável".
+
 ## [v1.1.0-rc.2] - 2026-11-06
 
 Ajustes da validação da `v1.1.0-rc.1` na demo (DEL-011, uma delivery de código
@@ -393,7 +418,8 @@ Primeira versão instalável (Fases 0 a 3).
 - Revisores gerados só leitura: diff e sensores chegam pelo MCP (TD-29).
 - `enabled_modules` recusa módulo repetido (TD-28).
 
-[Não lançado]: https://github.com/rodrigodosanjosoliveira/pipeline-ai-claude/compare/v1.1.0-rc.2...HEAD
+[Não lançado]: https://github.com/rodrigodosanjosoliveira/pipeline-ai-claude/compare/v1.1.0...HEAD
+[v1.1.0]: https://github.com/rodrigodosanjosoliveira/pipeline-ai-claude/compare/v1.1.0-rc.2...v1.1.0
 [v1.1.0-rc.2]: https://github.com/rodrigodosanjosoliveira/pipeline-ai-claude/compare/v1.1.0-rc.1...v1.1.0-rc.2
 [v1.1.0-rc.1]: https://github.com/rodrigodosanjosoliveira/pipeline-ai-claude/compare/v1.0.0...v1.1.0-rc.1
 [v1.0.0]: https://github.com/rodrigodosanjosoliveira/pipeline-ai-claude/compare/v1.0.0-rc.5...v1.0.0
