@@ -13,7 +13,7 @@ go install github.com/rodrigodosanjosoliveira/pipeline-ai-claude/cmd/pipeline-cl
 
 ## [Não lançado]
 
-## [v1.1.0] - 2026-11-06
+## [v1.1.0] - 2026-11-07
 
 Versão estável da v1.1. O código é o da `v1.1.0-rc.2`. A `v1.1.0-rc.1` foi
 validada no projeto de demonstração
