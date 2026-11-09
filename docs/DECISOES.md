@@ -521,6 +521,24 @@ a 30 min. Com o prazo só na chamada, quem roda todos os sensores (a skill
 revisor sem Bash (TD-46) não tem como rodá-la sem lembrar o prazo certo.
 Decisão do usuário em 2026-11-09.
 
+### TD-48 — `doctor` lê os sensores pedidos no texto dos subagentes
+A checagem `sensores` soma aos sensores dos templates instalados (mapa fixo,
+TD-29) os que o texto de cada `.claude/agents/*.md` pede pelo nome, gerenciado,
+liberado ou fora do lock. Pedido é a lista `names: [...]` numa linha com
+`pipeline_sensors`, depois dele na mesma linha ou no início da linha seguinte
+(prosa quebrada, como nos templates); a lista fecha na mesma linha, itens entre
+aspas, e item fora do formato de nome de sensor (`^[a-z][a-z0-9_]*$`) é
+ignorado. Symlink, arquivo irregular ou ilegível fica de fora (a checagem
+`subagentes` já os aponta). Sensor ausente da config continua aviso: com a
+entrada pronta quando é do template; senão, o pedido de declará-lo com o
+comando do projeto ou corrigir o nome no subagente. Chamada escrita em outro
+formato não é vista: o `doctor` não garante a ausência de pedidos.
+**Motivo:** num projeto adotante, o revisor de isolamento liberado (TD-34) passou
+a pedir três sensores do próprio projeto pelo nome (TD-46, TD-47), e o `doctor`
+só conferia os do template: um nome digitado errado no subagente passava sem
+aviso até a chamada falhar. Ler o texto, e não uma chave nova no front matter,
+cobre os subagentes como já estão escritos. Decisão do usuário em 2026-11-09.
+
 ## Pontos em aberto
 
 1. Distribuição da camada Claude também como plugin do Claude Code.
