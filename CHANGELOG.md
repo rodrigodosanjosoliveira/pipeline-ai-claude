@@ -13,6 +13,16 @@ go install github.com/rodrigodosanjosoliveira/pipeline-ai-claude/cmd/pipeline-cl
 
 ## [Não lançado]
 
+## [v1.2.1] - 2026-11-09
+
+O `doctor` passa a conferir os sensores que os subagentes do próprio projeto
+pedem pelo nome (TD-48). Sem mudança de contrato (TD-37).
+
+Projeto existente, para atualizar: fixe `PIPELINE_CLAUDE_VERSION := v1.2.1` no
+`Makefile` e rode `make tools`. Nenhum arquivo gerenciado mudou; nada muda na
+config. Depois, `bin/pipeline-claude doctor` pode avisar sensor pedido por um
+subagente e ausente de `sensors`: declare-o ou corrija o nome no subagente.
+
 ### Alterado
 
 - `doctor`, checagem `sensores` (TD-48): passa a conferir também os sensores
@@ -452,7 +462,8 @@ Primeira versão instalável (Fases 0 a 3).
 - Revisores gerados só leitura: diff e sensores chegam pelo MCP (TD-29).
 - `enabled_modules` recusa módulo repetido (TD-28).
 
-[Não lançado]: https://github.com/rodrigodosanjosoliveira/pipeline-ai-claude/compare/v1.2.0...HEAD
+[Não lançado]: https://github.com/rodrigodosanjosoliveira/pipeline-ai-claude/compare/v1.2.1...HEAD
+[v1.2.1]: https://github.com/rodrigodosanjosoliveira/pipeline-ai-claude/compare/v1.2.0...v1.2.1
 [v1.2.0]: https://github.com/rodrigodosanjosoliveira/pipeline-ai-claude/compare/v1.1.0...v1.2.0
 [v1.1.0]: https://github.com/rodrigodosanjosoliveira/pipeline-ai-claude/compare/v1.1.0-rc.2...v1.1.0
 [v1.1.0-rc.2]: https://github.com/rodrigodosanjosoliveira/pipeline-ai-claude/compare/v1.1.0-rc.1...v1.1.0-rc.2
