@@ -179,7 +179,7 @@ func collect(start string, e env) []Check {
 		hookCheck(st),
 		fmtHookCheck(st),
 		syncCheck(root, cfg, cfgErr),
-		sensorsCheck(cfg, cfgErr),
+		sensorsCheck(root, cfg, cfgErr),
 		agentsCheck(root, cfg, cfgErr),
 		importsCheck(root, cfg, cfgErr),
 		binaryCheck(root, e),
@@ -633,14 +633,28 @@ func syncCheck(root string, cfg *config.Config, cfgErr error) Check {
 }
 
 // sensorsCheck confere que a config declara os sensores que os subagentes do
-// projeto pedem pelo nome em pipeline_sensors (TD-29). Ausência é aviso, com a
-// entrada da config gerada para copiar: o sync não toca na config. Config
-// ausente ou inválida é aviso "não verificado".
-func sensorsCheck(cfg *config.Config, cfgErr error) Check {
+// projeto pedem pelo nome em pipeline_sensors (TD-29): os dos templates
+// instalados e os lidos do texto de cada .claude/agents/*.md, inclusive
+// liberado ou fora do lock (TD-48). Ausência é aviso, com a entrada da config
+// gerada para copiar quando o sensor é do template, ou o pedido de declará-lo
+// com o comando do projeto: o sync não toca na config. Config ausente ou
+// inválida é aviso "não verificado".
+func sensorsCheck(root string, cfg *config.Config, cfgErr error) Check {
 	if cfgErr != nil {
 		return bad(checkSensors, StatusWarn, "não verificado: configuração ausente ou inválida", "corrija a configuração (ver checagem configuração)")
 	}
+	project := agentSensorRequests(root)
 	required := templates.RequiredSensors(cfg.EnabledModules)
+	for name := range project {
+		required = append(required, name)
+	}
+	slices.Sort(required)
+	required = slices.Compact(required)
+	users := func(name string) []string {
+		out := append(templates.SensorUsers(name, cfg.EnabledModules), project[name]...)
+		slices.Sort(out)
+		return slices.Compact(out)
+	}
 	have := map[string]bool{}
 	for _, s := range cfg.Sensors {
 		have[s.Name] = true
@@ -649,12 +663,16 @@ func sensorsCheck(cfg *config.Config, cfgErr error) Check {
 	if err != nil {
 		return bad(checkSensors, StatusError, err.Error(), "reporte o erro: os templates embutidos do toolkit estão inconsistentes")
 	}
-	var missing, entries []string
+	var missing, entries, custom []string
 	for _, name := range required {
 		if have[name] {
 			continue
 		}
-		missing = append(missing, fmt.Sprintf("%s (%s)", name, strings.Join(templates.SensorUsers(name, cfg.EnabledModules), ", ")))
+		missing = append(missing, fmt.Sprintf("%s (%s)", name, strings.Join(users(name), ", ")))
+		if !slices.ContainsFunc(defaults, func(d config.Sensor) bool { return d.Name == name }) {
+			custom = append(custom, name)
+			continue
+		}
 		for _, d := range defaults {
 			if d.Name == name {
 				argv, _ := json.Marshal(d.Cmd)
@@ -670,9 +688,16 @@ func sensorsCheck(cfg *config.Config, cfgErr error) Check {
 		}
 	}
 	if len(missing) > 0 {
+		var actions []string
+		if len(entries) > 0 {
+			actions = append(actions, "acrescente em sensors no "+config.FileName+": "+strings.Join(entries, ", "))
+		}
+		if len(custom) > 0 {
+			actions = append(actions, "declare em sensors no "+config.FileName+", com o comando do projeto: "+strings.Join(custom, ", ")+" (ou corrija o nome no subagente)")
+		}
 		return bad(checkSensors, StatusWarn,
 			"sensores pedidos pelos subagentes e ausentes em sensors: "+strings.Join(missing, ", "),
-			"acrescente em sensors no "+config.FileName+": "+strings.Join(entries, ", "))
+			strings.Join(actions, "; "))
 	}
 	if len(required) == 0 {
 		return ok(checkSensors, "nenhum sensor pedido pelos subagentes")

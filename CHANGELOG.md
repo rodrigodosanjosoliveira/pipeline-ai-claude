@@ -13,6 +13,14 @@ go install github.com/rodrigodosanjosoliveira/pipeline-ai-claude/cmd/pipeline-cl
 
 ## [Não lançado]
 
+### Alterado
+
+- `doctor`, checagem `sensores` (TD-48): passa a conferir também os sensores
+  que o texto de cada `.claude/agents/*.md` pede pelo nome (`pipeline_sensors`
+  com `names: [...]`), inclusive em subagente liberado ou fora do lock. Sensor
+  pedido e ausente da config é aviso; se não for do template, a ação pede para
+  declará-lo com o comando do projeto ou corrigir o nome no subagente.
+
 ## [v1.2.0] - 2026-11-09
 
 Sensor lento com prazo próprio e execução só pelo nome (TD-47). Só acréscimo
