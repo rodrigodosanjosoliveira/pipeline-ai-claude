@@ -216,7 +216,7 @@ func loadConfig(cmd string, stderr io.Writer) (*config.Config, bool) {
 func runSensors(args []string, stdout, stderr io.Writer) int {
 	fs := newFlagSet("sensors", stderr)
 	asJSON := fs.Bool("json", false, "saída em JSON")
-	timeout := fs.Duration("timeout", sensors.DefaultTimeout, "prazo de cada sensor (ex.: 90s, 15m)")
+	timeout := fs.Duration("timeout", sensors.DefaultTimeout, "prazo de cada sensor (ex.: 90s, 15m); informado, vence o timeout da config (TD-47)")
 	fs.Usage = func() {
 		fmt.Fprintln(stderr, "Uso: pipeline-claude sensors [--json] [--timeout <duração>] [nome...]")
 		fs.PrintDefaults()
@@ -233,9 +233,17 @@ func runSensors(args []string, stdout, stderr io.Writer) int {
 	if !ok {
 		return exitBlocked
 	}
+	// Sem --timeout explícito, cada sensor usa o próprio timeout da config e,
+	// sem ele, o padrão da flag (sensors.DefaultTimeout; TD-47).
+	var callTimeout time.Duration
+	fs.Visit(func(f *flag.Flag) {
+		if f.Name == "timeout" {
+			callTimeout = *timeout
+		}
+	})
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
-	return sensors.Print(stdout, sensors.Run(ctx, cfg, sensors.Options{Names: names, Timeout: *timeout}), *asJSON)
+	return sensors.Print(stdout, sensors.Run(ctx, cfg, sensors.Options{Names: names, Timeout: callTimeout}), *asJSON)
 }
 
 func runDelivery(args []string, stdout, stderr io.Writer) int {

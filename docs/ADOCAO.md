@@ -81,7 +81,10 @@ commit:
   revisores pedem `vuln` e `mod_verify` pelo nome; o `doctor` avisa se faltarem.
   Para os testes, `["go", "test", "-json", "./..."]` com
   `"format": "go-test-json"` mostra os testes pulados e o motivo; com
-  `"skips": "fail"`, teste pulado reprova (TD-43).
+  `"skips": "fail"`, teste pulado reprova (TD-43). Sensor lento ganha prazo
+  próprio (`"timeout": "40m"`) e, se não deve rodar em toda validação,
+  `"on_demand": true`: fica fora de `pipeline-claude sensors` sem nomes e roda
+  só quando pedido pelo nome (TD-47).
 
 ## 5. Conferir
 

@@ -505,6 +505,22 @@ pulados visíveis (TD-43), não de comando livre. Decisão do usuário em
 **Motivo:** Bash num revisor transforma leitura em execução arbitrária; o guard-ia
 fez a mesma escolha. O que faltava ao QA era evidência, e o TD-43 a dá.
 
+### TD-47 — Sensor lento: `timeout` próprio e `on_demand`
+Sensor ganha dois campos opcionais. `timeout` é o prazo próprio do sensor, no
+formato de `time.ParseDuration` (`"90s"`, `"40m"`), maior que zero e até 24 h
+(o teto do `timeout_seconds` do MCP). `on_demand: true` tira o sensor da
+execução sem nomes: ele só roda quando pedido pelo nome. Precedência do prazo:
+o da chamada (`sensors --timeout` informado ou `timeout_seconds`) vence; sem
+ele, vale o `timeout` do sensor; sem os dois, `DefaultTimeout` (10 min). O
+padrão da flag `--timeout` continua 10 min; só um valor informado vence a
+config. Config só com sensores `on_demand` e chamada sem nomes reprova, como
+config sem sensor (TD-08). Sem mudança no JSON de saída.
+**Motivo:** num projeto adotante, a prova por mutação do isolamento leva de 25
+a 30 min. Com o prazo só na chamada, quem roda todos os sensores (a skill
+`validar`) estoura os 10 min padrão ou espera meia hora a cada validação, e o
+revisor sem Bash (TD-46) não tem como rodá-la sem lembrar o prazo certo.
+Decisão do usuário em 2026-11-09.
+
 ## Pontos em aberto
 
 1. Distribuição da camada Claude também como plugin do Claude Code.

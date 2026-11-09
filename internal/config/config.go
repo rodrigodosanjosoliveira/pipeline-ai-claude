@@ -5,7 +5,7 @@
 // FlagsTriggeredBy (TD-13); report_schema (TD-12); sensors; validação de caminhos
 // e nomes; erro de acesso no Find não vira "não encontrado" (TD-08); módulo
 // repetido em enabled_modules recusado (TD-28); report_schema.flag_front (TD-30);
-// report_writers (TD-35).
+// report_writers (TD-35); sensors[].timeout e sensors[].on_demand (TD-47).
 
 // Package config carrega a configuração do toolkit a partir do arquivo
 // .pipeline-claude.json na raiz do projeto.
@@ -30,6 +30,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"time"
 	"unicode"
 )
 
@@ -206,6 +207,30 @@ type Sensor struct {
 	// Skips diz o que fazer com testes pulados: SkipsWarn (padrão com Format)
 	// avisa e mantém o sensor verde; SkipsFail reprova. Só vale com Format.
 	Skips string `json:"skips,omitempty"`
+	// Timeout é o prazo próprio do sensor, no formato de time.ParseDuration
+	// ("90s", "40m"), maior que zero e até MaxSensorTimeout. Vazio deixa o
+	// prazo com o chamador. Um prazo explícito na chamada vence (TD-47).
+	Timeout string `json:"timeout,omitempty"`
+	// OnDemand tira o sensor da execução sem nomes: ele só roda quando pedido
+	// pelo nome (TD-47). Serve a sensores lentos que não cabem em toda rodada.
+	OnDemand bool `json:"on_demand,omitempty"`
+}
+
+// MaxSensorTimeout é o maior Sensor.Timeout aceito (o mesmo teto do
+// timeout_seconds da ferramenta MCP pipeline_sensors).
+const MaxSensorTimeout = 24 * time.Hour
+
+// TimeoutDuration devolve o Timeout lido, ou 0 quando ausente. A config
+// carregada já foi validada; valor ilegível também devolve 0.
+func (s Sensor) TimeoutDuration() time.Duration {
+	if s.Timeout == "" {
+		return 0
+	}
+	d, err := time.ParseDuration(s.Timeout)
+	if err != nil || d <= 0 {
+		return 0
+	}
+	return d
 }
 
 // Valores de Sensor.Format e Sensor.Skips (TD-43).
@@ -496,6 +521,12 @@ func (c *Config) normalize() error {
 			c.Sensors[i].Skips = SkipsWarn
 		case s.Skips != "" && s.Skips != SkipsWarn && s.Skips != SkipsFail:
 			return fmt.Errorf("sensors[%d] %q: skips %q desconhecido (use %q ou %q)", i, s.Name, s.Skips, SkipsWarn, SkipsFail)
+		}
+		if s.Timeout != "" {
+			d, err := time.ParseDuration(s.Timeout)
+			if err != nil || d <= 0 || d > MaxSensorTimeout {
+				return fmt.Errorf("sensors[%d] %q: timeout %q inválido (duração positiva até %s, ex.: \"90s\", \"40m\")", i, s.Name, s.Timeout, MaxSensorTimeout)
+			}
 		}
 	}
 	return nil

@@ -13,6 +13,7 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestRun(t *testing.T) {
@@ -525,12 +526,66 @@ func TestHelperProcess(t *testing.T) {
 	if os.Getenv(helperEnv) != "1" {
 		return
 	}
-	if os.Args[len(os.Args)-1] == "ok" {
+	switch os.Args[len(os.Args)-1] {
+	case "ok":
 		fmt.Println("sensor ok")
+		os.Exit(0)
+	case "sleep":
+		time.Sleep(time.Minute) // morto antes pelo timeout do sensor
 		os.Exit(0)
 	}
 	fmt.Println("sensor falhou")
 	os.Exit(3)
+}
+
+// TestE2ESensorsTimeoutOnDemand: sem --timeout vale o timeout da config; com
+// ele, o da linha de comando vence; on_demand fica fora da execução sem nomes
+// (TD-47).
+func TestE2ESensorsTimeoutOnDemand(t *testing.T) {
+	t.Setenv(helperEnv, "1")
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	argv := func(mode string) string {
+		b, _ := json.Marshal([]string{exe, "-test.run=^TestHelperProcess$", "--", mode})
+		return string(b)
+	}
+	root := e2eProject(t)
+	sensorsJSON := `"sensors": [` +
+		`{"name": "lento", "cmd": ` + argv("sleep") + `, "timeout": "300ms"}, ` +
+		`{"name": "sob_pedido", "cmd": ` + argv("ok") + `, "on_demand": true}],`
+	writeFile(t, root, ".pipeline-claude.json", strings.Replace(e2eConfig, `"version": 1,`, `"version": 1, `+sensorsJSON, 1))
+
+	tests := []struct {
+		name   string
+		args   []string
+		want   int
+		has    []string
+		hasNot []string
+	}{
+		{"sem nomes: timeout da config, sem on_demand", []string{"sensors"}, exitFail, []string{"lento", "300ms"}, []string{"sob_pedido"}},
+		{"on_demand pelo nome", []string{"sensors", "sob_pedido"}, exitOK, []string{"sob_pedido"}, nil},
+		{"--timeout vence a config", []string{"sensors", "--timeout", "200ms", "lento"}, exitFail, []string{"200ms"}, []string{"300ms"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			code, stdout, stderr := runBin(t, root, "", tt.args...)
+			if code != tt.want {
+				t.Errorf("código = %d, quer %d\nstdout:\n%s\nstderr:\n%s", code, tt.want, stdout, stderr)
+			}
+			for _, s := range tt.has {
+				if !strings.Contains(stdout, s) {
+					t.Errorf("stdout sem %q:\n%s", s, stdout)
+				}
+			}
+			for _, s := range tt.hasNot {
+				if strings.Contains(stdout, s) {
+					t.Errorf("stdout com %q:\n%s", s, stdout)
+				}
+			}
+		})
+	}
 }
 
 func TestE2ESensors(t *testing.T) {

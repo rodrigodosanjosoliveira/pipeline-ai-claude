@@ -293,8 +293,8 @@ var tools = []toolSpec{
 		name:        "pipeline_sensors",
 		description: "Executa os sensores do projeto (sensors em .pipeline-claude.json). Falha devolve isError.",
 		args: []argSpec{
-			{name: "names", kind: kindStrings, description: "Sensores a executar; padrão: todos."},
-			{name: "timeout_seconds", kind: kindInteger, description: "Prazo de cada sensor em segundos; padrão: 600."},
+			{name: "names", kind: kindStrings, description: "Sensores a executar; padrão: todos, menos os on_demand (que só rodam pelo nome)."},
+			{name: "timeout_seconds", kind: kindInteger, description: "Prazo de cada sensor em segundos; vence o timeout da config. Padrão: o timeout do sensor na config ou 600."},
 		},
 		run: (*server).toolSensors,
 	},
