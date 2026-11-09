@@ -405,6 +405,92 @@ func TestRunNoSensors(t *testing.T) {
 	}
 }
 
+// TestRunOnDemand: sensor on_demand fica fora da execução sem nomes e roda
+// quando pedido pelo nome (TD-47).
+func TestRunOnDemand(t *testing.T) {
+	cfg := loadConfig(t, []config.Sensor{
+		{Name: "rapido", Cmd: helperCmd(t, "ok")},
+		{Name: "lento", Cmd: helperCmd(t, "ok"), OnDemand: true},
+		{Name: "outro", Cmd: helperCmd(t, "ok")},
+	})
+	cases := []struct {
+		name  string
+		names []string
+		want  []string
+	}{
+		{"sem nomes pula on_demand", nil, []string{"rapido", "outro"}},
+		{"pedido pelo nome", []string{"lento"}, []string{"lento"}},
+		{"misturado, ordem da config", []string{"outro", "lento", "rapido"}, []string{"rapido", "lento", "outro"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			r := Run(context.Background(), cfg, Options{Names: tc.names})
+			if !r.OK {
+				t.Fatalf("OK = false: %+v", r)
+			}
+			if got := names(r); strings.Join(got, ",") != strings.Join(tc.want, ",") {
+				t.Errorf("sensores = %v, quer %v", got, tc.want)
+			}
+		})
+	}
+}
+
+// TestRunSoOnDemand: config só com sensores on_demand e nenhum nome pedido não
+// roda nada e reprova (exit 1, nunca verde sem verificar; TD-08, TD-47).
+func TestRunSoOnDemand(t *testing.T) {
+	cfg := loadConfig(t, []config.Sensor{{Name: "lento", Cmd: helperCmd(t, "ok"), OnDemand: true}})
+	r := Run(context.Background(), cfg, Options{})
+	if r.OK || len(r.Sensors) != 0 {
+		t.Fatalf("resultado inesperado: %+v", r)
+	}
+	if !errors.Is(r.Err, ErrNoSensors) {
+		t.Errorf("Err = %v, quer ErrNoSensors", r.Err)
+	}
+	if !strings.Contains(r.Error, "on_demand") {
+		t.Errorf("Error = %q, quer citar on_demand", r.Error)
+	}
+	var buf bytes.Buffer
+	if code := Print(&buf, r, false); code != 1 {
+		t.Errorf("Print = %d, quer 1", code)
+	}
+}
+
+// TestRunTimeoutPorSensor: sem Options.Timeout vale o timeout do sensor e, sem
+// ele, DefaultTimeout; Options.Timeout positivo vence o do sensor (TD-47).
+func TestRunTimeoutPorSensor(t *testing.T) {
+	t.Run("timeout do sensor", func(t *testing.T) {
+		cfg := loadConfig(t, []config.Sensor{
+			{Name: "curto", Cmd: helperCmd(t, "sleep"), Timeout: "300ms"},
+			{Name: "sem_prazo", Cmd: helperCmd(t, "ok")},
+		})
+		start := time.Now()
+		r := Run(context.Background(), cfg, Options{})
+		if el := time.Since(start); el > 20*time.Second {
+			t.Fatalf("demorou %s: o timeout do sensor não valeu", el)
+		}
+		if r.OK || len(r.Sensors) != 2 {
+			t.Fatalf("resultado inesperado: %+v", r)
+		}
+		if s := r.Sensors[0]; s.OK || !strings.Contains(s.Error, "300ms") {
+			t.Errorf("curto: ok=%v error=%q, quer tempo esgotado após 300ms", s.OK, s.Error)
+		}
+		if s := r.Sensors[1]; !s.OK {
+			t.Errorf("sem_prazo: ok=false error=%q", s.Error)
+		}
+	})
+	t.Run("Options.Timeout vence o do sensor", func(t *testing.T) {
+		cfg := loadConfig(t, []config.Sensor{{Name: "longo", Cmd: helperCmd(t, "sleep"), Timeout: "10m"}})
+		start := time.Now()
+		r := Run(context.Background(), cfg, Options{Timeout: 300 * time.Millisecond})
+		if el := time.Since(start); el > 20*time.Second {
+			t.Fatalf("demorou %s: Options.Timeout não venceu", el)
+		}
+		if s := r.Sensors[0]; s.OK || !strings.Contains(s.Error, "300ms") {
+			t.Errorf("longo: ok=%v error=%q, quer tempo esgotado após 300ms", s.OK, s.Error)
+		}
+	})
+}
+
 func TestRunCanceledContext(t *testing.T) {
 	cfg := loadConfig(t, []config.Sensor{
 		{Name: "a", Cmd: helperCmd(t, "sleep")},

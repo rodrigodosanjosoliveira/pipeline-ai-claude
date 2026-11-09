@@ -13,6 +13,21 @@ go install github.com/rodrigodosanjosoliveira/pipeline-ai-claude/cmd/pipeline-cl
 
 ## [Não lançado]
 
+### Adicionado
+
+- Sensor lento (TD-47): campos opcionais `timeout` (prazo próprio do sensor,
+  formato de `time.ParseDuration`, maior que zero e até 24 h) e `on_demand`
+  (fora da execução sem nomes; roda só pelo nome). O prazo da chamada
+  (`sensors --timeout` informado ou `timeout_seconds` do `pipeline_sensors`)
+  vence o da config; sem os dois, continua 10 min. Config só com sensores
+  `on_demand` e chamada sem nomes reprova (exit 1). Contrato: dois campos
+  opcionais novos em `sensors[]` (`testdata/contract/config.txt`).
+
+### Alterado
+
+- `sensors` sem `--timeout` deixa de impor 10 min a sensor com `timeout` na
+  config; o padrão da flag continua 10 min para os demais.
+
 ## [v1.1.0] - 2026-11-07
 
 Versão estável da v1.1. O código é o da `v1.1.0-rc.2`. A `v1.1.0-rc.1` foi

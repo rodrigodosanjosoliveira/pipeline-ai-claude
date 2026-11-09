@@ -278,7 +278,7 @@ const contractConfigFull = `{
     "placeholder_values": ["tbd"],
     "forbid_markers": ["TODO"]
   },
-  "sensors": [{"name": "testes", "cmd": ["go", "test", "-json", "./..."], "format": "go-test-json", "skips": "fail"}]
+  "sensors": [{"name": "testes", "cmd": ["go", "test", "-json", "./..."], "format": "go-test-json", "skips": "fail", "timeout": "40m", "on_demand": true}]
 }`
 
 func TestContractConfig(t *testing.T) {

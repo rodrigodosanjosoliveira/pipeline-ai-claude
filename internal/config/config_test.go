@@ -15,6 +15,7 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 )
 
 func writeConfig(t *testing.T, dir, body string) string {
@@ -655,6 +656,64 @@ func TestLoadValidacao(t *testing.T) {
 			wantErr: "skips só vale com format",
 		},
 		{
+			name: "sensor com timeout e on_demand (TD-47)",
+			body: bodyWith(t, map[string]any{"sensors": []any{
+				map[string]any{"name": "lento", "cmd": []any{"make", "lento"}, "timeout": "40m", "on_demand": true},
+				map[string]any{"name": "prazo", "cmd": []any{"make", "prazo"}, "timeout": "90s"},
+				map[string]any{"name": "teto", "cmd": []any{"make", "teto"}, "timeout": "24h"},
+				map[string]any{"name": "sob_pedido", "cmd": []any{"make", "x"}, "on_demand": true},
+			}}),
+		},
+		{
+			name: "sensor com timeout ilegível",
+			body: bodyWith(t, map[string]any{"sensors": []any{
+				map[string]any{"name": "lento", "cmd": []any{"make"}, "timeout": "40 minutos"},
+			}}),
+			wantErr: `timeout "40 minutos"`,
+		},
+		{
+			name: "sensor com timeout sem unidade",
+			body: bodyWith(t, map[string]any{"sensors": []any{
+				map[string]any{"name": "lento", "cmd": []any{"make"}, "timeout": "2400"},
+			}}),
+			wantErr: `timeout "2400"`,
+		},
+		{
+			name: "sensor com timeout zero",
+			body: bodyWith(t, map[string]any{"sensors": []any{
+				map[string]any{"name": "lento", "cmd": []any{"make"}, "timeout": "0s"},
+			}}),
+			wantErr: `timeout "0s"`,
+		},
+		{
+			name: "sensor com timeout negativo",
+			body: bodyWith(t, map[string]any{"sensors": []any{
+				map[string]any{"name": "lento", "cmd": []any{"make"}, "timeout": "-5m"},
+			}}),
+			wantErr: `timeout "-5m"`,
+		},
+		{
+			name: "sensor com timeout acima de 24h",
+			body: bodyWith(t, map[string]any{"sensors": []any{
+				map[string]any{"name": "lento", "cmd": []any{"make"}, "timeout": "24h1s"},
+			}}),
+			wantErr: `timeout "24h1s"`,
+		},
+		{
+			name: "sensor com timeout de tipo errado",
+			body: bodyWith(t, map[string]any{"sensors": []any{
+				map[string]any{"name": "lento", "cmd": []any{"make"}, "timeout": 2400},
+			}}),
+			wantErr: "timeout",
+		},
+		{
+			name: "sensor com on_demand de tipo errado",
+			body: bodyWith(t, map[string]any{"sensors": []any{
+				map[string]any{"name": "lento", "cmd": []any{"make"}, "on_demand": "sim"},
+			}}),
+			wantErr: "on_demand",
+		},
+		{
 			name: "sensor com format de tipo errado",
 			body: bodyWith(t, map[string]any{"sensors": []any{
 				map[string]any{"name": "test", "cmd": []any{"go", "test", "./..."}, "format": true},
@@ -890,6 +949,27 @@ func TestDefaultsSensorSkips(t *testing.T) {
 	}
 	if got := c.Sensors[1]; got.Format != "" || got.Skips != "" {
 		t.Errorf("vet: format=%q skips=%q, quer vazios", got.Format, got.Skips)
+	}
+}
+
+// TestSensorTimeoutDuration: timeout ausente vale 0 (o chamador decide o
+// padrão); presente, a duração lida (TD-47). on_demand ausente é false.
+func TestSensorTimeoutDuration(t *testing.T) {
+	c := loadBody(t, bodyWith(t, map[string]any{"sensors": []any{
+		map[string]any{"name": "lento", "cmd": []any{"make"}, "timeout": "40m", "on_demand": true},
+		map[string]any{"name": "vet", "cmd": []any{"go", "vet", "./..."}},
+	}}))
+	if got := c.Sensors[0].TimeoutDuration(); got != 40*time.Minute {
+		t.Errorf("lento: TimeoutDuration() = %s, quer 40m", got)
+	}
+	if !c.Sensors[0].OnDemand {
+		t.Errorf("lento: OnDemand = false, quer true")
+	}
+	if got := c.Sensors[1].TimeoutDuration(); got != 0 {
+		t.Errorf("vet: TimeoutDuration() = %s, quer 0", got)
+	}
+	if c.Sensors[1].OnDemand {
+		t.Errorf("vet: OnDemand = true, quer false")
 	}
 }
 

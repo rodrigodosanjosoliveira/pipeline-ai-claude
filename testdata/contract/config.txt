@@ -38,3 +38,5 @@ sensors[].name string obrigatório
 sensors[].cmd []string obrigatório
 sensors[].format string opcional
 sensors[].skips string opcional
+sensors[].timeout string opcional
+sensors[].on_demand bool opcional

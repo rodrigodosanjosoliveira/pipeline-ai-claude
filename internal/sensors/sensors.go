@@ -55,9 +55,12 @@ var ErrNoSensors = errors.New("nenhum sensor configurado")
 // Options controla a execução.
 type Options struct {
 	// Names restringe a execução a esses sensores, na ordem da configuração.
-	// Vazio executa todos. Nome repetido roda uma vez.
+	// Vazio executa todos, exceto os on_demand (TD-47). Nome repetido roda uma
+	// vez.
 	Names []string
-	// Timeout é o prazo de cada sensor. Zero ou negativo vale DefaultTimeout.
+	// Timeout é o prazo de cada sensor e vence o timeout da configuração.
+	// Zero ou negativo usa o timeout do sensor e, sem ele, DefaultTimeout
+	// (TD-47).
 	Timeout time.Duration
 }
 
@@ -119,13 +122,9 @@ func Run(ctx context.Context, cfg *config.Config, opts Options) Result {
 	if err != nil {
 		return failed(err)
 	}
-	timeout := opts.Timeout
-	if timeout <= 0 {
-		timeout = DefaultTimeout
-	}
 	r := Result{OK: true, Sensors: make([]SensorResult, 0, len(selected))}
 	for _, s := range selected {
-		sr := runOne(ctx, cfg.Root(), s, timeout)
+		sr := runOne(ctx, cfg.Root(), s, sensorTimeout(s, opts.Timeout))
 		r.OK = r.OK && sr.OK
 		r.Sensors = append(r.Sensors, sr)
 	}
@@ -136,13 +135,35 @@ func failed(err error) Result {
 	return Result{OK: false, Sensors: []SensorResult{}, Error: err.Error(), Err: err}
 }
 
-// selectSensors filtra all pelos nomes pedidos, mantendo a ordem de all.
+// sensorTimeout escolhe o prazo de s: o da chamada, se positivo; senão o da
+// configuração; senão DefaultTimeout (TD-47).
+func sensorTimeout(s config.Sensor, call time.Duration) time.Duration {
+	if call > 0 {
+		return call
+	}
+	if d := s.TimeoutDuration(); d > 0 {
+		return d
+	}
+	return DefaultTimeout
+}
+
+// selectSensors filtra all pelos nomes pedidos, mantendo a ordem de all. Sem
+// nomes, devolve todos menos os on_demand (TD-47).
 func selectSensors(all []config.Sensor, names []string) ([]config.Sensor, error) {
 	if len(names) == 0 {
 		if len(all) == 0 {
 			return nil, ErrNoSensors
 		}
-		return all, nil
+		var out []config.Sensor
+		for _, s := range all {
+			if !s.OnDemand {
+				out = append(out, s)
+			}
+		}
+		if len(out) == 0 {
+			return nil, fmt.Errorf("%w fora de on_demand: peça os sensores pelo nome", ErrNoSensors)
+		}
+		return out, nil
 	}
 	known := make(map[string]bool, len(all))
 	for _, s := range all {
