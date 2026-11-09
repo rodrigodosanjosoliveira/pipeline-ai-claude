@@ -13,6 +13,17 @@ go install github.com/rodrigodosanjosoliveira/pipeline-ai-claude/cmd/pipeline-cl
 
 ## [Não lançado]
 
+## [v1.2.0] - 2026-11-09
+
+Sensor lento com prazo próprio e execução só pelo nome (TD-47). Só acréscimo
+ao contrato da v1 (TD-37): dois campos opcionais em `sensors[]`.
+
+Projeto existente, para atualizar: fixe `PIPELINE_CLAUDE_VERSION := v1.2.0` no
+`Makefile`, rode `make tools` e depois `bin/pipeline-claude sync --dry-run` e
+`bin/pipeline-claude sync`. Nada muda na config obrigatoriamente; sensor que
+leva mais de 10 min ganha `"timeout"` e, se não deve rodar em toda validação,
+`"on_demand": true`.
+
 ### Adicionado
 
 - Sensor lento (TD-47): campos opcionais `timeout` (prazo próprio do sensor,
@@ -433,7 +444,8 @@ Primeira versão instalável (Fases 0 a 3).
 - Revisores gerados só leitura: diff e sensores chegam pelo MCP (TD-29).
 - `enabled_modules` recusa módulo repetido (TD-28).
 
-[Não lançado]: https://github.com/rodrigodosanjosoliveira/pipeline-ai-claude/compare/v1.1.0...HEAD
+[Não lançado]: https://github.com/rodrigodosanjosoliveira/pipeline-ai-claude/compare/v1.2.0...HEAD
+[v1.2.0]: https://github.com/rodrigodosanjosoliveira/pipeline-ai-claude/compare/v1.1.0...v1.2.0
 [v1.1.0]: https://github.com/rodrigodosanjosoliveira/pipeline-ai-claude/compare/v1.1.0-rc.2...v1.1.0
 [v1.1.0-rc.2]: https://github.com/rodrigodosanjosoliveira/pipeline-ai-claude/compare/v1.1.0-rc.1...v1.1.0-rc.2
 [v1.1.0-rc.1]: https://github.com/rodrigodosanjosoliveira/pipeline-ai-claude/compare/v1.0.0...v1.1.0-rc.1
