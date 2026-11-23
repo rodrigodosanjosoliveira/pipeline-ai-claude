@@ -21,24 +21,24 @@ func TestNewRef(t *testing.T) {
 		want    string // valor de Front["ref"]; vazio: sem a chave
 		errPart string
 	}{
-		{name: "template: ref no front matter", tmpl: triageTemplate, ref: "WRK-4431", want: "WRK-4431"},
-		{name: "esquema: ref no front matter", ref: "4431329797", want: "4431329797"},
+		{name: "template: ref no front matter", tmpl: triageTemplate, ref: "PROJ-118", want: "PROJ-118"},
+		{name: "esquema: ref no front matter", ref: "1234567890", want: "1234567890"},
 		{name: "espaços nas pontas saem", tmpl: triageTemplate, ref: "  PROJ-12  ", want: "PROJ-12"},
 		{name: "issue com #", tmpl: triageTemplate, ref: "#128", want: "#128"},
 		{name: "ponto e sublinhado", tmpl: triageTemplate, ref: "a.b_c-1", want: "a.b_c-1"},
-		{name: "junto com flags", tmpl: triageTemplate, ref: "WRK-1", flags: []string{"require_security"}, want: "WRK-1"},
+		{name: "junto com flags", tmpl: triageTemplate, ref: "PROJ-1", flags: []string{"require_security"}, want: "PROJ-1"},
 		{name: "sem ref, sem chave", tmpl: triageTemplate, ref: ""},
 		{name: "só espaços vale sem ref", tmpl: triageTemplate, ref: "   "},
 		{name: "no limite", tmpl: triageTemplate, ref: strings.Repeat("a", MaxRefLen), want: strings.Repeat("a", MaxRefLen)},
 		{name: "longa demais", tmpl: triageTemplate, ref: strings.Repeat("a", MaxRefLen+1), errPart: "ref"},
-		{name: "espaço no meio", tmpl: triageTemplate, ref: "WRK 1", errPart: "ref"},
-		{name: "colchete", tmpl: triageTemplate, ref: "WRK-1]", errPart: "ref"},
+		{name: "espaço no meio", tmpl: triageTemplate, ref: "PROJ 1", errPart: "ref"},
+		{name: "colchete", tmpl: triageTemplate, ref: "PROJ-1]", errPart: "ref"},
 		{name: "dois-pontos", tmpl: triageTemplate, ref: "https://x", errPart: "ref"},
 		{name: "começa com hífen", tmpl: triageTemplate, ref: "-1", errPart: "ref"},
 		{name: "não ASCII", tmpl: triageTemplate, ref: "tarefa-é", errPart: "ref"},
 		{name: "quebra de linha", tmpl: triageTemplate, ref: "a\nb", errPart: "ref"},
 		{name: "template já tem ref", tmpl: strings.Replace(triageTemplate, "status: draft\n", "status: draft\nref: <ref>\n", 1),
-			ref: "WRK-1", errPart: "ref"},
+			ref: "PROJ-1", errPart: "ref"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -86,7 +86,7 @@ func TestNewRef(t *testing.T) {
 }
 
 func TestValidRef(t *testing.T) {
-	for _, ok := range []string{"1", "WRK-4431", "4431329797", "#12", "a.b_c-1", strings.Repeat("Z", MaxRefLen)} {
+	for _, ok := range []string{"1", "PROJ-118", "1234567890", "#12", "a.b_c-1", strings.Repeat("Z", MaxRefLen)} {
 		if !report.ValidRef(ok) {
 			t.Errorf("ValidRef(%q) = false, quero true", ok)
 		}
@@ -112,7 +112,7 @@ func FuzzApplyRef(f *testing.F) {
 	f.Add("---\nstatus: draft\n")
 	f.Add("")
 	f.Fuzz(func(t *testing.T, content string) {
-		out, err := applyRef(content, "WRK-1")
+		out, err := applyRef(content, "PROJ-1")
 		if err != nil {
 			return
 		}
@@ -120,10 +120,10 @@ func FuzzApplyRef(f *testing.F) {
 		if err != nil {
 			return // o template já era ilegível; o validador reprova
 		}
-		if r.Front["ref"] != "WRK-1" {
+		if r.Front["ref"] != "PROJ-1" {
 			t.Fatalf("ref ausente do resultado:\n%q", out)
 		}
-		if _, err := applyRef(out, "WRK-1"); err == nil {
+		if _, err := applyRef(out, "PROJ-1"); err == nil {
 			t.Fatalf("segunda aplicação aceita:\n%q", out)
 		}
 	})

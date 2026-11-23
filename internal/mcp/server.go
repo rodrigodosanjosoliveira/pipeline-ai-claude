@@ -306,7 +306,7 @@ var tools = []toolSpec{
 			{name: "prefix", kind: kindString, description: "Prefixo do ID, um de delivery_prefixes."},
 			{name: "scope", kind: kindString, description: "Escopo fechado da triagem, uma linha; entra no lugar de <escopo> do report_template, que precisa ter o marcador."},
 			{name: "flags", kind: kindStrings, description: "Flags do report a ligar (chaves de report_schema.flag_sections, como require_security): vão a true no front matter e a seção exigida é acrescentada."},
-			{name: "ref", kind: kindString, description: "Referência externa da tarefa (ID num gestor de fora, como 4431329797 ou PROJ-12): vai a ref: no front matter e o git-delivery a leva ao commit."},
+			{name: "ref", kind: kindString, description: "Referência externa da tarefa (ID num gestor de fora, como 1234567890 ou PROJ-12): vai a ref: no front matter e o git-delivery a leva ao commit."},
 		},
 		run: (*server).toolDeliveryNew,
 	},

@@ -20,12 +20,19 @@ caminho dele: leia-o com `Read`, ou com `pipeline_handoff_get` (`delivery`: o
 
 ## Padrão
 
-- **Branch:** `task/{TASK_CODE}` (ou `feat/{nome}`, `fix/{nome}`)
+`{TASK_CODE}` é o `DELIVERY_ID`: o CI valida a delivery pelo nome do branch
+`task/<ID>` e o `pipeline_index_sync` procura `[<ID>]` no commit.
+
+- **Branch:** `task/{TASK_CODE}` (ou `feat/{nome}`, `fix/{nome}`); a `ref`
+  nunca entra no branch.
 - **Commit:** `{type}({scope}): {resumo} [{TASK_CODE}]`
   - `type`: feat, fix, refactor, chore, docs, test
   - `scope`: módulo tocado
   - `resumo`: imperativo, minúsculo, sem ponto final
-- Exemplo: `feat(emprestimos): valida data de devolução [TASK-42]`
+  - com `ref:` no front matter do report (a referência externa da tarefa),
+    ela entra como segundo colchete: `[{DELIVERY_ID}] [{ref}]`
+- Exemplos: `feat(emprestimos): valida data de devolução [DEL-042]`; com
+  `ref: 1234567890`, `feat(emprestimos): valida data de devolução [DEL-042] [1234567890]`
 
 ## Procedimento
 
@@ -34,16 +41,20 @@ caminho dele: leia-o com `Read`, ou com `pipeline_handoff_get` (`delivery`: o
 2. Gravar o próprio handoff (Saída obrigatória) **antes** do commit, para ele
    entrar no commit junto com os outros de
    `docs-ai/deliveries/{DELIVERY_ID}/handoffs/`.
-3. `git status --short` e conferir arquivo por arquivo.
-4. Criar a branch: `git checkout -b task/{TASK_CODE}`.
-5. Adicionar só as alterações intencionais (`git add <caminhos>`), inclusive
+3. Ler `ref:` no front matter de `docs-ai/deliveries/{DELIVERY_ID}/report.md`
+   (o validador já conferiu o formato). Sem a chave, o commit leva só o
+   `[{DELIVERY_ID}]`.
+4. `git status --short` e conferir arquivo por arquivo.
+5. Criar a branch: `git checkout -b task/{TASK_CODE}`.
+6. Adicionar só as alterações intencionais (`git add <caminhos>`), inclusive
    os handoffs da delivery.
-6. Commitar no formato padrão.
-7. `git push -u origin <branch>` (o `.githooks/pre-push` bloqueia push na
+7. Commitar no formato padrão.
+8. `git push -u origin <branch>` (o `.githooks/pre-push` bloqueia push na
    `main`).
-8. Abrir o PR com `gh pr create` (GitHub) ou o MR com `glab mr create`
+9. Abrir o PR com `gh pr create` (GitHub) ou o MR com `glab mr create`
    (GitLab), com Contexto, O que mudou, Como testar e Riscos, e a saída do
-   validador.
+   validador. Com `ref`, a primeira linha do Contexto é
+   `Referência externa: {ref}`.
 
 ## O que NÃO fazer
 

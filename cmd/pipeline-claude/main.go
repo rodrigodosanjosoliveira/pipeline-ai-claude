@@ -259,7 +259,7 @@ func runDelivery(args []string, stdout, stderr io.Writer) int {
 	prefix := fs.String("prefix", "", "prefixo do ID, um de delivery_prefixes")
 	scope := fs.String("scope", "", "escopo fechado da triagem, gravado no lugar de <escopo> do report_template")
 	flags := fs.String("flags", "", "flags do report a ligar, separadas por vírgula (ex.: require_security)")
-	ref := fs.String("ref", "", "referência externa da tarefa (ex.: 4431329797, PROJ-12), gravada em ref: no front matter")
+	ref := fs.String("ref", "", "referência externa da tarefa (ex.: 1234567890, PROJ-12), gravada em ref: no front matter")
 	asJSON := fs.Bool("json", false, `saída em JSON ({"id", "report", "index"})`)
 	fs.Usage = func() {
 		fmt.Fprintln(stderr, "Uso: pipeline-claude delivery new --title <título> [--prefix <p>] [--scope <escopo>] [--flags <f1,f2>] [--ref <id>] [--json]")
