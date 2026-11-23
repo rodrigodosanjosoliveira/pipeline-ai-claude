@@ -17,6 +17,7 @@ comando delivery new
   --flags string padrão=""
   --json bool padrão=false
   --prefix string padrão=""
+  --ref string padrão=""
   --scope string padrão=""
   --title string padrão=""
 comando doctor

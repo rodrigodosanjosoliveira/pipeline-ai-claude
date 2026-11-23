@@ -251,7 +251,7 @@ func runDelivery(args []string, stdout, stderr io.Writer) int {
 		if len(args) > 0 {
 			fmt.Fprintf(stderr, "pipeline-claude delivery: subcomando desconhecido %q.\n", args[0])
 		}
-		fmt.Fprintln(stderr, "Uso: pipeline-claude delivery new --title <título> [--prefix <p>] [--scope <escopo>] [--flags <f1,f2>] [--json]")
+		fmt.Fprintln(stderr, "Uso: pipeline-claude delivery new --title <título> [--prefix <p>] [--scope <escopo>] [--flags <f1,f2>] [--ref <id>] [--json]")
 		return exitBlocked
 	}
 	fs := newFlagSet("delivery new", stderr)
@@ -259,9 +259,10 @@ func runDelivery(args []string, stdout, stderr io.Writer) int {
 	prefix := fs.String("prefix", "", "prefixo do ID, um de delivery_prefixes")
 	scope := fs.String("scope", "", "escopo fechado da triagem, gravado no lugar de <escopo> do report_template")
 	flags := fs.String("flags", "", "flags do report a ligar, separadas por vírgula (ex.: require_security)")
+	ref := fs.String("ref", "", "referência externa da tarefa (ex.: 4431329797, PROJ-12), gravada em ref: no front matter")
 	asJSON := fs.Bool("json", false, `saída em JSON ({"id", "report", "index"})`)
 	fs.Usage = func() {
-		fmt.Fprintln(stderr, "Uso: pipeline-claude delivery new --title <título> [--prefix <p>] [--scope <escopo>] [--flags <f1,f2>] [--json]")
+		fmt.Fprintln(stderr, "Uso: pipeline-claude delivery new --title <título> [--prefix <p>] [--scope <escopo>] [--flags <f1,f2>] [--ref <id>] [--json]")
 		fs.PrintDefaults()
 	}
 	rest, code, ok := parseInterspersed(fs, args[1:])
@@ -290,7 +291,7 @@ func runDelivery(args []string, stdout, stderr io.Writer) int {
 	if !ok {
 		return exitBlocked
 	}
-	created, err := delivery.New(cfg, delivery.NewOptions{Title: *title, Prefix: *prefix, Scope: *scope, Flags: flagList}, time.Now())
+	created, err := delivery.New(cfg, delivery.NewOptions{Title: *title, Prefix: *prefix, Scope: *scope, Flags: flagList, Ref: *ref}, time.Now())
 	if err != nil {
 		fmt.Fprintf(stderr, "pipeline-claude delivery new: %v\n", err)
 		return exitFail
@@ -310,6 +311,9 @@ func runDelivery(args []string, stdout, stderr io.Writer) int {
 		return exitOK
 	}
 	fmt.Fprintf(stdout, "%s criada: %s\n", created.ID, created.ReportPath)
+	if created.Ref != "" {
+		fmt.Fprintf(stdout, "Referência externa: %s\n", created.Ref)
+	}
 	return exitOK
 }
 

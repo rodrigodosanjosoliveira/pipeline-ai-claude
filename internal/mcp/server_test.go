@@ -530,6 +530,39 @@ func TestDeliveryNewEscopoEFlags(t *testing.T) {
 	}
 }
 
+// TD-49: ref vai ao front matter; fora do formato é isError; tipo errado é -32602.
+func TestDeliveryNewRef(t *testing.T) {
+	root := project(t, `["internal/"]`)
+	got := serve(t, root,
+		call(1, "pipeline_delivery_new", `{"title":"Login","ref":"WRK-4431"}`),
+		call(2, "pipeline_delivery_new", `{"title":"Outra","ref":"WRK 4431"}`),
+		call(3, "pipeline_delivery_new", `{"title":"Outra","ref":4431}`),
+	)
+	want := []string{
+		`{"id":1,"result":{"isError":false,"content":[{"type":"text","text":"~Referência externa: WRK-4431"}]}}`,
+		`{"id":2,"result":{"isError":true,"content":[{"type":"text","text":"~ref"}]}}`,
+		`{"id":3,"error":{"code":-32602}}`,
+	}
+	if len(got) != len(want) {
+		t.Fatalf("respostas = %d: %v", len(got), got)
+	}
+	for i, w := range want {
+		if err := match(obj(t, w), got[i]); err != nil {
+			t.Errorf("resposta %d: %v\n%v", i, err, got[i])
+		}
+	}
+	data, err := os.ReadFile(filepath.Join(root, "docs-ai", "deliveries", "DEL-001", "report.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), "\nref: WRK-4431\n") {
+		t.Errorf("report sem a ref:\n%s", data)
+	}
+	if _, err := os.Stat(filepath.Join(root, "docs-ai", "deliveries", "DEL-002")); !os.IsNotExist(err) {
+		t.Errorf("ref recusada criou delivery: %v", err)
+	}
+}
+
 // TD-16: delivery_new nunca grava em caminho protegido.
 func TestDeliveryNewRecusadaEmCaminhoProtegido(t *testing.T) {
 	tests := []struct {

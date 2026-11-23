@@ -13,6 +13,21 @@ go install github.com/rodrigodosanjosoliveira/pipeline-ai-claude/cmd/pipeline-cl
 
 ## [Não lançado]
 
+### Adicionado
+
+- Referência externa da delivery (TD-49): `delivery new --ref <id>` e o
+  argumento `ref` do `pipeline_delivery_new` gravam `ref: <id>` no front matter
+  do report, para ligar a delivery à tarefa num gestor de fora (Wrike, Jira,
+  issue). Formato: até 64 caracteres ASCII (letras, dígitos, `.`, `_` e `-`,
+  com `#` opcional na frente). O `report_template` não pode já ter a chave
+  `ref`. Contrato: uma flag nova na CLI e um argumento novo no MCP
+  (`testdata/contract/cli.txt` e `testdata/contract/mcp.json`).
+
+### Alterado
+
+- `validate` reprova report com `ref` vazia ou fora do formato. Report sem
+  `ref` não muda.
+
 ## [v1.2.1] - 2026-11-09
 
 O `doctor` passa a conferir os sensores que os subagentes do próprio projeto

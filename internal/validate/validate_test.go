@@ -424,6 +424,21 @@ func TestChecagensSemGit(t *testing.T) {
 			code: ExitFail, wantOut: []string{"DEL-002", "DEL-001", "diretório"},
 		},
 		{
+			name: "ref válida",
+			id:   "DEL-001", report: reportFor("DEL-001", "ref: WRK-4431\n", ""),
+			code: ExitOK, wantOut: []string{"APROVADO"},
+		},
+		{
+			name: "ref fora do formato",
+			id:   "DEL-001", report: reportFor("DEL-001", "ref: WRK 4431\n", ""),
+			code: ExitFail, wantOut: []string{"ERRO", "ref", "WRK 4431"},
+		},
+		{
+			name: "ref vazia",
+			id:   "DEL-001", report: reportFor("DEL-001", "ref:\n", ""),
+			code: ExitFail, wantOut: []string{"ERRO", "ref"},
+		},
+		{
 			name: "ID fora do índice",
 			id:   "DEL-004", report: reportFor("DEL-004", "", ""),
 			code: ExitFail, wantOut: []string{"DEL-004", "INDEX.md"},
