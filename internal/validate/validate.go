@@ -151,6 +151,7 @@ func check(cfg *config.Config, data []byte, dirName string, opts Options) ([]rep
 		return nil, fmt.Errorf("configuração incompatível com o report: %w", err)
 	}
 	findings = append(findings, checkID(cfg, r, dirName)...)
+	findings = append(findings, checkRef(r)...)
 
 	if opts.NoGit {
 		findings = append(findings, report.Finding{Level: report.LevelWarning,
@@ -194,6 +195,17 @@ func checkID(cfg *config.Config, r *report.Report, dirName string) []report.Find
 		out = append(out, errorf("delivery %q não está registrada na tabela de %s", id, cfg.IndexFile))
 	}
 	return out
+}
+
+// checkRef confere a referência externa (TD-49), se o front matter a tiver: o
+// git-delivery a leva ao commit como "[ref]", então vazia ou fora do formato
+// reprova.
+func checkRef(r *report.Report) []report.Finding {
+	ref, ok := r.Front["ref"]
+	if !ok || report.ValidRef(ref) {
+		return nil
+	}
+	return []report.Finding{errorf("ref %q fora do formato: até %d caracteres ASCII (letras, dígitos, \".\", \"_\" e \"-\"), começando por letra ou dígito, com \"#\" opcional na frente (ex.: 4431329797, PROJ-12, #128)", ref, report.MaxRefLen)}
 }
 
 var linkCellRe = regexp.MustCompile(`^\[([^\]]*)\]\([^)]*\)$`)

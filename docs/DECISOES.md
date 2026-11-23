@@ -539,6 +539,25 @@ só conferia os do template: um nome digitado errado no subagente passava sem
 aviso até a chamada falhar. Ler o texto, e não uma chave nova no front matter,
 cobre os subagentes como já estão escritos. Decisão do usuário em 2026-11-09.
 
+### TD-49 — Referência externa da delivery
+A delivery pode levar o ID da tarefa num gestor de fora (Wrike, Jira, issue
+do GitLab): `delivery new --ref <id>` e o argumento `ref` do
+`pipeline_delivery_new` gravam `ref: <id>` no fim do front matter do report.
+Formato (`report.ValidRef`): até 64 caracteres ASCII, letras, dígitos, `.`,
+`_` e `-`, começando por letra ou dígito, com `#` opcional na frente; sem
+espaço, colchete nem dois-pontos, para caber no commit como `[ref]`. O
+`report_template` com a chave `ref` já presente é erro na criação: nada é
+sobrescrito. O `validate` reprova `ref` vazia ou fora do formato, porque o
+`git-delivery` a leva ao commit. O ID da delivery continua o que sustenta o
+fluxo: branch `task/<DELIVERY_ID>` (o CI tira o ID do nome do branch) e
+`[<DELIVERY_ID>]` no commit (o `index sync` procura por ele); a `ref` entra
+como um segundo colchete, `[<DELIVERY_ID>] [<ref>]`. O toolkit não conhece o
+gestor: não valida que a tarefa existe nem fala com a rede (TD-03).
+**Motivo:** ferramentas de apontamento de horas e de rastreio ligam o trabalho
+à tarefa pelo branch ou pelo colchete no commit. Com só o `[DEL-NNN]`, quem lê o
+histórico precisa perguntar a que tarefa cada delivery corresponde. Decisão do
+usuário em 2026-11-23: só a referência, sem comando novo de atividade.
+
 ## Pontos em aberto
 
 1. Distribuição da camada Claude também como plugin do Claude Code.

@@ -50,6 +50,9 @@ const ReportFile = "report.md"
 // MaxScopeLen é o comprimento máximo do escopo, em caracteres.
 const MaxScopeLen = 500
 
+// MaxRefLen é o comprimento máximo da referência externa, em bytes (TD-49).
+const MaxRefLen = report.MaxRefLen
+
 // scopeTag é o marcador do escopo no report_template, trocado pelo escopo
 // informado (ou por placeholder, se não houver).
 const scopeTag = "<escopo>"
@@ -76,6 +79,11 @@ type NewOptions struct {
 	// exige é acrescentada, com os campos em placeholder, se o report ainda
 	// não a tiver.
 	Flags []string
+	// Ref é a referência externa da delivery (TD-49): o ID da tarefa num
+	// gestor de fora, como "4431329797" ou "PROJ-12". Opcional; vai a
+	// "ref: <valor>" no front matter, no formato de report.ValidRef. O
+	// report_template não pode já ter a chave ref.
+	Ref string
 }
 
 // Created descreve a delivery criada. Caminhos relativos à raiz do projeto,
@@ -87,6 +95,8 @@ type Created struct {
 	ReportPath string
 	// IndexPath é o índice atualizado (index_file).
 	IndexPath string
+	// Ref é a referência externa gravada no report; vazia se não houver.
+	Ref string
 }
 
 // New cria a próxima delivery do prefixo: o diretório <deliveries_dir>/<ID>,
@@ -141,6 +151,10 @@ func prepare(cfg *config.Config, opts NewOptions, now time.Time) (*plan, error) 
 		return nil, err
 	}
 	flags, err := checkFlags(cfg.ReportSchema, opts.Flags)
+	if err != nil {
+		return nil, err
+	}
+	ref, err := checkRef(opts.Ref)
 	if err != nil {
 		return nil, err
 	}
@@ -217,6 +231,11 @@ func prepare(cfg *config.Config, opts NewOptions, now time.Time) (*plan, error) 
 	if err != nil {
 		return nil, err
 	}
+	if ref != "" {
+		if content, err = applyRef(content, ref); err != nil {
+			return nil, err
+		}
+	}
 	if content, err = applyFlags(content, cfg.ReportSchema, flags); err != nil {
 		return nil, err
 	}
@@ -226,7 +245,7 @@ func prepare(cfg *config.Config, opts NewOptions, now time.Time) (*plan, error) 
 	}
 
 	return &plan{
-		created:    Created{ID: id, ReportPath: reportRel, IndexPath: cfg.IndexFile},
+		created:    Created{ID: id, ReportPath: reportRel, IndexPath: cfg.IndexFile, Ref: ref},
 		dir:        dir,
 		reportPath: reportPath,
 		report:     []byte(content),
@@ -496,6 +515,45 @@ func checkScope(s string) (string, error) {
 		return "", errors.New("delivery: o escopo não pode abrir nem fechar comentário HTML")
 	}
 	return t, nil
+}
+
+// checkRef valida a referência externa e a devolve sem espaços nas pontas;
+// vazia vale "sem referência".
+func checkRef(s string) (string, error) {
+	t := strings.TrimSpace(s)
+	if t == "" || report.ValidRef(t) {
+		return t, nil
+	}
+	return "", fmt.Errorf("delivery: ref %q fora do formato: até %d caracteres ASCII (letras, dígitos, \".\", \"_\" e \"-\"), começando por letra ou dígito, com \"#\" opcional na frente (ex.: 4431329797, PROJ-12, #128)", t, MaxRefLen)
+}
+
+// applyRef grava "ref: <ref>" no fim do front matter do report. Sem front
+// matter, sem o fechamento ou com a chave ref já presente (em qualquer caixa) é
+// erro: nada é sobrescrito em silêncio.
+func applyRef(content, ref string) (string, error) {
+	lines := strings.SplitAfter(content, "\n")
+	eol := "\n"
+	if strings.HasSuffix(lines[0], "\r\n") {
+		eol = "\r\n"
+	}
+	if strings.TrimSpace(lines[0]) != "---" {
+		return "", errors.New("delivery: o report não tem front matter (--- na primeira linha) para gravar a ref")
+	}
+	closing := -1
+	for i := 1; i < len(lines); i++ {
+		if strings.TrimSpace(lines[i]) == "---" {
+			closing = i
+			break
+		}
+		if key, _, ok := strings.Cut(lines[i], ":"); ok && strings.EqualFold(strings.TrimSpace(key), "ref") {
+			return "", errors.New("delivery: o front matter do report_template já tem a chave ref; tire-a do template para a ref vir da criação")
+		}
+	}
+	if closing < 0 {
+		return "", errors.New("delivery: o front matter do report não fecha (--- ausente) para gravar a ref")
+	}
+	lines = slices.Insert(lines, closing, "ref: "+ref+eol)
+	return strings.Join(lines, ""), nil
 }
 
 // checkFlags confere que cada flag é uma chave de flag_sections e devolve a

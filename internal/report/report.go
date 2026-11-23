@@ -115,6 +115,18 @@ var (
 	frontKeyRe = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
 )
 
+// MaxRefLen é o comprimento máximo da referência externa (ref), em bytes.
+const MaxRefLen = 64
+
+// refRe é o formato da referência externa (TD-49): o ID da tarefa num gestor de
+// fora, como "4431329797", "PROJ-12" ou "#128". Só ASCII, sem espaço, colchete
+// nem dois-pontos, para caber no commit como "[ref]" e no front matter como
+// "ref: valor" sem ambiguidade.
+var refRe = regexp.MustCompile(`^#?[A-Za-z0-9][A-Za-z0-9._-]*$`)
+
+// ValidRef diz se s é uma referência externa no formato aceito (TD-49).
+func ValidRef(s string) bool { return len(s) <= MaxRefLen && refRe.MatchString(s) }
+
 // Parse lê um report. level é o nível de título que abre seção (1 a 6; o
 // section_level do esquema). Erros: nível fora do intervalo, front matter
 // ausente, não fechado ou com linha inválida ou chave repetida, e bloco de

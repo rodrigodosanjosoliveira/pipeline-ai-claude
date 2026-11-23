@@ -780,6 +780,32 @@ func TestE2EDeliveryNewScopeFlags(t *testing.T) {
 			t.Errorf("código = %d, stderr = %q", code, stderr)
 		}
 	})
+	// TD-49: --ref grava a referência externa no front matter.
+	t.Run("ref no front matter", func(t *testing.T) {
+		root := e2eProject(t)
+		code, stdout, stderr := runBin(t, root, "", "delivery", "new", "--title", "Login", "--ref", "WRK-4431")
+		if code != exitOK {
+			t.Fatalf("código %d\nstdout:\n%s\nstderr:\n%s", code, stdout, stderr)
+		}
+		if !strings.Contains(stdout, "WRK-4431") {
+			t.Errorf("stdout sem a ref: %q", stdout)
+		}
+		report := readFile(t, root, "docs-ai/deliveries/DEL-004/report.md")
+		if !strings.Contains(report, "\nref: WRK-4431\n") {
+			t.Errorf("report sem a ref:\n%s", report)
+		}
+	})
+	t.Run("ref fora do formato não cria nada", func(t *testing.T) {
+		root := e2eProject(t)
+		before := readFile(t, root, "docs-ai/deliveries/INDEX.md")
+		code, _, stderr := runBin(t, root, "", "delivery", "new", "--title", "Login", "--ref", "WRK 4431")
+		if code != exitFail || !strings.Contains(stderr, "ref") {
+			t.Errorf("código = %d, stderr = %q", code, stderr)
+		}
+		if readFile(t, root, "docs-ai/deliveries/INDEX.md") != before {
+			t.Error("índice alterado")
+		}
+	})
 	t.Run("escopo sem report_template reprova", func(t *testing.T) {
 		root := e2eProject(t)
 		code, _, stderr := runBin(t, root, "", "delivery", "new", "--title", "Login", "--scope", "Login por senha")
