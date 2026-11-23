@@ -1434,6 +1434,29 @@ func TestTriageGravaEscopoEFlags(t *testing.T) {
 	}
 }
 
+// TestRefExterna (TD-49): o pm-triage passa a ref só quando a demanda cita a
+// tarefa externa, e o git-delivery a leva ao commit como segundo colchete, sem
+// tirar o DELIVERY_ID do branch nem do commit (CI e index sync dependem dele).
+func TestRefExterna(t *testing.T) {
+	triage := renderFlat(t, ".claude/agents/pm-triage.md", sampleData())
+	for _, want := range []string{"`ref`: o ID da tarefa no gestor externo", "Sem citação, não passe `ref`",
+		"nunca invente", "--ref \"<id>\"", "crie sem `ref` e registre em `ASSUNCOES`"} {
+		if !strings.Contains(triage, want) {
+			t.Errorf("pm-triage sem %q", want)
+		}
+	}
+	git := renderFlat(t, ".claude/agents/git-delivery.md", sampleData())
+	for _, want := range []string{"`{TASK_CODE}` é o `DELIVERY_ID`", "a `ref` nunca entra no branch",
+		"`ref:` no front matter", "[{DELIVERY_ID}] [{ref}]", "[DEL-042] [1234567890]", "Referência externa: {ref}"} {
+		if !strings.Contains(git, want) {
+			t.Errorf("git-delivery sem %q", want)
+		}
+	}
+	if i, j := strings.Index(git, "Ler `ref:` no front matter"), strings.Index(git, "Commitar no formato padrão"); i < 0 || j < 0 || i > j {
+		t.Error("git-delivery commita antes de ler a ref do report")
+	}
+}
+
 // TestDeliveryIndexStatus: o fluxo leva a delivery a "em revisão" ao abrir o
 // PR/MR (docs-update) e a "merged" pelo pipeline_index_sync, calculado do git
 // (TD-42). Nem o fluxo nem o docs-update conferem commits à mão.

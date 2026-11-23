@@ -119,7 +119,7 @@ var (
 const MaxRefLen = 64
 
 // refRe é o formato da referência externa (TD-49): o ID da tarefa num gestor de
-// fora, como "4431329797", "PROJ-12" ou "#128". Só ASCII, sem espaço, colchete
+// fora, como "1234567890", "PROJ-12" ou "#128". Só ASCII, sem espaço, colchete
 // nem dois-pontos, para caber no commit como "[ref]" e no front matter como
 // "ref: valor" sem ambiguidade.
 var refRe = regexp.MustCompile(`^#?[A-Za-z0-9][A-Za-z0-9._-]*$`)

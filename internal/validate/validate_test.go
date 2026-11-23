@@ -425,13 +425,13 @@ func TestChecagensSemGit(t *testing.T) {
 		},
 		{
 			name: "ref válida",
-			id:   "DEL-001", report: reportFor("DEL-001", "ref: WRK-4431\n", ""),
+			id:   "DEL-001", report: reportFor("DEL-001", "ref: PROJ-118\n", ""),
 			code: ExitOK, wantOut: []string{"APROVADO"},
 		},
 		{
 			name: "ref fora do formato",
-			id:   "DEL-001", report: reportFor("DEL-001", "ref: WRK 4431\n", ""),
-			code: ExitFail, wantOut: []string{"ERRO", "ref", "WRK 4431"},
+			id:   "DEL-001", report: reportFor("DEL-001", "ref: PROJ 118\n", ""),
+			code: ExitFail, wantOut: []string{"ERRO", "ref", "PROJ 118"},
 		},
 		{
 			name: "ref vazia",

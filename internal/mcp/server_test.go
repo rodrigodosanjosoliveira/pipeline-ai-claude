@@ -534,12 +534,12 @@ func TestDeliveryNewEscopoEFlags(t *testing.T) {
 func TestDeliveryNewRef(t *testing.T) {
 	root := project(t, `["internal/"]`)
 	got := serve(t, root,
-		call(1, "pipeline_delivery_new", `{"title":"Login","ref":"WRK-4431"}`),
-		call(2, "pipeline_delivery_new", `{"title":"Outra","ref":"WRK 4431"}`),
-		call(3, "pipeline_delivery_new", `{"title":"Outra","ref":4431}`),
+		call(1, "pipeline_delivery_new", `{"title":"Login","ref":"PROJ-118"}`),
+		call(2, "pipeline_delivery_new", `{"title":"Outra","ref":"PROJ 118"}`),
+		call(3, "pipeline_delivery_new", `{"title":"Outra","ref":118}`),
 	)
 	want := []string{
-		`{"id":1,"result":{"isError":false,"content":[{"type":"text","text":"~Referência externa: WRK-4431"}]}}`,
+		`{"id":1,"result":{"isError":false,"content":[{"type":"text","text":"~Referência externa: PROJ-118"}]}}`,
 		`{"id":2,"result":{"isError":true,"content":[{"type":"text","text":"~ref"}]}}`,
 		`{"id":3,"error":{"code":-32602}}`,
 	}
@@ -555,7 +555,7 @@ func TestDeliveryNewRef(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(data), "\nref: WRK-4431\n") {
+	if !strings.Contains(string(data), "\nref: PROJ-118\n") {
 		t.Errorf("report sem a ref:\n%s", data)
 	}
 	if _, err := os.Stat(filepath.Join(root, "docs-ai", "deliveries", "DEL-002")); !os.IsNotExist(err) {

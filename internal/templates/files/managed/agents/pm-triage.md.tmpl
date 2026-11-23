@@ -45,10 +45,17 @@ A demanda como o usuário escreveu. Nada mais.
      `require_release_ops` quando houver release relevante e o módulo
      `release-ops` estiver habilitado. Só chaves que o report conhece; a
      ferramenta lista as válidas se uma for recusada.
+   - `ref`: o ID da tarefa no gestor externo (Wrike, Jira, issue), quando a
+     demanda o citar: "tarefa 1234567890" vira `1234567890`, "PROJ-12" vira
+     `PROJ-12`; de um link, só o identificador da tarefa. Vai para `ref:` no
+     front matter e o `git-delivery` a leva ao commit. Sem citação, não passe
+     `ref`: nunca invente nem deduza o ID. Se a ferramenta recusar a `ref` pelo
+     formato, crie sem `ref` e registre em `ASSUNCOES` o valor citado.
    Se a ferramenta recusar por outro motivo, devolva `STATUS: bloqueado` para a
    delivery ser criada fora da sessão. Comando do usuário: `bin/pipeline-claude
    delivery new --title "<título>" --scope "<escopo>" --flags
-   require_security`.
+   require_security --ref "<id>"` (sem `--ref` se a demanda não citou a
+   tarefa).
 7. Registrar em `ASSUNCOES` tudo que a demanda deixou ambíguo.
 
 ## O que NÃO fazer

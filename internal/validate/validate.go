@@ -205,7 +205,7 @@ func checkRef(r *report.Report) []report.Finding {
 	if !ok || report.ValidRef(ref) {
 		return nil
 	}
-	return []report.Finding{errorf("ref %q fora do formato: até %d caracteres ASCII (letras, dígitos, \".\", \"_\" e \"-\"), começando por letra ou dígito, com \"#\" opcional na frente (ex.: 4431329797, PROJ-12, #128)", ref, report.MaxRefLen)}
+	return []report.Finding{errorf("ref %q fora do formato: até %d caracteres ASCII (letras, dígitos, \".\", \"_\" e \"-\"), começando por letra ou dígito, com \"#\" opcional na frente (ex.: 1234567890, PROJ-12, #128)", ref, report.MaxRefLen)}
 }
 
 var linkCellRe = regexp.MustCompile(`^\[([^\]]*)\]\([^)]*\)$`)

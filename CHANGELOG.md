@@ -27,6 +27,12 @@ go install github.com/rodrigodosanjosoliveira/pipeline-ai-claude/cmd/pipeline-cl
 
 - `validate` reprova report com `ref` vazia ou fora do formato. Report sem
   `ref` não muda.
+- Subagentes gerenciados (TD-49), atualizados pelo `sync`: o `pm-triage` passa
+  a `ref` ao `pipeline_delivery_new` só quando a demanda cita a tarefa externa,
+  sem inventar o ID; o `git-delivery` lê `ref:` do report e commita
+  `[<DELIVERY_ID>] [<ref>]`, com `Referência externa: <ref>` no PR/MR, e deixa
+  explícito que `{TASK_CODE}` é o `DELIVERY_ID` (a `ref` nunca entra no
+  branch).
 
 ## [v1.2.1] - 2026-11-09
 

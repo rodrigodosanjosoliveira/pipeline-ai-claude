@@ -80,7 +80,7 @@ type NewOptions struct {
 	// não a tiver.
 	Flags []string
 	// Ref é a referência externa da delivery (TD-49): o ID da tarefa num
-	// gestor de fora, como "4431329797" ou "PROJ-12". Opcional; vai a
+	// gestor de fora, como "1234567890" ou "PROJ-12". Opcional; vai a
 	// "ref: <valor>" no front matter, no formato de report.ValidRef. O
 	// report_template não pode já ter a chave ref.
 	Ref string
@@ -524,7 +524,7 @@ func checkRef(s string) (string, error) {
 	if t == "" || report.ValidRef(t) {
 		return t, nil
 	}
-	return "", fmt.Errorf("delivery: ref %q fora do formato: até %d caracteres ASCII (letras, dígitos, \".\", \"_\" e \"-\"), começando por letra ou dígito, com \"#\" opcional na frente (ex.: 4431329797, PROJ-12, #128)", t, MaxRefLen)
+	return "", fmt.Errorf("delivery: ref %q fora do formato: até %d caracteres ASCII (letras, dígitos, \".\", \"_\" e \"-\"), começando por letra ou dígito, com \"#\" opcional na frente (ex.: 1234567890, PROJ-12, #128)", t, MaxRefLen)
 }
 
 // applyRef grava "ref: <ref>" no fim do front matter do report. Sem front
