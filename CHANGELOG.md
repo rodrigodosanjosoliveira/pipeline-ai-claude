@@ -13,6 +13,20 @@ go install github.com/rodrigodosanjosoliveira/pipeline-ai-claude/cmd/pipeline-cl
 
 ## [Não lançado]
 
+## [v1.3.0] - 2026-11-23
+
+Referência externa da delivery (TD-49): a delivery pode levar o ID da tarefa
+num gestor de fora (Wrike, Jira, issue), e o `git-delivery` o leva ao commit
+como segundo colchete, `[<DELIVERY_ID>] [<ref>]`, onde ferramentas de
+apontamento de horas e de rastreio já procuram. Só acréscimo ao contrato da v1
+(TD-37). O branch continua `task/<DELIVERY_ID>`.
+
+Projeto existente, para atualizar: fixe `PIPELINE_CLAUDE_VERSION := v1.3.0` no
+`Makefile`, rode `make tools` e depois `bin/pipeline-claude sync --dry-run` e
+`bin/pipeline-claude sync` (mudam o `pm-triage` e o `git-delivery`). Nada muda
+na config. O `validate` passa a reprovar report com chave `ref` vazia ou fora
+do formato; report sem `ref` não muda.
+
 ### Adicionado
 
 - Referência externa da delivery (TD-49): `delivery new --ref <id>` e o
@@ -483,7 +497,8 @@ Primeira versão instalável (Fases 0 a 3).
 - Revisores gerados só leitura: diff e sensores chegam pelo MCP (TD-29).
 - `enabled_modules` recusa módulo repetido (TD-28).
 
-[Não lançado]: https://github.com/rodrigodosanjosoliveira/pipeline-ai-claude/compare/v1.2.1...HEAD
+[Não lançado]: https://github.com/rodrigodosanjosoliveira/pipeline-ai-claude/compare/v1.3.0...HEAD
+[v1.3.0]: https://github.com/rodrigodosanjosoliveira/pipeline-ai-claude/compare/v1.2.1...v1.3.0
 [v1.2.1]: https://github.com/rodrigodosanjosoliveira/pipeline-ai-claude/compare/v1.2.0...v1.2.1
 [v1.2.0]: https://github.com/rodrigodosanjosoliveira/pipeline-ai-claude/compare/v1.1.0...v1.2.0
 [v1.1.0]: https://github.com/rodrigodosanjosoliveira/pipeline-ai-claude/compare/v1.1.0-rc.2...v1.1.0
