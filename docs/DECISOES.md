@@ -558,6 +558,23 @@ gestor: não valida que a tarefa existe nem fala com a rede (TD-03).
 histórico precisa perguntar a que tarefa cada delivery corresponde. Decisão do
 usuário em 2026-11-23: só a referência, sem comando novo de atividade.
 
+### TD-50 — Índice: barra escapada, linhas fora do lugar e coluna Descrição
+O `delivery new` e o `index sync` leem o cabeçalho e as linhas da tabela de
+registro do índice como o GFM: `\|` é barra dentro da célula, não separador, e
+o `|` do fim da linha é opcional. A contagem de IDs para o número novo continua
+com a divisão sem escape, igual à do validador (TD-20), para nunca gerar um ID
+que ele já veja registrado. Falha fechada (regra 3) em dois casos que antes
+passavam calados: o `index sync` reprova, sem gravar nada, linha da tabela de
+registro com número de células diferente do cabeçalho (a coluna Status seria
+outra); `delivery new` e `index sync` reprovam linha de tabela depois da tabela
+de registro que não pertence a outra tabela com cabeçalho (linha em branco
+partindo o registro: a linha de baixo ficava fora dele e a nova entrava no
+meio). Sem coluna Título/Title, a coluna Descrição/Description recebe o título.
+**Motivo:** piloto num monorepo com índice anterior ao toolkit, que escapava
+`|` nas descrições, tinha uma linha em branco no meio do registro e chamava o
+título de Descrição. O formato do índice não está no contrato (TD-37); os dois
+casos novos de erro eram leituras erradas, então entram como correção.
+
 ## Pontos em aberto
 
 1. Distribuição da camada Claude também como plugin do Claude Code.
