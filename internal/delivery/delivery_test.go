@@ -260,6 +260,51 @@ func TestNew(t *testing.T) {
 			wantIndex: "| delivery_id | Título |\n|---|---|\n| FEAT-001 | Multa por atraso |\n",
 		},
 		{
+			// TD-50: índice que chama a coluna de título de Descrição.
+			name:      "coluna Descrição recebe o título",
+			index:     ptr("| ID | Descrição | Status |\n|---|---|---|\n"),
+			opts:      feat,
+			wantID:    "FEAT-001",
+			wantIndex: "| ID | Descrição | Status |\n|---|---|---|\n| FEAT-001 | Multa por atraso | draft |\n",
+		},
+		{
+			name:      "coluna Description recebe o título",
+			index:     ptr("| ID | Description |\n|---|---|\n"),
+			opts:      feat,
+			wantID:    "FEAT-001",
+			wantIndex: "| ID | Description |\n|---|---|\n| FEAT-001 | Multa por atraso |\n",
+		},
+		{
+			name:      "com Título e Descrição, só o Título recebe",
+			index:     ptr("| ID | Título | Descrição |\n|---|---|---|\n"),
+			opts:      feat,
+			wantID:    "FEAT-001",
+			wantIndex: "| ID | Título | Descrição |\n|---|---|---|\n| FEAT-001 | Multa por atraso |  |\n",
+		},
+		{
+			// TD-50: "\|" é barra dentro da célula (GFM), não separador.
+			name:      "barra escapada no cabeçalho não cria coluna",
+			index:     ptr("| ID | Título | Status | Notas \\| links |\n|---|---|---|---|\n| FEAT-001 | Reserva \\| fila | done | |\n"),
+			opts:      feat,
+			wantID:    "FEAT-002",
+			wantIndex: "| ID | Título | Status | Notas \\| links |\n|---|---|---|---|\n| FEAT-001 | Reserva \\| fila | done | |\n| FEAT-002 | Multa por atraso | draft |  |\n",
+		},
+		{
+			// TD-50: linha em branco encerra a tabela; a linha de baixo ficaria
+			// fora do registro e a nova entraria no meio.
+			name:    "linha de tabela solta depois de linha em branco",
+			index:   ptr(indexHead + row("FEAT-001", "Cadastro") + "\n" + row("FEAT-002", "Reserva")),
+			opts:    feat,
+			wantErr: "linha 7",
+		},
+		{
+			name:      "outra tabela com cabeçalho depois do registro não é linha solta",
+			index:     ptr(indexHead + row("FEAT-001", "Cadastro") + "\n| Nota |\n|---|\n| texto |\n"),
+			opts:      feat,
+			wantID:    "FEAT-002",
+			wantIndex: indexHead + row("FEAT-001", "Cadastro") + newRow("FEAT-002") + "\n| Nota |\n|---|\n| texto |\n",
+		},
+		{
 			name:      "índice CRLF",
 			index:     ptr(strings.ReplaceAll(indexHead+row("FEAT-001", "Cadastro")+"\nFim.\n", "\n", "\r\n")),
 			opts:      feat,

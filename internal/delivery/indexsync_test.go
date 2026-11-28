@@ -180,6 +180,10 @@ func TestSyncIndexFalhaSemGravar(t *testing.T) {
 		{name: "base com hífen", index: syncIndex, reports: allReports(), opts: SyncOptions{Base: "--output=x"}, want: "-"},
 		{name: "índice sem tabela", index: "# Deliveries\n\nnada aqui\n", want: "tabela"},
 		{name: "índice sem coluna Status", index: "| ID | Título |\n|---|---|\n| DEL-002 | Reserva |\n", want: "Status"},
+		// TD-50: célula a mais ou a menos deslocaria a coluna Status.
+		{name: "linha com célula a mais", index: syncIndex + "| DEL-012 | Reserva | fila | draft | 2026-11-06 |\n", reports: allReports(), want: "linha 11"},
+		{name: "linha com célula a menos", index: syncIndex + "| DEL-012 | draft | 2026-11-06 |\n", reports: allReports(), want: "linha 11"},
+		{name: "linha solta depois de linha em branco", index: syncIndex + "\n| DEL-012 | Reserva | draft | 2026-11-06 |\n", reports: allReports(), want: "linha em branco"},
 		{name: "report ausente", index: syncIndex, reports: map[string]string{"DEL-002": "em revisão"}, want: "DEL-010"},
 		{
 			name: "report sem status no front matter", index: syncIndex, reports: allReports(),
@@ -220,6 +224,26 @@ func TestSyncIndexFalhaSemGravar(t *testing.T) {
 	}
 }
 
+// TD-50: "\|" fica dentro da célula; a coluna Status continua a quarta.
+func TestSyncIndexBarraEscapada(t *testing.T) {
+	index := "| ID | Título | Status | Data |\n|---|---|---|---|\n" +
+		"| DEL-002 | Reserva \\| fila | em revisão | 2026-11-02 |\n" +
+		"| DEL-003 | Sem barra no fim | draft | 2026-11-03\n"
+	cfg := syncProject(t, index, map[string]string{"DEL-002": "em revisão", "DEL-003": "draft"}, "feat: [DEL-002]", "feat: [DEL-003]")
+	changes, err := SyncIndex(context.Background(), cfg, SyncOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(changes) != 2 {
+		t.Fatalf("mudanças = %+v; quer DEL-002 e DEL-003", changes)
+	}
+	want := strings.Replace(index, "| em revisão |", "| merged |", 1)
+	want = strings.Replace(want, "| draft |", "| merged |", 1)
+	if got := readRel(t, cfg, indexRel); got != want {
+		t.Errorf("índice =\n%s\nquer\n%s", got, want)
+	}
+}
+
 func TestSyncIndexIgnoraComentarioEBloco(t *testing.T) {
 	index := "| ID | Status |\n|---|---|\n| DEL-002 | em revisão |\n\n<!--\n| DEL-003 | draft |\n-->\n\n```\n| DEL-010 | draft |\n```\n"
 	cfg := syncProject(t, index, map[string]string{"DEL-002": "em revisão"}, "feat: [DEL-002]", "feat: [DEL-003]", "feat: [DEL-010]")
@@ -251,6 +275,36 @@ func FuzzSetFrontStatus(f *testing.F) {
 		// Só a linha do status muda.
 		if a, b := strings.Count(s, "\n"), strings.Count(out, "\n"); a != b {
 			t.Fatalf("número de linhas mudou: %d -> %d", a, b)
+		}
+	})
+}
+
+// FuzzCellSpans: as células ficam em ordem, dentro da linha sem o fim de
+// linha, e entre duas células há um "|" que não vem depois de "\".
+func FuzzCellSpans(f *testing.F) {
+	for _, seed := range []string{"", "|", "||", "| a | b |", "a | b", "| a \\| b |\r\n", "| a \\\\| b |", "  | x |  \n", "|\\|"} {
+		f.Add(seed)
+	}
+	f.Fuzz(func(t *testing.T, line string) {
+		end := len(strings.TrimRight(line, "\r\n"))
+		spans := cellSpans(line)
+		if len(spans) == 0 {
+			t.Fatalf("nenhuma célula em %q", line)
+		}
+		prev := -1
+		for k, sp := range spans {
+			if sp[0] > sp[1] || sp[0] <= prev || sp[1] > end {
+				t.Fatalf("célula %d fora de ordem ou da linha: %v em %q", k, spans, line)
+			}
+			if k > 0 {
+				if line[sp[0]-1] != '|' || (sp[0] >= 2 && line[sp[0]-2] == '\\') {
+					t.Fatalf("célula %d não começa depois de \"|\" sem escape: %v em %q", k, spans, line)
+				}
+				if spans[k-1][1] != sp[0]-1 {
+					t.Fatalf("células %d e %d não são vizinhas: %v em %q", k-1, k, spans, line)
+				}
+			}
+			prev = sp[1]
 		}
 	})
 }

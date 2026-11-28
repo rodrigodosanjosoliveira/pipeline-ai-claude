@@ -13,6 +13,21 @@ go install github.com/rodrigodosanjosoliveira/pipeline-ai-claude/cmd/pipeline-cl
 
 ## [Não lançado]
 
+### Adicionado
+
+- `delivery new`: sem coluna Título/Title no índice, a coluna
+  Descrição/Description recebe o título (TD-50).
+
+### Corrigido
+
+- `delivery new` e `index sync` leem `\|` como barra dentro da célula do
+  índice, não como separador; antes a coluna Status de uma linha com `\|`
+  ficava deslocada (TD-50).
+- `index sync` reprova, sem gravar nada, linha da tabela de registro com número
+  de células diferente do cabeçalho, em vez de ler a coluna errada (TD-50).
+- `delivery new` e `index sync` reprovam linha de tabela solta depois da tabela
+  de registro (linha em branco partindo o registro), em vez de ignorá-la (TD-50).
+
 ## [v1.3.0] - 2026-11-23
 
 Referência externa da delivery (TD-49): a delivery pode levar o ID da tarefa

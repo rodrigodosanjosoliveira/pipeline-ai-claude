@@ -808,7 +808,9 @@ func parseIndex(content string) (*index, error) {
 		if !strings.HasPrefix(t, "|") {
 			continue
 		}
-		for _, c := range splitCells(t) {
+		// Divisão ingênua, sem escape, igual à do validador: o número novo
+		// nunca pode ser um ID que ele já veja registrado (TD-20, TD-50).
+		for _, c := range strings.Split(strings.Trim(t, "|"), "|") {
 			if v := cellValue(c); v != "" {
 				idx.cells = append(idx.cells, v)
 			}
@@ -838,6 +840,9 @@ func parseIndex(content string) (*index, error) {
 			continue
 		}
 		idx.header, idx.head, idx.last = header, i, last
+		if err := idx.checkLoose(isRow); err != nil {
+			return nil, err
+		}
 		return idx, nil
 	}
 	if sawTable {
@@ -846,13 +851,63 @@ func parseIndex(content string) (*index, error) {
 	return nil, errors.New("nenhuma tabela com cabeçalho (linha de títulos seguida de |---|) fora de comentário e de bloco de código")
 }
 
+// checkLoose reprova linha de tabela depois da tabela de registro que não
+// pertence a tabela com cabeçalho: uma linha em branco encerra a tabela, e a
+// linha de baixo ficaria fora do registro (TD-50).
+func (idx *index) checkLoose(isRow func(int) bool) error {
+	for i := idx.last + 1; i < len(idx.lines); i++ {
+		if !isRow(i) {
+			continue
+		}
+		if isRow(i+1) && isSeparator(idx.lines[i+1]) {
+			for isRow(i + 1) {
+				i++
+			}
+			continue
+		}
+		return fmt.Errorf("linha %d: linha de tabela fora da tabela de registro (a tabela termina na linha %d; linha em branco parte a tabela?)", i+1, idx.last+1)
+	}
+	return nil
+}
+
 // isIDColumn diz se o título normalizado é de coluna de ID.
 func isIDColumn(h string) bool { return h == "id" || h == "delivery" || h == "delivery_id" }
 
-// splitCells divide uma linha de tabela (sem espaços nas pontas) em células,
-// como o validador: sem os "|" das pontas e sem escape.
+// splitCells divide uma linha de tabela em células, sem os "|" das pontas;
+// "\|" fica dentro da célula (GFM, TD-50).
 func splitCells(line string) []string {
-	return strings.Split(strings.Trim(line, "|"), "|")
+	var cells []string
+	for _, sp := range cellSpans(line) {
+		cells = append(cells, line[sp[0]:sp[1]])
+	}
+	return cells
+}
+
+// cellSpans devolve o início e o fim, em bytes, de cada célula de uma linha
+// de tabela (o fim de linha, se houver, fica de fora). O "|" do começo é
+// opcional, como o do fim; "\|" não separa célula (GFM, TD-50).
+func cellSpans(line string) [][2]int {
+	end := len(strings.TrimRight(line, "\r\n"))
+	start := len(line) - len(strings.TrimLeft(line, " \t"))
+	if start < end && line[start] == '|' {
+		start++
+	}
+	var spans [][2]int
+	for i := start; i < end; i++ {
+		switch line[i] {
+		case '\\':
+			if i+1 < end && line[i+1] == '|' {
+				i++
+			}
+		case '|':
+			spans = append(spans, [2]int{start, i})
+			start = i + 1
+		}
+	}
+	if strings.TrimSpace(line[start:end]) != "" || len(spans) == 0 {
+		spans = append(spans, [2]int{start, end})
+	}
+	return spans
 }
 
 // cellValue tira espaços, link [x](y), crases e ênfase de uma célula, como o
@@ -942,16 +997,21 @@ func fenceOf(text string) (byte, int, string) {
 }
 
 // row monta a linha nova com o número de colunas do cabeçalho: id, delivery
-// ou delivery_id recebem o ID; titulo ou title, o título; status, draft; data
-// ou date, a data. Sem coluna de ID é erro.
+// ou delivery_id recebem o ID; titulo ou title, o título (sem elas, descricao
+// ou description, TD-50); status, draft; data ou date, a data. Sem coluna de
+// ID é erro.
 func (idx *index) row(id, title, date string) (string, error) {
 	cells := make([]string, len(idx.header))
 	hasID := false
+	isTitle := func(h string) bool { return h == "titulo" || h == "title" }
+	if !slices.ContainsFunc(idx.header, isTitle) {
+		isTitle = func(h string) bool { return h == "descricao" || h == "description" }
+	}
 	for i, h := range idx.header {
 		switch {
 		case isIDColumn(h):
 			cells[i], hasID = id, true
-		case h == "titulo" || h == "title":
+		case isTitle(h):
 			cells[i] = title
 		case h == "status":
 			cells[i] = "draft"

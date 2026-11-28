@@ -82,13 +82,15 @@ func SyncIndex(ctx context.Context, cfg *config.Config, opts SyncOptions) ([]Sta
 	lines := slices.Clone(idx.lines)
 	// Linhas de dados: depois do cabeçalho e do separador, até last.
 	for i := idx.head + 2; i <= idx.last; i++ {
-		parts := strings.Split(strings.TrimRight(lines[i], "\r\n"), "|")
-		// parts[0] é o que vem antes do primeiro "|"; a célula c é parts[c+1].
-		if idCol+1 >= len(parts)-1 || statusCol+1 >= len(parts)-1 {
-			continue
+		spans := cellSpans(lines[i])
+		// Célula a mais ou a menos deslocaria a coluna Status (TD-50).
+		if len(spans) != len(idx.header) {
+			return nil, fmt.Errorf("index sync: %s: linha %d: %d células, o cabeçalho tem %d (\"|\" dentro de célula se escreve \\|)", cfg.IndexFile, i+1, len(spans), len(idx.header))
 		}
-		id := cellValue(parts[idCol+1])
-		status := strings.ToLower(cellValue(parts[statusCol+1]))
+		line, st := lines[i], spans[statusCol]
+		id := cellValue(line[spans[idCol][0]:spans[idCol][1]])
+		cell := line[st[0]:st[1]]
+		status := strings.ToLower(cellValue(cell))
 		if id == "" || !slices.Contains(syncable, status) {
 			continue
 		}
@@ -111,10 +113,7 @@ func SyncIndex(ctx context.Context, cfg *config.Config, opts SyncOptions) ([]Sta
 		if updated != string(rdata) {
 			edits = append(edits, reportEdit{rp, rdata, []byte(updated), rmode})
 		}
-		cell := parts[statusCol+1]
-		parts[statusCol+1] = strings.Replace(cell, strings.TrimSpace(cell), StatusMerged, 1)
-		eol := lines[i][len(strings.TrimRight(lines[i], "\r\n")):]
-		lines[i] = strings.Join(parts, "|") + eol
+		lines[i] = line[:st[0]] + strings.Replace(cell, strings.TrimSpace(cell), StatusMerged, 1) + line[st[1]:]
 		changes = append(changes, StatusChange{ID: id, From: cellValue(cell), To: StatusMerged, Commit: commit})
 	}
 	if len(changes) == 0 || opts.DryRun {
